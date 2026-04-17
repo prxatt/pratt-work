@@ -1,0 +1,25 @@
+import type { Metadata } from 'next';
+import { AboutHero } from '@/components/about/AboutHero';
+import { CapabilitiesSection } from '@/components/about/CapabilitiesSection';
+import { StatsSection } from '@/components/about/StatsSection';
+import { NarrativeStatements } from '@/components/about/NarrativeStatements';
+import { TechStackAbout } from '@/components/about/TechStackAbout';
+import { AboutCTA } from '@/components/about/AboutCTA';
+
+export const metadata: Metadata = {
+  title: 'About — Pratt Majmudar',
+  description: 'Creative Technologist + Executive Producer. 9+ years building experiences that shift perspectives.',
+};
+
+export default function AboutPage() {
+  return (
+    <main className="min-h-screen bg-[#0D0D0D]">
+      <AboutHero />
+      <CapabilitiesSection />
+      <StatsSection />
+      <NarrativeStatements />
+      <TechStackAbout />
+      <AboutCTA />
+    </main>
+  );
+}

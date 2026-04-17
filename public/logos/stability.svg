@@ -1,0 +1,5 @@
+<svg viewBox="0 0 200 40" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="15" cy="20" r="8" fill="none" stroke="#FFFFFF" stroke-width="2"/>
+  <circle cx="15" cy="20" r="3" fill="#FFFFFF"/>
+  <text x="32" y="25" font-family="system-ui, -apple-system, sans-serif" font-size="16" font-weight="500" fill="#FFFFFF">Stability AI</text>
+</svg>

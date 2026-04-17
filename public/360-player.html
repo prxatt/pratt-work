@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Levi's Innovation Labs - 360° Experience</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+  <script src="https://unpkg.com/aframe-event-set-component@5.0.0/dist/aframe-event-set-component.min.js"></script>
+  <style>
+    body { margin: 0; overflow: hidden; background: #0A0F1A; }
+    /* VR button hidden - 360° only mode */
+    .a-enter-vr-button {
+      display: none !important;
+    }
+  </style>
+</head>
+<body>
+  <a-scene 
+    embedded 
+    vr-mode-ui="enabled: false"
+    loading-screen="dotsColor: #B87333; backgroundColor: #0A0F1A"
+    renderer="antialias: true; colorManagement: true; highRefreshRate: true"
+  >
+    <!-- 360 Video Sphere -->
+    <a-videosphere 
+      src="#video360" 
+      rotation="0 -90 0"
+      play-on-click
+    ></a-videosphere>
+    
+    <!-- Video Asset -->
+    <a-assets timeout="10000">
+      <video 
+        id="video360" 
+        autoplay 
+        loop 
+        muted
+        crossorigin="anonymous"
+        playsinline
+        webkit-playsinline
+        poster="/work/levis-thumb.jpg"
+      >
+        <source src="/work/levis-360.mp4" type="video/mp4">
+        <source src="/work/levis-360.webm" type="video/webm">
+      </video>
+      <img id="poster" src="/work/levis-thumb.jpg" crossorigin="anonymous">
+    </a-assets>
+    
+    <!-- Camera with controls -->
+    <a-entity 
+      camera 
+      look-controls="reverseMouseDrag: true; touchEnabled: true"
+      wasd-controls="enabled: false"
+      position="0 0 0"
+    >
+      <!-- Cursor for interaction -->
+      <a-cursor
+        color="#B87333"
+        scale="0.5 0.5 0.5"
+        raycaster="objects: .clickable"
+        animation__click="property: scale; startEvents: click; easing: easeInCubic; dur: 150; from: 0.1 0.1 0.1; to: 0.5 0.5 0.5"
+        animation__fusing="property: scale; startEvents: fusing; easing: easeInCubic; dur: 1500; from: 0.5 0.5 0.5; to: 0.1 0.1 0.1"
+        animation__mouseleave="property: scale; startEvents: mouseleave; easing: easeInCubic; dur: 500; to: 0.5 0.5 0.5"
+      ></a-cursor>
+    </a-entity>
+    
+    <!-- Ambient lighting -->
+    <a-light type="ambient" color="#ffffff" intensity="0.5"></a-light>
+    
+    <!-- Sky background -->
+    <a-sky color="#0A0F1A"></a-sky>
+  </a-scene>
+  
+  <script>
+    // Auto-play video when scene is loaded
+    document.querySelector('a-scene').addEventListener('loaded', function () {
+      var video = document.querySelector('#video360');
+      if (video) {
+        video.play().catch(function(error) {
+          console.log('Autoplay prevented:', error);
+        });
+      }
+    });
+    
+    // Handle click to play/pause
+    AFRAME.registerComponent('play-on-click', {
+      init: function () {
+        this.el.addEventListener('click', function (evt) {
+          var video = document.querySelector('#video360');
+          if (video.paused) {
+            video.play();
+          } else {
+            video.pause();
+          }
+        });
+      }
+    });
+    
+  </script>
+</body>
+</html>
