@@ -44,12 +44,18 @@ export function getMediaUrl(
 
   const isVideo = /\.(mp4|webm|mov)$/i.test(filename);
   
-  // Preserve the original directory structure, just inject the media type subfolder
-  // /work/boubyan-thumb.webp → work/images/boubyan-thumb.webp
+  // Smart path builder — avoids doubling up folder names
   const lastSlashIndex = localPath.lastIndexOf('/');
-  const dir = lastSlashIndex > 0 ? localPath.substring(1, lastSlashIndex) : ''; // strip leading /
+  const dir = lastSlashIndex > 0 ? localPath.substring(1, lastSlashIndex) : '';
+
+  // Only inject the subfolder if the directory doesn't already end with it
   const mediaSubfolder = isVideo ? 'videos' : 'images';
-  const cloudPath = dir ? `${dir}/${mediaSubfolder}/${filename}` : `${mediaSubfolder}/${filename}`;
+  const dirAlreadyHasSubfolder = dir.endsWith(mediaSubfolder);
+  const cloudPath = dirAlreadyHasSubfolder
+    ? `${dir}/${filename}`
+    : dir
+      ? `${dir}/${mediaSubfolder}/${filename}`
+      : `${mediaSubfolder}/${filename}`;
   
   const baseUrl = isVideo 
     ? `https://res.cloudinary.com/${cloudName}/video/upload` 
@@ -130,4 +136,3 @@ export function generateSrcSet(
     .map(w => `${getImageUrl(localPath, w, options)} ${w}w`)
     .join(', ');
 }
-// Cloudinary integration v2
