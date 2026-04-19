@@ -26,6 +26,7 @@ export function HeroBackgroundVideo({ webmSrc, mp4Src, className, poster }: Hero
       void el.play().catch(() => {});
     };
 
+    el.load();
     kick();
     el.addEventListener('loadeddata', kick);
     const vis = () => {
