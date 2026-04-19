@@ -604,7 +604,7 @@ export default function TheCryptPage() {
       <CinematicGrain />
       
       {/* HERO SECTION */}
-      <section ref={heroRef} className="relative min-h-screen flex items-center justify-center pt-24 md:pt-32 pb-20 px-6 overflow-hidden">
+      <section ref={heroRef} className="relative min-h-[100dvh] flex flex-col items-stretch justify-start pt-24 md:pt-28 pb-[min(42vh,340px)] sm:pb-[360px] md:pb-28 px-6 overflow-x-hidden">
         {/* Ambient glow */}
         <motion.div 
           className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1000px] h-[1000px] rounded-full pointer-events-none"
@@ -615,7 +615,7 @@ export default function TheCryptPage() {
           transition={{ duration: 8, repeat: Infinity }}
         />
 
-        <div className="relative z-10 max-w-7xl mx-auto">
+        <div className="relative z-10 max-w-7xl mx-auto w-full flex-1 md:flex-none">
           {/* Top Label */}
           <motion.div 
             initial={{ opacity: 0, y: 30 }}
@@ -687,9 +687,9 @@ export default function TheCryptPage() {
             initial={{ opacity: 0, y: 40 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 1, delay: 1.1 }}
-            className="max-w-4xl mb-20"
+            className="max-w-4xl mb-8 md:mb-16"
           >
-            <p className="font-sans text-lg md:text-xl lg:text-2xl leading-[1.7] text-white/60">
+            <p className="font-sans text-base sm:text-lg md:text-xl lg:text-2xl leading-relaxed md:leading-[1.7] text-white/60">
               We captured a single moment from multiple angles using only depth sensors and a proprietary algorithm. 
               No green screen. No manual intervention. Just pure real-time volumetric presence.
             </p>
@@ -701,13 +701,13 @@ export default function TheCryptPage() {
           initial={{ opacity: 0, y: 40 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 1, delay: 1.3 }}
-          className="absolute bottom-12 left-6 md:left-12 lg:left-20 right-6 md:right-12 lg:right-20"
+          className="absolute bottom-6 sm:bottom-10 left-4 right-4 sm:left-6 sm:right-6 md:bottom-12 md:left-12 lg:left-20 md:right-12 lg:right-20"
         >
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-px bg-white/10">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-px bg-white/10 rounded-sm overflow-hidden shadow-[0_12px_40px_rgba(0,0,0,0.45)]">
             {technicalSpecs.map((spec, i) => (
               <motion.div 
                 key={spec.label}
-                className="bg-[#030303] p-6 md:p-8 group min-w-0"
+                className="bg-[#030303] p-4 sm:p-6 md:p-8 group min-w-0 relative"
                 initial={{ opacity: 0, y: prefersReducedMotion ? 0 : 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: prefersReducedMotion ? 0 : 1.4 + i * 0.1 }}
@@ -728,9 +728,9 @@ export default function TheCryptPage() {
                 <span className="font-mono text-[9px] md:text-[10px] tracking-[0.2em] md:tracking-[0.25em] text-white/30 uppercase block mb-3">
                   {spec.label}
                 </span>
-                <div className="flex items-baseline gap-2 min-w-0">
+                <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 min-w-0">
                   <motion.span 
-                    className="font-display text-2xl md:text-3xl lg:text-4xl text-white uppercase block truncate"
+                    className={`font-display text-xl sm:text-2xl md:text-3xl lg:text-4xl text-white uppercase block min-w-0 ${spec.isText ? 'break-words leading-tight' : 'truncate'}`}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: prefersReducedMotion ? 0 : 1.6 + i * 0.1 }}

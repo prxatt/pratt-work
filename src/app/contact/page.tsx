@@ -151,7 +151,7 @@ export default function ContactPage() {
   const remarkableLetters = useMemo(() => 'REMARKABLE'.split(''), []);
 
   return (
-    <div className="h-screen w-full bg-[#0D0D0D] relative overflow-hidden flex flex-col">
+    <div className="min-h-[100dvh] h-screen w-full bg-[#0D0D0D] relative overflow-hidden flex flex-col pt-[max(0.5rem,env(safe-area-inset-top))] pb-[max(0.5rem,env(safe-area-inset-bottom))]">
         {/* Interactive GridScan Background - Optimized for mobile */}
         <div className="absolute inset-0 z-0">
           <GridScan
@@ -346,7 +346,7 @@ export default function ContactPage() {
                     <motion.button
                       type="submit"
                       disabled={isSubmitting}
-                      className="group relative px-6 sm:px-8 md:px-12 py-3 sm:py-4 border border-[#2a2a2a] rounded-full overflow-hidden disabled:opacity-50 min-h-[48px] touch-manipulation"
+                      className="group relative px-5 sm:px-8 md:px-12 py-3 sm:py-4 border border-[#2a2a2a] rounded-full overflow-hidden disabled:opacity-50 min-h-[48px] touch-manipulation max-w-[min(100%,calc(100vw-2rem))]"
                       onMouseEnter={() => setCursorState('magnetic')}
                       onMouseLeave={() => setCursorState('default')}
                       whileHover={!prefersReducedMotion && !isMobile ? { scale: 1.03 } : undefined}
@@ -371,7 +371,7 @@ export default function ContactPage() {
                       <motion.div
                         className="absolute inset-0 bg-gradient-to-r from-emerald-500/20 via-amber-500/20 to-cyan-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-full pointer-events-none"
                       />
-                      <span className="relative z-10 font-mono text-xs sm:text-sm tracking-[0.15em] sm:tracking-[0.2em] text-[#F2F2F0] uppercase flex items-center gap-2 sm:gap-3">
+                      <span className="relative z-10 font-mono text-[11px] sm:text-xs md:text-sm tracking-[0.12em] sm:tracking-[0.18em] text-[#F2F2F0] uppercase inline-flex flex-nowrap items-center justify-center gap-2 sm:gap-3 whitespace-nowrap">
                         {isSubmitting ? (
                           <>
                             <Loader2 className="w-4 h-4 animate-spin shrink-0" />

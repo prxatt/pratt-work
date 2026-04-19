@@ -224,7 +224,7 @@ export function VideoPlayer({ webmSrc, mp4Src, poster, accentColor, title, subti
       {/* Video element */}
       <video
         ref={videoRef}
-        className="w-full aspect-[21/9] object-cover"
+        className="w-full aspect-video sm:aspect-[21/9] object-cover"
         poster={poster}
         muted={isMuted}
         playsInline
@@ -290,10 +290,10 @@ export function VideoPlayer({ webmSrc, mp4Src, poster, accentColor, title, subti
             className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none"
           >
             {/* Bottom control bar */}
-            <div className="absolute bottom-0 left-0 right-0 px-6 py-4">
+            <div className="absolute bottom-0 left-0 right-0 px-3 sm:px-6 pt-2 pb-3 sm:pb-4 pointer-events-auto">
               {/* Progress bar */}
               <div 
-                className="relative h-1 bg-white/20 rounded-full overflow-hidden mb-4 cursor-pointer pointer-events-auto"
+                className="relative h-1 bg-white/20 rounded-full overflow-hidden mb-3 sm:mb-4 cursor-pointer"
                 onClick={handleSeek}
               >
                 <motion.div
@@ -316,8 +316,8 @@ export function VideoPlayer({ webmSrc, mp4Src, poster, accentColor, title, subti
               </div>
 
               {/* Controls row */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
+              <div className="flex flex-wrap items-center justify-between gap-y-3 gap-x-2">
+                <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
                   {/* Play/Pause */}
                   <motion.button
                     onClick={togglePlay}
@@ -384,7 +384,7 @@ export function VideoPlayer({ webmSrc, mp4Src, poster, accentColor, title, subti
                   </div>
 
                   {/* Time display */}
-                  <span className="font-mono text-[10px] text-white/60 tracking-wider">
+                  <span className="font-mono text-[9px] sm:text-[10px] text-white/60 tracking-wider tabular-nums shrink-0">
                     {formatTime(currentTime)} / {formatTime(duration)}
                   </span>
                 </div>
@@ -392,7 +392,7 @@ export function VideoPlayer({ webmSrc, mp4Src, poster, accentColor, title, subti
                 {/* Fullscreen toggle */}
                 <motion.button
                   onClick={toggleFullscreen}
-                  className="w-10 h-10 rounded-full bg-white/10 border border-white/20 flex items-center justify-center hover:bg-white/20 transition-colors pointer-events-auto"
+                  className="w-10 h-10 rounded-full bg-white/10 border border-white/20 flex items-center justify-center hover:bg-white/20 transition-colors shrink-0"
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                 >
@@ -403,18 +403,29 @@ export function VideoPlayer({ webmSrc, mp4Src, poster, accentColor, title, subti
                   )}
                 </motion.button>
               </div>
+
+              {/* Title + subtitle — single place, readable contrast (avoids duplicate top label) */}
+              {(title || subtitle) && (
+                <div className="mt-2 space-y-0.5 border-t border-white/10 pt-2">
+                  {title && (
+                    <p className="font-mono text-[10px] sm:text-[11px] tracking-[0.18em] uppercase truncate" style={{ color: accentColor }}>
+                      {title}
+                    </p>
+                  )}
+                  {subtitle && (
+                    <p className="font-mono text-[9px] sm:text-[10px] tracking-[0.15em] uppercase text-white/50">
+                      {subtitle}
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
 
-            {/* Top info bar */}
-            <div className="absolute top-0 left-0 right-0 px-6 py-4 flex items-center justify-between">
-              <span className="font-mono text-[9px] text-white/60 tracking-wider">
+            {/* Top info bar — deck id only (section header carries clip index) */}
+            <div className="absolute top-0 left-0 right-0 px-3 sm:px-6 py-3 sm:py-4 flex items-center justify-start pointer-events-none">
+              <span className="font-mono text-[8px] sm:text-[9px] text-white/50 tracking-wider truncate">
                 FULLY_CONNECTED_2023
               </span>
-              {title && (
-                <span className="font-mono text-[9px] tracking-[0.2em] uppercase" style={{ color: accentColor }}>
-                  {title}
-                </span>
-              )}
             </div>
           </motion.div>
         )}

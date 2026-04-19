@@ -182,8 +182,9 @@ export default function SalesforceContent({ metadata, content, mainDescriptionMd
 
               {/* Bold stacked title - SALESFORCE one word, two colors */}
               <motion.div className="space-y-0" variants={fadeInUp}>
-                <h1 className="font-display text-[clamp(4rem,25vw,15rem)] uppercase leading-[0.9] tracking-tight break-words">
+                <h1 className="font-display text-[clamp(2.85rem,19vw,15rem)] uppercase leading-[0.9] tracking-tight break-words text-balance">
                   <span className="text-white">SALES</span>
+                  <wbr />
                   <span style={{ color: sfBlue }}>FORCE</span>
                 </h1>
               </motion.div>
@@ -201,7 +202,7 @@ export default function SalesforceContent({ metadata, content, mainDescriptionMd
 
               {/* Mission statement */}
               <motion.p 
-                className="font-sans text-base md:text-lg lg:text-xl text-[#888] max-w-xl leading-relaxed mt-6 md:mt-8 break-words"
+                className="font-sans text-base md:text-lg lg:text-xl text-[#888] max-w-xl leading-relaxed mt-6 md:mt-8 break-words hyphens-none text-pretty"
                 variants={fadeInUp}
               >
                 Transforming a corporate milestone into a human celebration. Technology means nothing if it doesn&apos;t lift the community.

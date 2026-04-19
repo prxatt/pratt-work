@@ -8,6 +8,7 @@ import { AnimatedCounter } from '@/components/micro-animations/AnimatedCounter';
 import { ScrambleText } from '@/components/micro-animations/ScrambleText';
 import { CornerDraw } from '@/components/micro-animations/CornerDraw';
 import { getVideoUrl, getImageUrl } from '@/lib/media';
+import { HeroBackgroundVideo } from '@/components/work/HeroBackgroundVideo';
 
 interface StabilityContentProps {
   metadata: {
@@ -227,17 +228,12 @@ export default function StabilityContent({
       >
         {/* Video Background */}
         <div className="absolute inset-0 w-full h-full z-0">
-          <video
-            autoPlay
-            muted
-            loop
-            playsInline
-            className="w-full h-full object-cover"
+          <HeroBackgroundVideo
+            webmSrc={getVideoUrl('/work/stability-vid.webm')}
+            mp4Src={getVideoUrl('/work/stability-vid.mp4')}
             poster={getImageUrl('/work/stability-ai-thumb.webp', 800)}
-          >
-            <source src={getVideoUrl('/work/stability-vid.webm')} type="video/webm" />
-            <source src={getVideoUrl('/work/stability-vid.mp4')} type="video/mp4" />
-          </video>
+            className="h-full w-full object-cover"
+          />
         </div>
 
         {/* Left-side gradient for text readability */}

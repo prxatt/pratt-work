@@ -532,19 +532,19 @@ export default function BoubyanContent({ metadata, mainContent, approachSections
           variants={containerVariants}
         >
           {/* Section header */}
-          <motion.div className="flex items-center justify-between mb-20" variants={slideUp}>
-            <div className="flex items-center gap-6">
+          <motion.div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between mb-12 sm:mb-20 min-w-0" variants={slideUp}>
+            <div className="flex items-center gap-4 sm:gap-6 min-w-0">
               <motion.div 
-                className="h-[3px] w-24" 
+                className="h-[3px] w-16 sm:w-24 shrink-0" 
                 style={{ backgroundColor: steel, originX: 0 }}
                 initial={{ scaleX: 0 }}
                 animate={processInView ? { scaleX: 1 } : { scaleX: 0 }}
                 transition={{ duration: 0.8 }}
               />
-              <span className="font-mono text-[10px] tracking-[0.3em] uppercase" style={{ color: rust }}>Workflow</span>
+              <span className="font-mono text-[10px] tracking-[0.3em] uppercase truncate" style={{ color: rust }}>Workflow</span>
             </div>
             <motion.span 
-              className="font-display text-3xl text-[#F2F2F0] uppercase"
+              className="font-display text-[clamp(1.35rem,5.5vw,1.875rem)] sm:text-3xl text-[#F2F2F0] uppercase leading-[1.05] text-balance max-w-full"
               initial={{ opacity: 0, x: 20 }}
               animate={processInView ? { opacity: 1, x: 0 } : { opacity: 0, x: 20 }}
               transition={{ delay: 0.2 }}

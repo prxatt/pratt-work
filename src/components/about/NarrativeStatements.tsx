@@ -422,7 +422,7 @@ export const NarrativeStatements = () => {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.8, delay: 0.5, ease: [0.16, 1, 0.3, 1] }}
-            className="mt-16 flex gap-4 w-full justify-center px-[5vw]"
+            className="mt-16 flex flex-col sm:flex-row gap-4 sm:gap-5 w-full justify-center px-2 sm:px-[5vw]"
           >
             <VideoFrame label="Experiential" index={0} mp4Src={getVideoUrl('/videos/the-crypt-space.mp4')} webmSrc={getVideoUrl('/videos/the-crypt-space.webm')} />
             <VideoFrame label="Production" index={1} mp4Src={getVideoUrl('/videos/st-dd-prod.mp4')} webmSrc={getVideoUrl('/videos/st-dd-prod.webm')} />

@@ -7,6 +7,7 @@ import { OptimizedHorizontalGallery } from '@/components/work/OptimizedHorizonta
 import { VideoMuteToggle } from '@/components/work/VideoMuteToggle';
 import { Metadata } from 'next';
 import { getImageUrl, getVideoUrl } from '@/lib/media';
+import { HeroBackgroundVideo } from '@/components/work/HeroBackgroundVideo';
 
 export async function generateMetadata(): Promise<Metadata> {
   const project = await getFileBySlug('work', 'surface-tension-digital-drip');
@@ -109,7 +110,7 @@ export default async function DigitalDripPage() {
       {/* PROJECTION MAPPING BACKGROUND */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden">
         {/* Projection beam lines */}
-        <svg className="absolute inset-0 w-full h-full opacity-[0.02]" xmlns="http://www.w3.org/2000/svg">
+        <svg className="absolute inset-0 w-full h-full opacity-[0.035] md:opacity-[0.02]" xmlns="http://www.w3.org/2000/svg">
           <defs>
             <linearGradient id="beam1" x1="0%" y1="0%" x2="100%" y2="100%">
               <stop offset="0%" stopColor={beam} stopOpacity="0.5" />
@@ -148,16 +149,11 @@ export default async function DigitalDripPage() {
       {/* HERO - CRT MONITOR STYLE */}
       <header className="relative min-h-screen flex flex-col justify-center px-6 md:px-12 lg:px-20 pt-32 pb-20">
         {/* Background video - st-mapped */}
-        <video
-          autoPlay
-          loop
-          muted
-          playsInline
+        <HeroBackgroundVideo
+          webmSrc={getVideoUrl('/work/st-mapped.webm')}
+          mp4Src={getVideoUrl('/work/st-mapped.mp4')}
           className="absolute inset-0 w-full h-full object-cover z-0"
-        >
-          <source src={getVideoUrl('/work/st-mapped.webm')} type="video/webm" />
-          <source src={getVideoUrl('/work/st-mapped.mp4')} type="video/mp4" />
-        </video>
+        />
         
         {/* Mute toggle for hero video */}
         <div className="absolute bottom-24 right-6 z-20 md:hidden">
@@ -168,11 +164,11 @@ export default async function DigitalDripPage() {
         <div className="absolute inset-0 bg-black/60 z-[1]" />
 
         {/* Screen border frame */}
-        <div className="absolute inset-8 border border-[#333] pointer-events-none hidden lg:block z-10">
-          <div className="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2" style={{ borderColor: phosphor }} />
-          <div className="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2" style={{ borderColor: phosphor }} />
-          <div className="absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2" style={{ borderColor: phosphor }} />
-          <div className="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2" style={{ borderColor: phosphor }} />
+        <div className="absolute inset-4 sm:inset-6 lg:inset-8 border border-[#333] pointer-events-none z-10">
+          <div className="absolute top-0 left-0 w-3 h-3 sm:w-4 sm:h-4 border-t-2 border-l-2" style={{ borderColor: phosphor }} />
+          <div className="absolute top-0 right-0 w-3 h-3 sm:w-4 sm:h-4 border-t-2 border-r-2" style={{ borderColor: phosphor }} />
+          <div className="absolute bottom-0 left-0 w-3 h-3 sm:w-4 sm:h-4 border-b-2 border-l-2" style={{ borderColor: phosphor }} />
+          <div className="absolute bottom-0 right-0 w-3 h-3 sm:w-4 sm:h-4 border-b-2 border-r-2" style={{ borderColor: phosphor }} />
         </div>
 
         <div className="relative z-10 max-w-6xl mx-auto">
@@ -303,16 +299,11 @@ export default async function DigitalDripPage() {
                 >
                   <div className="aspect-video bg-[#111] relative overflow-hidden">
                     {/* Background video - st-create */}
-                    <video
-                      autoPlay
-                      loop
-                      muted
-                      playsInline
+                    <HeroBackgroundVideo
+                      webmSrc={getVideoUrl('/work/st-create.webm')}
+                      mp4Src={getVideoUrl('/work/st-create.mp4')}
                       className="absolute inset-0 w-full h-full object-cover z-0"
-                    >
-                      <source src={getVideoUrl('/work/st-create.webm')} type="video/webm" />
-                      <source src={getVideoUrl('/work/st-create.mp4')} type="video/mp4" />
-                    </video>
+                    />
 
                     {/* Corner keystone markers - projection mapping style */}
                     <div className="absolute top-2 left-2 w-4 h-4 border-l border-t z-10" style={{ borderColor: beam }} />
@@ -340,16 +331,11 @@ export default async function DigitalDripPage() {
                   >
                     <div className="aspect-square bg-[#111] relative overflow-hidden">
                       {/* Background video - st-crt */}
-                      <video
-                        autoPlay
-                        loop
-                        muted
-                        playsInline
+                      <HeroBackgroundVideo
+                        webmSrc={getVideoUrl('/work/st-crt.webm')}
+                        mp4Src={getVideoUrl('/work/st-crt.mp4')}
                         className="absolute inset-0 w-full h-full object-cover z-0"
-                      >
-                        <source src={getVideoUrl('/work/st-crt.webm')} type="video/webm" />
-                        <source src={getVideoUrl('/work/st-crt.mp4')} type="video/mp4" />
-                      </video>
+                      />
 
                       {/* CRT phosphor glow */}
                       <div className="absolute inset-0 pointer-events-none opacity-20 z-[5]"
@@ -375,16 +361,11 @@ export default async function DigitalDripPage() {
                   >
                     <div className="aspect-square bg-[#111] relative overflow-hidden">
                       {/* Background video - st-coffee */}
-                      <video
-                        autoPlay
-                        loop
-                        muted
-                        playsInline
+                      <HeroBackgroundVideo
+                        webmSrc={getVideoUrl('/work/st-coffee.webm')}
+                        mp4Src={getVideoUrl('/work/st-coffee.mp4')}
                         className="absolute inset-0 w-full h-full object-cover z-0"
-                      >
-                        <source src={getVideoUrl('/work/st-coffee.webm')} type="video/webm" />
-                        <source src={getVideoUrl('/work/st-coffee.mp4')} type="video/mp4" />
-                      </video>
+                      />
 
                       <div className="absolute top-2 left-2 w-3 h-3 border-l border-t z-10" style={{ borderColor: phosphor }} />
                       <div className="absolute top-2 right-2 w-3 h-3 border-r border-t z-10" style={{ borderColor: phosphor }} />
@@ -404,16 +385,11 @@ export default async function DigitalDripPage() {
                 >
                   <div className="aspect-video bg-[#111] relative overflow-hidden">
                     {/* Background video - st-atmosphere */}
-                    <video
-                      autoPlay
-                      loop
-                      muted
-                      playsInline
+                    <HeroBackgroundVideo
+                      webmSrc={getVideoUrl('/work/st-atmosphere.webm')}
+                      mp4Src={getVideoUrl('/work/st-atmosphere.mp4')}
                       className="absolute inset-0 w-full h-full object-cover z-0"
-                    >
-                      <source src={getVideoUrl('/work/st-atmosphere.webm')} type="video/webm" />
-                      <source src={getVideoUrl('/work/st-atmosphere.mp4')} type="video/mp4" />
-                    </video>
+                    />
 
                     <div className="absolute top-3 left-3 w-4 h-4 border-l-2 border-t-2 z-10" style={{ borderColor: amber }} />
                     <div className="absolute top-3 right-3 w-4 h-4 border-r-2 border-t-2 z-10" style={{ borderColor: amber }} />
@@ -516,9 +492,9 @@ export default async function DigitalDripPage() {
                     </div>
 
                     {/* Arrow - Glitch style */}
-                    <div className="hidden md:flex items-center">
+                    <div className="flex items-center shrink-0 pt-1 md:pt-0">
                       <span 
-                        className="font-mono text-2xl"
+                        className="font-mono text-xl md:text-2xl"
                         style={{ 
                           color: index === 0 ? phosphor : index === 1 ? strobe : beam,
                           opacity: 0.5
@@ -544,16 +520,11 @@ export default async function DigitalDripPage() {
                 {/* Vertical video area */}
                 <div className="aspect-[9/16] bg-[#111] relative">
                   {/* Background video - st-mobile */}
-                  <video
-                    autoPlay
-                    loop
-                    muted
-                    playsInline
+                  <HeroBackgroundVideo
+                    webmSrc={getVideoUrl('/work/st-mobile.webm')}
+                    mp4Src={getVideoUrl('/work/st-mobile.mp4')}
                     className="absolute inset-0 w-full h-full object-cover z-0"
-                  >
-                    <source src={getVideoUrl('/work/st-mobile.webm')} type="video/webm" />
-                    <source src={getVideoUrl('/work/st-mobile.mp4')} type="video/mp4" />
-                  </video>
+                  />
 
                   {/* Phone notch area */}
                   <div className="absolute top-0 left-1/2 -translate-x-1/2 w-20 h-6 bg-[#1a1a1a] rounded-b-lg z-20" />
