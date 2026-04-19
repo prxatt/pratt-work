@@ -2,16 +2,20 @@
  * Cloudinary Media Path Utility
  * 
  * Automatically routes media requests to Cloudinary CDN instead of local files.
- * Falls back to local paths during development or if Cloudinary is not configured.
+ * Throws in development if env var missing. Preserves directory structure.
  */
 
 const CLOUDINARY_CLOUD_NAME = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || '';
-const CLOUDINARY_BASE_URL = CLOUDINARY_CLOUD_NAME
-  ? `https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME}/image/upload`
-  : '';
-const CLOUDINARY_VIDEO_URL = CLOUDINARY_CLOUD_NAME
-  ? `https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME}/video/upload`
-  : '';
+
+function getCloudName(): string {
+  if (!CLOUDINARY_CLOUD_NAME) {
+    if (process.env.NODE_ENV === 'development') {
+      throw new Error('[media.ts] NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME is not set. Add it to .env.local');
+    }
+    return '';
+  }
+  return CLOUDINARY_CLOUD_NAME;
+}
 
 /**
  * Get optimized media URL
@@ -29,21 +33,30 @@ export function getMediaUrl(
     crop?: 'fill' | 'fit' | 'scale' | 'limit';
   } = {}
 ): string {
-  // If Cloudinary not configured, return local path
-  if (!CLOUDINARY_CLOUD_NAME) {
-    return localPath;
-  }
+  const cloudName = getCloudName();
+  if (!cloudName) return localPath;
 
-  // Extract filename from path
   const filename = localPath.split('/').pop();
   if (!filename) return localPath;
 
   const isVideo = /\.(mp4|webm|mov)$/i.test(filename);
-  const baseUrl = isVideo ? CLOUDINARY_VIDEO_URL : CLOUDINARY_BASE_URL;
+  const mediaSubfolder = isVideo ? 'videos' : 'images';
 
-  // Build transformation string
+  // Build path parts from the original directory, excluding the filename
+  const pathParts = localPath.split('/').filter(Boolean);
+  pathParts.pop(); // remove filename
+
+  // Only inject the subfolder if the last directory segment isn't already it
+  // This prevents videos/videos/ or images/images/ doubling
+  if (pathParts[pathParts.length - 1] !== mediaSubfolder) {
+    pathParts.push(mediaSubfolder);
+  }
+
+  const cloudPath = [...pathParts, filename].join('/');
+
+  const baseUrl = `https://res.cloudinary.com/${cloudName}/${isVideo ? 'video' : 'image'}/upload`;
+
   const transformations: string[] = [];
-  
   if (options.width) transformations.push(`w_${options.width}`);
   if (options.height) transformations.push(`h_${options.height}`);
   if (options.crop) transformations.push(`c_${options.crop}`);
@@ -55,16 +68,12 @@ export function getMediaUrl(
   if (options.format && options.format !== 'auto') {
     transformations.push(`f_${options.format}`);
   }
-
-  // Add optimization defaults for images
   if (!isVideo && transformations.length === 0) {
     transformations.push('q_auto', 'f_auto');
   }
 
   const transformString = transformations.join(',');
-  const folder = isVideo ? 'videos' : 'images';
-  
-  return `${baseUrl}/${transformString ? transformString + '/' : ''}${folder}/${filename}`;
+  return `${baseUrl}/${transformString ? transformString + '/' : ''}${cloudPath}`;
 }
 
 /**
