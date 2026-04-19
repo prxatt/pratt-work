@@ -31,7 +31,7 @@ const projects = [
     thumbnail: {
       type: 'image' as const,
       src: getImageUrl('/work/weights-biases-thumb.webp', 1200),
-      fallback: getImageUrl('/work/weights-biases-thumb.jpeg', 1200),
+      fallback: getImageUrl('/work/weights-biases-thumb.jpeg', 1200, { format: 'jpg' }),
       alt: 'Weights & Biases Fully Connected AI conference stage',
     },
   },
