@@ -1,6 +1,6 @@
 import type { NextConfig } from "next";
 
-const CLOUDINARY_CLOUD_NAME = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || "";
+const CLOUDINARY_CLOUD_NAME = (process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || "").trim();
 
 const nextConfig: NextConfig = {
   /* config options here */
@@ -10,6 +10,7 @@ const nextConfig: NextConfig = {
   },
   images: {
     formats: ['image/avif', 'image/webp'],
+    // Allow any path under this cloud (image/upload/… and video/upload/… share /{cloud}/… prefix).
     remotePatterns: CLOUDINARY_CLOUD_NAME
       ? [
           {
