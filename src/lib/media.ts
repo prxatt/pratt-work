@@ -17,6 +17,17 @@ function getCloudName(): string {
   return CLOUDINARY_CLOUD_NAME;
 }
 
+/** Cloudinary folder segments use Title Case (e.g. Work, Recognition). */
+function titleCaseSegment(segment: string): string {
+  if (!segment) return segment;
+  return segment.charAt(0).toUpperCase() + segment.slice(1).toLowerCase();
+}
+
+function isImagesOrVideosFolder(segment: string): boolean {
+  const s = segment.toLowerCase();
+  return s === 'images' || s === 'image' || s === 'videos' || s === 'video';
+}
+
 /**
  * Get optimized media URL
  * @param localPath - Original path like '/work/video.mp4'
@@ -46,11 +57,25 @@ export function getMediaUrl(
   if (segments.length === 0) return localPath;
 
   const filename = segments[segments.length - 1]!;
+  const dirSegments = segments.slice(0, -1);
   const isVideo = /\.(mp4|webm|mov)$/i.test(filename);
 
-  // Public ID mirrors paths under `public/` (e.g. `/work/foo.webp` → `work/foo.webp`).
-  // Do not inject `images/` or `videos/` — uploads must match the same folders as in the repo.
-  const cloudPath = segments.join('/');
+  // Cloudinary library layout: category folders contain `Images` and `Videos` subfolders
+  // (e.g. `Work/Images/…`, `Recognition/Images/…`), while local `public/` uses flat `/work/…`.
+  // Map `/work/a.webp` → `Work/Images/a.webp`, `/work/a.webm` → `Work/Videos/a.webm`.
+  // If the path already ends with `images`/`videos` (or `/videos/…` at repo root), do not duplicate.
+  let cloudPath: string;
+  if (dirSegments.length === 0) {
+    cloudPath = filename;
+  } else {
+    const titledDirs = dirSegments.map(titleCaseSegment);
+    const lastRaw = dirSegments[dirSegments.length - 1]!;
+    const mediaSubfolder = isVideo ? 'Videos' : 'Images';
+    const alreadyTyped = isImagesOrVideosFolder(lastRaw);
+    cloudPath = alreadyTyped
+      ? [...titledDirs, filename].join('/')
+      : [...titledDirs, mediaSubfolder, filename].join('/');
+  }
 
   const baseUrl = `https://res.cloudinary.com/${cloudName}/${isVideo ? 'video' : 'image'}/upload`;
 
