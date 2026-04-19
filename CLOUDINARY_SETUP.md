@@ -14,7 +14,7 @@
 **Action**: Open your terminal and run this exact command:
 
 ```bash
-cd /Users/prattmajmudar/Desktop/pratt.work
+cd path/to/your/project
 echo "NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME=dj0n7b4ma" > .env.local
 ```
 
