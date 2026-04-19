@@ -35,7 +35,8 @@ const PATH_STYLE: PathStyle = (() => {
 const MEDIA_OFF = MEDIA_OFF_RE.test((process.env.NEXT_PUBLIC_CLOUDINARY_MEDIA || '').trim());
 const CLOUD_NAME = (process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || '').trim();
 
-function getCloudName(): string {
+/** Empty string = use local `/public/...` paths; otherwise Cloudinary cloud name. */
+const FINAL_CLOUD_NAME: string = (() => {
   if (MEDIA_OFF || !CLOUD_NAME) {
     if (!MEDIA_OFF && !CLOUD_NAME && process.env.NODE_ENV === 'development') {
       throw new Error(
@@ -45,7 +46,7 @@ function getCloudName(): string {
     return '';
   }
   return CLOUD_NAME;
-}
+})();
 
 function titleCaseSegment(segment: string): string {
   if (!segment) return segment;
@@ -117,8 +118,7 @@ export function getMediaUrl(
     return localPath;
   }
 
-  const cloudName = getCloudName();
-  if (!cloudName) return localPath;
+  if (!FINAL_CLOUD_NAME) return localPath;
 
   const segments = localPath.split('/').filter(Boolean);
   if (segments.length === 0) return localPath;
@@ -129,7 +129,7 @@ export function getMediaUrl(
   const isVideo = VIDEO_EXT_RE.test(filename);
   const cloudPath = buildCloudinaryPublicId(normSegments, isVideo, PATH_STYLE);
 
-  const baseUrl = `https://res.cloudinary.com/${cloudName}/${isVideo ? 'video' : 'image'}/upload`;
+  const baseUrl = `https://res.cloudinary.com/${FINAL_CLOUD_NAME}/${isVideo ? 'video' : 'image'}/upload`;
 
   const transformations: string[] = [];
   if (options.width) transformations.push(`w_${options.width}`);
