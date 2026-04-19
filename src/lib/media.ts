@@ -34,39 +34,29 @@ export function getMediaUrl(
   } = {}
 ): string {
   const cloudName = getCloudName();
-  if (!cloudName) {
-    return localPath;
-  }
+  if (!cloudName) return localPath;
 
-  // Extract filename from path
   const filename = localPath.split('/').pop();
   if (!filename) return localPath;
 
   const isVideo = /\.(mp4|webm|mov)$/i.test(filename);
-  
-  // Smart path builder — avoids doubling up folder names
-  const lastSlashIndex = localPath.lastIndexOf('/');
-  const dir = lastSlashIndex > 0 ? localPath.substring(1, lastSlashIndex) : '';
+  const mediaSubfolder = isVideo ? 'videos' : 'images';
 
-  // Only inject the subfolder if the directory doesn't already end with it
-  const mediaSubfolder = isVideo ? 'videos' : 'images';
-  const dirAlreadyHasSubfolder = dir.endsWith(mediaSubfolder);
-  const cloudPath = dirAlreadyHasSubfolder
+  // Build path parts from the original directory, excluding the filename
   const pathParts = localPath.split('/').filter(Boolean);
-  pathParts.pop(); // Remove filename
-  const mediaSubfolder = isVideo ? 'videos' : 'images';
-  
-  // Inject media subfolder if not already present as the parent directory
+  pathParts.pop(); // remove filename
+
+  // Only inject the subfolder if the last directory segment isn't already it
+  // This prevents videos/videos/ or images/images/ doubling
   if (pathParts[pathParts.length - 1] !== mediaSubfolder) {
     pathParts.push(mediaSubfolder);
   }
+
   const cloudPath = [...pathParts, filename].join('/');
-  
+
   const baseUrl = `https://res.cloudinary.com/${cloudName}/${isVideo ? 'video' : 'image'}/upload`;
 
-  // Build transformation string
   const transformations: string[] = [];
-  
   if (options.width) transformations.push(`w_${options.width}`);
   if (options.height) transformations.push(`h_${options.height}`);
   if (options.crop) transformations.push(`c_${options.crop}`);
@@ -78,14 +68,11 @@ export function getMediaUrl(
   if (options.format && options.format !== 'auto') {
     transformations.push(`f_${options.format}`);
   }
-
-  // Add optimization defaults for images
   if (!isVideo && transformations.length === 0) {
     transformations.push('q_auto', 'f_auto');
   }
 
   const transformString = transformations.join(',');
-  
   return `${baseUrl}/${transformString ? transformString + '/' : ''}${cloudPath}`;
 }
 
