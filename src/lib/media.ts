@@ -2,16 +2,20 @@
  * Cloudinary Media Path Utility
  * 
  * Automatically routes media requests to Cloudinary CDN instead of local files.
- * Falls back to local paths during development or if Cloudinary is not configured.
+ * Throws in development if env var missing. Preserves directory structure.
  */
 
-const CLOUDINARY_CLOUD_NAME = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || '';
-const CLOUDINARY_BASE_URL = CLOUDINARY_CLOUD_NAME
-  ? `https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME}/image/upload`
-  : '';
-const CLOUDINARY_VIDEO_URL = CLOUDINARY_CLOUD_NAME
-  ? `https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME}/video/upload`
-  : '';
+function getCloudName(): string {
+  const name = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
+  if (!name) {
+    if (process.env.NODE_ENV === 'development') {
+      throw new Error('[media.ts] NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME is not set. Add it to .env.local');
+    }
+    // In production, fall back gracefully rather than shipping broken URLs
+    return '';
+  }
+  return name;
+}
 
 /**
  * Get optimized media URL
@@ -29,8 +33,8 @@ export function getMediaUrl(
     crop?: 'fill' | 'fit' | 'scale' | 'limit';
   } = {}
 ): string {
-  // If Cloudinary not configured, return local path
-  if (!CLOUDINARY_CLOUD_NAME) {
+  const cloudName = getCloudName();
+  if (!cloudName) {
     return localPath;
   }
 
@@ -39,7 +43,17 @@ export function getMediaUrl(
   if (!filename) return localPath;
 
   const isVideo = /\.(mp4|webm|mov)$/i.test(filename);
-  const baseUrl = isVideo ? CLOUDINARY_VIDEO_URL : CLOUDINARY_BASE_URL;
+  
+  // Preserve the original directory structure, just inject the media type subfolder
+  // /work/boubyan-thumb.webp → work/images/boubyan-thumb.webp
+  const lastSlashIndex = localPath.lastIndexOf('/');
+  const dir = lastSlashIndex > 0 ? localPath.substring(1, lastSlashIndex) : ''; // strip leading /
+  const mediaSubfolder = isVideo ? 'videos' : 'images';
+  const cloudPath = dir ? `${dir}/${mediaSubfolder}/${filename}` : `${mediaSubfolder}/${filename}`;
+  
+  const baseUrl = isVideo 
+    ? `https://res.cloudinary.com/${cloudName}/video/upload` 
+    : `https://res.cloudinary.com/${cloudName}/image/upload`;
 
   // Build transformation string
   const transformations: string[] = [];
@@ -62,9 +76,8 @@ export function getMediaUrl(
   }
 
   const transformString = transformations.join(',');
-  const folder = isVideo ? 'videos' : 'images';
   
-  return `${baseUrl}/${transformString ? transformString + '/' : ''}${folder}/${filename}`;
+  return `${baseUrl}/${transformString ? transformString + '/' : ''}${cloudPath}`;
 }
 
 /**
