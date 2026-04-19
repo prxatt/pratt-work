@@ -96,7 +96,7 @@ export function getVideoUrl(
 ): string {
   // If format is auto, preserve the original file extension
   const detectedFormat = format === 'auto' 
-    ? (localPath.endsWith('.webm') ? 'webm' : 'mp4')
+    ? (localPath.toLowerCase().split('?')[0].endsWith('.webm') ? 'webm' : 'mp4')
     : format;
   
   return getMediaUrl(localPath, {
