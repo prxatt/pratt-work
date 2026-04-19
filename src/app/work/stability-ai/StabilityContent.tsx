@@ -233,7 +233,7 @@ export default function StabilityContent({
             loop
             playsInline
             className="w-full h-full object-cover"
-            poster={getImageUrl('/work/stability-ai-thumb.webp', 800)}
+            poster={getImageUrl('/work/stability-ai-thumb.webp', 800, { format: 'webp' })}
           >
             <source src={getVideoUrl('/work/stability-vid.webm')} type="video/webm" />
             <source src={getVideoUrl('/work/stability-vid.mp4')} type="video/mp4" />
@@ -602,9 +602,9 @@ export default function StabilityContent({
                 <CornerDraw color={neural} size={24} strokeWidth={2} isHovered={hoveredFrame === 0} />
 
                 <picture>
-                  <source srcSet={getImageUrl('/work/stability-imad.webp', 1200)} type="image/webp" />
+                  <source srcSet={getImageUrl('/work/stability-imad.webp', 1200, { format: 'webp' })} type="image/webp" />
                   <Image
-                    src={getImageUrl('/work/stability-imad.jpg', 1200)}
+                    src={getImageUrl('/work/stability-imad.jpg', 1200, { format: 'jpg' })}
                     alt="Imad at Stability AI"
                     fill
                     className="object-cover transition-transform duration-700 ease-out group-hover:scale-105"
@@ -636,9 +636,9 @@ export default function StabilityContent({
                   <CornerDraw color={neural} size={20} strokeWidth={1.5} isHovered={hoveredFrame === 1} />
 
                   <picture>
-                    <source srcSet={getImageUrl('/work/stability-team.webp', 800)} type="image/webp" />
+                    <source srcSet={getImageUrl('/work/stability-team.webp', 800, { format: 'webp' })} type="image/webp" />
                     <Image
-                      src={getImageUrl('/work/stability-team.jpg', 800)}
+                      src={getImageUrl('/work/stability-team.jpg', 800, { format: 'jpg' })}
                       alt="Stability AI Team"
                       fill
                       className="object-cover transition-transform duration-700 ease-out group-hover:scale-105"
@@ -667,9 +667,9 @@ export default function StabilityContent({
                   <CornerDraw color={diffusion} size={20} strokeWidth={1.5} isHovered={hoveredFrame === 2} />
 
                   <picture>
-                    <source srcSet={getImageUrl('/work/stability-led.webp', 800)} type="image/webp" />
+                    <source srcSet={getImageUrl('/work/stability-led.webp', 800, { format: 'webp' })} type="image/webp" />
                     <Image
-                      src={getImageUrl('/work/stability-led.jpeg', 800)}
+                      src={getImageUrl('/work/stability-led.jpeg', 800, { format: 'jpg' })}
                       alt="LED Installation"
                       fill
                       className="object-cover transition-transform duration-700 ease-out group-hover:scale-105"

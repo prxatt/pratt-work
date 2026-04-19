@@ -1,19 +1,24 @@
 import type { NextConfig } from "next";
 
+const CLOUDINARY_CLOUD_NAME = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || "";
+
 const nextConfig: NextConfig = {
   /* config options here */
+  // Align Turbopack root with the repo root on any machine (avoids hardcoded paths; matches Vercel cwd)
   turbopack: {
-    root: '/Users/prattmajmudar/Desktop/pratt.work',
+    root: process.cwd(),
   },
   images: {
     formats: ['image/avif', 'image/webp'],
-    remotePatterns: [
-      {
-        protocol: 'https',
-        hostname: 'res.cloudinary.com',
-        pathname: '/**',
-      },
-    ],
+    remotePatterns: CLOUDINARY_CLOUD_NAME
+      ? [
+          {
+            protocol: 'https',
+            hostname: 'res.cloudinary.com',
+            pathname: `/${CLOUDINARY_CLOUD_NAME}/**`,
+          },
+        ]
+      : [],
     deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
     minimumCacheTTL: 31536000, // 1 year cache

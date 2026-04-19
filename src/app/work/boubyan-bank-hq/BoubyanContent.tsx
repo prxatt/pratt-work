@@ -224,7 +224,7 @@ export default function BoubyanContent({ metadata, mainContent, approachSections
             muted
             playsInline
             className="w-full h-full object-cover opacity-60"
-            poster={getImageUrl('/work/boubyan-bank-thumb.webp', 800)}
+            poster={getImageUrl('/work/boubyan-bank-thumb.webp', 800, { format: 'webp' })}
           >
             <source src={getVideoUrl('/work/boubyan-bank-card.webm')} type="video/webm" />
             <source src={getVideoUrl('/work/boubyan-bank-card.mp4')} type="video/mp4" />
@@ -688,22 +688,22 @@ export default function BoubyanContent({ metadata, mainContent, approachSections
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[
               { 
-                webp: getImageUrl('/work/boubyan1.webp', 1920), 
-                jpg: getImageUrl('/work/boubyan1.jpg', 1920), 
+                webp: getImageUrl('/work/boubyan1.webp', 1920, { format: 'webp' }), 
+                jpg: getImageUrl('/work/boubyan1.jpg', 1920, { format: 'jpg' }), 
                 alt: 'Exterior View', 
                 label: 'EXT_NIGHT_01',
                 borderColor: steel
               },
               { 
-                webp: getImageUrl('/work/boubyan-2.webp', 1920), 
-                jpg: getImageUrl('/work/boubyan-2.jpg', 1920), 
+                webp: getImageUrl('/work/boubyan-2.webp', 1920, { format: 'webp' }), 
+                jpg: getImageUrl('/work/boubyan-2.jpg', 1920, { format: 'jpg' }), 
                 alt: 'Interior Lobby', 
                 label: 'INT_LOBBY_02',
                 borderColor: concrete
               },
               { 
-                webp: getImageUrl('/work/boubyan-3.webp', 1920), 
-                jpg: getImageUrl('/work/boubyan-3.jpg', 1920), 
+                webp: getImageUrl('/work/boubyan-3.webp', 1920, { format: 'webp' }), 
+                jpg: getImageUrl('/work/boubyan-3.jpg', 1920, { format: 'jpg' }), 
                 alt: 'Aerial View', 
                 label: 'DRONE_04K',
                 borderColor: rust

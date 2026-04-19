@@ -43,7 +43,7 @@ const awards: Award[] = [
     fullDescription: 'Negotiated a landmark 3-year exclusive licensing agreement with Shorts.TV, the world\'s largest short film broadcaster reaching 40M+ homes globally. Structured deal to include backend participation and international rights retention.',
     impact: ['40M+ households reached', '3-year exclusive term', 'International rights retained', 'Backend revenue participation'],
     icon: Film,
-    image: getImageUrl('/awards/alone-shorts.jpg', 400),
+    image: getImageUrl('/recognition/alone-poster.jpg', 400, { format: 'jpg' }),
   },
   {
     id: '[3]',
@@ -55,7 +55,7 @@ const awards: Award[] = [
     fullDescription: 'Led production supervision and transportation coordination for the SXSW Official Selection "Women Is Losers," coordinating a 40+ person crew across 19 shooting days. Managed $1.2M budget, secured 8 location permits, and sourced vintage and historic vehicles for period accuracy to deliver on schedule.',
     impact: ['40+ person crew coordinated', '$1.2M budget managed', '19-day production schedule', '8 location permits + vintage vehicles', 'Zero production delays'],
     icon: Trophy,
-    image: '/awards/sxsw-2021.jpg',
+    image: getImageUrl('/recognition/women-is-losers-poster.jpg', 400, { format: 'jpg' }),
   },
   {
     id: '[4]',
@@ -67,7 +67,7 @@ const awards: Award[] = [
     fullDescription: 'Earned nomination in the Best Short Documentary category at Next Up Festival for "Synchronicity," a documentary exploring the musical journey of artist Christopher Willits. Competed against 200+ international entries with recognition specifically cited for innovative storytelling and seamless integration of visual and audio elements.',
     impact: ['Top 5 of 200+ entries', 'Best Short Documentary nomination', 'Musical journey storytelling', 'Visual-audio integration praised'],
     icon: Award,
-    image: '/awards/nextup-2021.jpg',
+    image: getImageUrl('/recognition/synchronicity-poster.jpg', 400, { format: 'jpg' }),
   },
 ];
 
@@ -117,7 +117,7 @@ const AloneModal = ({ onClose }: { onClose: () => void }) => {
               playsInline
               preload="auto"
               className="absolute inset-0 w-full h-full object-cover"
-              poster={getImageUrl('/recognition/alone-poster.jpg', 1920)}
+              poster={getImageUrl('/recognition/alone-poster.jpg', 1920, { format: 'jpg' })}
             >
               <source src={getVideoUrl('/recognition/alone-trailer.mp4')} type="video/mp4" />
               <source src={getVideoUrl('/recognition/alone-trailer.webm')} type="video/webm" />
@@ -155,7 +155,7 @@ const AloneModal = ({ onClose }: { onClose: () => void }) => {
                 className="w-32 h-48 md:w-44 md:h-64 lg:w-52 lg:h-80 bg-gradient-to-br from-[#1a1a2e] to-[#0a0a0a] border border-[#2a2a3a] rounded-lg overflow-hidden flex-shrink-0 shadow-2xl relative z-20"
               >
                 <Image
-                  src={getImageUrl('/recognition/alone-poster.jpg', 800)}
+                  src={getImageUrl('/recognition/alone-poster.jpg', 800, { format: 'jpg' })}
                   alt="ALONE - Film Poster"
                   fill
                   className="object-cover"
@@ -401,7 +401,7 @@ const WomenIsLosersModal = ({ onClose }: { onClose: () => void }) => {
               playsInline
               preload="auto"
               className="absolute inset-0 w-full h-full object-cover"
-              poster={getImageUrl('/recognition/women-is-losers-poster.jpg', 1920)}
+              poster={getImageUrl('/recognition/women-is-losers-poster.jpg', 1920, { format: 'jpg' })}
             >
               <source src={getVideoUrl('/recognition/women-is-losers-trailer.mp4')} type="video/mp4" />
               <source src={getVideoUrl('/recognition/women-is-losers-trailer.webm')} type="video/webm" />
@@ -439,7 +439,7 @@ const WomenIsLosersModal = ({ onClose }: { onClose: () => void }) => {
                 className="w-32 h-48 md:w-44 md:h-64 lg:w-52 lg:h-80 bg-gradient-to-br from-[#1a1a1a] to-[#0f0f0f] border-2 border-[#f59e0b] rounded-lg overflow-hidden flex-shrink-0 shadow-2xl relative z-20"
               >
                 <Image
-                  src={getImageUrl('/recognition/women-is-losers-poster.jpg', 800)}
+                  src={getImageUrl('/recognition/women-is-losers-poster.jpg', 800, { format: 'jpg' })}
                   alt="Women Is Losers - Film Poster"
                   fill
                   className="object-cover"
@@ -1112,7 +1112,7 @@ const SynchronicityDocumentaryModal = ({ onClose }: { onClose: () => void }) => 
               playsInline
               preload="auto"
               className="absolute inset-0 w-full h-full object-cover"
-              poster={getImageUrl('/recognition/synchronicity-poster.jpg', 1920)}
+              poster={getImageUrl('/recognition/synchronicity-poster.jpg', 1920, { format: 'jpg' })}
             >
               <source src={getVideoUrl('/recognition/synchronicity-trailer.mp4')} type="video/mp4" />
               <source src={getVideoUrl('/recognition/synchronicity-trailer.webm')} type="video/webm" />
@@ -1150,7 +1150,7 @@ const SynchronicityDocumentaryModal = ({ onClose }: { onClose: () => void }) => 
                 className="w-32 h-48 md:w-44 md:h-64 lg:w-52 lg:h-80 bg-gradient-to-br from-[#1a1a2e] to-[#0f0a1a] border border-[#6366f1]/50 rounded-lg overflow-hidden flex-shrink-0 shadow-2xl relative z-20"
               >
                 <Image
-                  src={getImageUrl('/recognition/synchronicity-poster.jpg', 800)}
+                  src={getImageUrl('/recognition/synchronicity-poster.jpg', 800, { format: 'jpg' })}
                   alt="Synchronicity - Documentary Poster"
                   fill
                   className="object-cover"

@@ -148,7 +148,13 @@ export default async function WorkProjectPage({ params }: PageProps) {
                 {/\.(webm|mp4|mov)$/i.test(metadata.heroMedia) ? (
                   <video src={getVideoUrl(metadata.heroMedia)} autoPlay muted loop playsInline className="w-full h-full object-cover" />
                 ) : (
-                  <Image src={getImageUrl(metadata.heroMedia, 1920)} alt={metadata.title} fill className="object-cover" priority />
+                  <Image
+                    src={getImageUrl(metadata.heroMedia, 1920)}
+                    alt={metadata.title}
+                    fill
+                    className="object-cover"
+                    priority
+                  />
                 )}
                 <div className="absolute inset-0 bg-gradient-to-t from-[#0D0D0D]/50 via-transparent to-transparent" />
               </div>
