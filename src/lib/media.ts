@@ -117,3 +117,4 @@ export function generateSrcSet(
     .map(w => `${getImageUrl(localPath, w, options)} ${w}w`)
     .join(', ');
 }
+// Cloudinary integration v2
