@@ -779,22 +779,22 @@ export default function LevisInnovationLabsPage() {
             <PhotoFrame 
               label="Rig Assembly" 
               index={0} 
-              webp={getImageUrl('/work/levis-thumb.webp', 1600)}
-              jpeg={getImageUrl('/work/levis-thumb.jpg', 1600)}
+              webp={getImageUrl('/work/levis-thumb.webp', 1600, { format: 'webp' })}
+              jpeg={getImageUrl('/work/levis-thumb.jpg', 1600, { format: 'jpg' })}
               alt="Levi's rig assembly thumbnail"
             />
             <PhotoFrame 
               label="Live Capture" 
               index={1}
-              webp={getImageUrl('/work/levis-lab.webp', 1600)}
-              jpeg={getImageUrl('/work/levis-lab.jpg', 1600)}
+              webp={getImageUrl('/work/levis-lab.webp', 1600, { format: 'webp' })}
+              jpeg={getImageUrl('/work/levis-lab.jpg', 1600, { format: 'jpg' })}
               alt="Levi's live capture lab"
             />
             <PhotoFrame 
               label="Post Production" 
               index={2}
-              webp={getImageUrl('/work/levis-collection.webp', 1600)}
-              jpeg={getImageUrl('/work/levis-collection.jpg', 1600)}
+              webp={getImageUrl('/work/levis-collection.webp', 1600, { format: 'webp' })}
+              jpeg={getImageUrl('/work/levis-collection.jpg', 1600, { format: 'jpg' })}
               alt="Levi's collection post production"
             />
           </div>

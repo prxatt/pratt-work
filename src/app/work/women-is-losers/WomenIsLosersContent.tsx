@@ -424,9 +424,9 @@ export default function WomenIsLosersContent({
                 {/* Film poster image */}
                 <div className="absolute inset-4 sm:inset-8 overflow-hidden bg-[#151210]">
                   <picture>
-                    <source srcSet={getImageUrl('/work/wil-poster.webp', 1200)} type="image/webp" />
+                    <source srcSet={getImageUrl('/work/wil-poster.webp', 1200, { format: 'webp' })} type="image/webp" />
                     <img
-                      src={getImageUrl('/work/wil-poster.jpg', 1200)}
+                      src={getImageUrl('/work/wil-poster.jpg', 1200, { format: 'jpg' })}
                       alt="Women Is Losers Film Poster"
                       className="w-full h-full object-cover"
                       style={{

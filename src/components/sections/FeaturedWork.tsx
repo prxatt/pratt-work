@@ -156,7 +156,7 @@ const LazyVideo = ({
       {/* Poster image - immediately visible */}
       {poster && (
         <img 
-          src={getImageUrl(poster, 1400)}
+          src={getImageUrl(poster, 1400, { format: 'webp' })}
           alt=""
           className="absolute inset-0 w-full h-full object-cover"
           loading="eager"

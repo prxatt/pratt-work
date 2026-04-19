@@ -469,9 +469,9 @@ export default function WeightsBiasesContent({
                   transition={{ duration: 0.4 }}
                 >
                   <picture>
-                    <source srcSet={getImageUrl('/work/conference-wb.webp', 1600)} type="image/webp" />
+                    <source srcSet={getImageUrl('/work/conference-wb.webp', 1600, { format: 'webp' })} type="image/webp" />
                     <Image
-                      src={getImageUrl('/work/conference-wb.jpg', 1600)}
+                      src={getImageUrl('/work/conference-wb.jpg', 1600, { format: 'jpg' })}
                       alt="Conference atmosphere at Weights & Biases Fully Connected"
                       fill
                       className="object-cover"
@@ -521,9 +521,9 @@ export default function WeightsBiasesContent({
                     transition={{ duration: 0.4 }}
                   >
                     <picture>
-                      <source srcSet={getImageUrl('/work/keynote-wb.webp', 1200)} type="image/webp" />
+                      <source srcSet={getImageUrl('/work/keynote-wb.webp', 1200, { format: 'webp' })} type="image/webp" />
                       <Image
-                        src={getImageUrl('/work/keynote-wb.jpg', 1200)}
+                        src={getImageUrl('/work/keynote-wb.jpg', 1200, { format: 'jpg' })}
                         alt="Keynote stage at Weights & Biases Fully Connected"
                         fill
                         className="object-cover"
@@ -565,9 +565,9 @@ export default function WeightsBiasesContent({
                     transition={{ duration: 0.4 }}
                   >
                     <picture>
-                      <source srcSet={getImageUrl('/work/weave-wb.webp', 1200)} type="image/webp" />
+                      <source srcSet={getImageUrl('/work/weave-wb.webp', 1200, { format: 'webp' })} type="image/webp" />
                       <Image
-                        src={getImageUrl('/work/weave-wb.jpg', 1200)}
+                        src={getImageUrl('/work/weave-wb.jpg', 1200, { format: 'jpg' })}
                         alt="Weave launch at Weights & Biases Fully Connected"
                         fill
                         className="object-cover"
@@ -721,7 +721,7 @@ export default function WeightsBiasesContent({
             <VideoPlayer
               webmSrc={getVideoUrl('/work/wb-teaser.webm')}
               mp4Src={getVideoUrl('/work/wb-teaser.mp4')}
-              poster={getImageUrl('/work/conference-wb.jpg', 1600)}
+              poster={getImageUrl('/work/conference-wb.jpg', 1600, { format: 'jpg' })}
               accentColor={accentColor}
               title="Conference Recap"
               subtitle="YOUTUBE MARKETING CONTENT"

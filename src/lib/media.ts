@@ -29,25 +29,26 @@ export function getMediaUrl(
     width?: number;
     height?: number;
     quality?: 'auto' | number;
-    format?: 'auto' | 'webp' | 'avif' | 'mp4' | 'webm';
+    format?: 'auto' | 'webp' | 'avif' | 'jpg' | 'mp4' | 'webm';
     crop?: 'fill' | 'fit' | 'scale' | 'limit';
   } = {}
 ): string {
   const cloudName = getCloudName();
   if (!cloudName) return localPath;
 
-  const filename = localPath.split('/').pop();
-  if (!filename) return localPath;
+  const segments = localPath.split('/').filter(Boolean);
+  if (segments.length === 0) return localPath;
+
+  const filename = segments[segments.length - 1]!;
+  const dirSegments = segments.slice(0, -1);
+  const dir = dirSegments.join('/');
 
   const isVideo = /\.(mp4|webm|mov)$/i.test(filename);
   const mediaSubfolder = isVideo ? 'videos' : 'images';
 
-  // Smart path builder — avoids doubling up folder names
-  const lastSlashIndex = localPath.lastIndexOf('/');
-  const dir = lastSlashIndex > 0 ? localPath.substring(1, lastSlashIndex) : '';
-
-  // Only inject the subfolder if the directory doesn't already end with it
-  const dirAlreadyHasSubfolder = dir.endsWith(mediaSubfolder);
+  // Smart path builder — avoids doubling up folder names (segment-based: works with or without a leading slash)
+  const lastDirSegment = dirSegments[dirSegments.length - 1];
+  const dirAlreadyHasSubfolder = lastDirSegment === mediaSubfolder;
   const cloudPath = dirAlreadyHasSubfolder
     ? `${dir}/${filename}`
     : dir
@@ -84,7 +85,7 @@ export function getImageUrl(
   width?: number,
   options?: {
     quality?: 'auto' | number;
-    format?: 'auto' | 'webp' | 'avif';
+    format?: 'auto' | 'webp' | 'avif' | 'jpg';
   }
 ): string {
   return getMediaUrl(localPath, {
