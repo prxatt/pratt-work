@@ -205,7 +205,7 @@ export default function WomenIsLosersContent({
           <FilmVideoPlayer
             webmSrc={getVideoUrl('/work/wil-trailer.webm')}
             mp4Src={getVideoUrl('/work/wil-trailer.mp4')}
-            posterSrc={getImageUrl('/work/wil-poster.webp', 1920, { format: 'webp' })}
+            posterSrc={getImageUrl('/work/wil-poster.webp', 1920)}
             className="w-full h-full"
           />
         </div>

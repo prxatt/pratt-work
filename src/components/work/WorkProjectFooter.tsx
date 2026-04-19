@@ -267,7 +267,7 @@ function ProjectCard({
                   /* Image Thumbnail */
                   <>
                     <Image
-                      src={getImageUrl(thumbnail.src, 1200, { format: 'webp' })}
+                      src={getImageUrl(thumbnail.src, 1200)}
                       alt={thumbnail.alt}
                       fill
                       className="object-cover"

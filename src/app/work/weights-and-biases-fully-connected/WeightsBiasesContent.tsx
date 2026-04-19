@@ -721,7 +721,7 @@ export default function WeightsBiasesContent({
             <VideoPlayer
               webmSrc={getVideoUrl('/work/wb-teaser.webm')}
               mp4Src={getVideoUrl('/work/wb-teaser.mp4')}
-              poster={getImageUrl('/work/conference-wb.jpg', 1600, { format: 'jpg' })}
+              poster={getImageUrl('/work/conference-wb.jpg', 1600)}
               accentColor={accentColor}
               title="Conference Recap"
               subtitle="YOUTUBE MARKETING CONTENT"

@@ -1,23 +1,37 @@
 /**
- * Cloudinary Media Path Utility
- * 
- * Automatically routes media requests to Cloudinary CDN instead of local files.
- * Throws in development if env var missing. Preserves directory structure.
+ * Cloudinary media URLs with safe fallbacks.
+ *
+ * Env:
+ * - NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME — required for CDN (trimmed). If empty, URLs stay local (/work/…).
+ * - NEXT_PUBLIC_CLOUDINARY_MEDIA=off — force local paths even if cloud name is set (emergency / debugging).
+ * - NEXT_PUBLIC_CLOUDINARY_PATH_STYLE:
+ *   - nested_title — default; /work/a.webp → Work/Images/a.webp (matches Media Library folders Work / Images).
+ *   - nested — lowercase work/images/… (common for API uploads).
+ *   - mirror — public_id = path under public/ (e.g. work/a.webp) when Cloudinary mirrors `public/` flat.
  */
 
-const CLOUDINARY_CLOUD_NAME = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || '';
+const RAW_CLOUD_NAME = (process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || '').trim();
+const MEDIA_OFF =
+  /^off|0|false$/i.test((process.env.NEXT_PUBLIC_CLOUDINARY_MEDIA || '').trim());
+
+const PATH_STYLE = (() => {
+  const v = (process.env.NEXT_PUBLIC_CLOUDINARY_PATH_STYLE || 'nested_title').toLowerCase();
+  if (v === 'mirror' || v === 'nested' || v === 'nested_title') return v;
+  return 'nested_title';
+})();
 
 function getCloudName(): string {
-  if (!CLOUDINARY_CLOUD_NAME) {
-    if (process.env.NODE_ENV === 'development') {
-      throw new Error('[media.ts] NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME is not set. Add it to .env.local');
+  if (MEDIA_OFF || !RAW_CLOUD_NAME) {
+    if (!MEDIA_OFF && !RAW_CLOUD_NAME && process.env.NODE_ENV === 'development') {
+      throw new Error(
+        '[media.ts] NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME is not set. Add it to .env.local, or set NEXT_PUBLIC_CLOUDINARY_MEDIA=off to use local files.'
+      );
     }
     return '';
   }
-  return CLOUDINARY_CLOUD_NAME;
+  return RAW_CLOUD_NAME;
 }
 
-/** Cloudinary folder segments use Title Case (e.g. Work, Recognition). */
 function titleCaseSegment(segment: string): string {
   if (!segment) return segment;
   return segment.charAt(0).toUpperCase() + segment.slice(1).toLowerCase();
@@ -26,6 +40,38 @@ function titleCaseSegment(segment: string): string {
 function isImagesOrVideosFolder(segment: string): boolean {
   const s = segment.toLowerCase();
   return s === 'images' || s === 'image' || s === 'videos' || s === 'video';
+}
+
+/**
+ * Build Cloudinary public_id (folder + filename, slashes, no leading slash).
+ */
+function buildCloudinaryPublicId(segments: string[], isVideo: boolean): string {
+  const filename = segments[segments.length - 1]!;
+  const dirSegments = segments.slice(0, -1);
+
+  if (PATH_STYLE === 'mirror') {
+    return segments.join('/');
+  }
+
+  if (dirSegments.length === 0) {
+    return filename;
+  }
+
+  const useTitle = PATH_STYLE === 'nested_title';
+  const normDir = (s: string) => (useTitle ? titleCaseSegment(s) : s.toLowerCase());
+  const titledDirs = dirSegments.map(normDir);
+  const lastRaw = dirSegments[dirSegments.length - 1]!;
+  const mediaSubfolder = isVideo
+    ? useTitle
+      ? 'Videos'
+      : 'videos'
+    : useTitle
+      ? 'Images'
+      : 'images';
+  const alreadyTyped = isImagesOrVideosFolder(lastRaw);
+  return alreadyTyped
+    ? [...titledDirs, filename].join('/')
+    : [...titledDirs, mediaSubfolder, filename].join('/');
 }
 
 /**
@@ -45,7 +91,6 @@ export function getMediaUrl(
   } = {}
 ): string {
   const trimmed = localPath.trim();
-  // Already a remote URL — do not treat protocol/host as path segments (or double-wrap Cloudinary)
   if (trimmed.startsWith('//') || /^https?:\/\//i.test(trimmed)) {
     return localPath;
   }
@@ -57,25 +102,8 @@ export function getMediaUrl(
   if (segments.length === 0) return localPath;
 
   const filename = segments[segments.length - 1]!;
-  const dirSegments = segments.slice(0, -1);
-  const isVideo = /\.(mp4|webm|mov)$/i.test(filename);
-
-  // Cloudinary library layout: category folders contain `Images` and `Videos` subfolders
-  // (e.g. `Work/Images/…`, `Recognition/Images/…`), while local `public/` uses flat `/work/…`.
-  // Map `/work/a.webp` → `Work/Images/a.webp`, `/work/a.webm` → `Work/Videos/a.webm`.
-  // If the path already ends with `images`/`videos` (or `/videos/…` at repo root), do not duplicate.
-  let cloudPath: string;
-  if (dirSegments.length === 0) {
-    cloudPath = filename;
-  } else {
-    const titledDirs = dirSegments.map(titleCaseSegment);
-    const lastRaw = dirSegments[dirSegments.length - 1]!;
-    const mediaSubfolder = isVideo ? 'Videos' : 'Images';
-    const alreadyTyped = isImagesOrVideosFolder(lastRaw);
-    cloudPath = alreadyTyped
-      ? [...titledDirs, filename].join('/')
-      : [...titledDirs, mediaSubfolder, filename].join('/');
-  }
+  const isVideo = /\.(mp4|webm|mov|m4v)$/i.test(filename);
+  const cloudPath = buildCloudinaryPublicId(segments, isVideo);
 
   const baseUrl = `https://res.cloudinary.com/${cloudName}/${isVideo ? 'video' : 'image'}/upload`;
 
@@ -100,7 +128,9 @@ export function getMediaUrl(
 }
 
 /**
- * Get optimized image URL with responsive sizing
+ * Get optimized image URL with responsive sizing.
+ * Omit `format` (default `f_auto`) for plain `<img>` / `next/image` so Cloudinary can negotiate AVIF/WebP.
+ * Pass explicit `format` only for `<picture><source type="image/webp|jpeg">` legs so URLs match MIME.
  */
 export function getImageUrl(
   localPath: string,
@@ -114,23 +144,24 @@ export function getImageUrl(
     width,
     quality: options?.quality ?? 'auto',
     format: options?.format ?? 'auto',
-    crop: 'limit', // Don't upscale
+    crop: 'limit',
   });
 }
 
 /**
  * Get video URL with format optimization
- * Preserves original format (webm/mp4) when format='auto'
  */
 export function getVideoUrl(
   localPath: string,
   format: 'auto' | 'mp4' | 'webm' = 'auto'
 ): string {
-  // If format is auto, preserve the original file extension
-  const detectedFormat = format === 'auto' 
-    ? (localPath.toLowerCase().split('?')[0].endsWith('.webm') ? 'webm' : 'mp4')
-    : format;
-  
+  const detectedFormat =
+    format === 'auto'
+      ? localPath.toLowerCase().split('?')[0].endsWith('.webm')
+        ? 'webm'
+        : 'mp4'
+      : format;
+
   return getMediaUrl(localPath, {
     format: detectedFormat,
     quality: 'auto',
@@ -146,6 +177,6 @@ export function generateSrcSet(
   options?: { quality?: 'auto' | number; format?: 'auto' | 'webp' | 'avif' | 'jpg' }
 ): string {
   return widths
-    .map(w => `${getImageUrl(localPath, w, options)} ${w}w`)
+    .map((w) => `${getImageUrl(localPath, w, options)} ${w}w`)
     .join(', ');
 }
