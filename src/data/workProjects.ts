@@ -65,10 +65,6 @@ export const workProjects: WorkProject[] = [
     thumbnail: {
       type: 'image',
       src: getImageUrl('/work/weights-biases-thumb.webp', 800),
-<<<<<<< HEAD
-=======
-      srcSet: generateSrcSet('/work/weights-biases-thumb.webp'),
->>>>>>> e09e65cabd9dd57814274d0bd2a517dd15db96ee
       fallback: getImageUrl('/work/weights-biases-thumb.jpeg', 800),
       alt: 'Weights & Biases Fully Connected AI conference stage',
     },
