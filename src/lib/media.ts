@@ -35,18 +35,32 @@ const PATH_STYLE: PathStyle = (() => {
 const MEDIA_OFF = MEDIA_OFF_RE.test((process.env.NEXT_PUBLIC_CLOUDINARY_MEDIA || '').trim());
 const CLOUD_NAME = (process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || '').trim();
 
-/** Empty string = use local `/public/...` paths; otherwise Cloudinary cloud name. */
-const FINAL_CLOUD_NAME: string = (() => {
-  if (MEDIA_OFF || !CLOUD_NAME) {
-    if (!MEDIA_OFF && !CLOUD_NAME && process.env.NODE_ENV === 'development') {
-      throw new Error(
-        '[media.ts] NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME is not set. Add it to .env.local, or set NEXT_PUBLIC_CLOUDINARY_MEDIA=off to use local files.'
-      );
-    }
-    return '';
+/**
+ * Resolves the Cloudinary cloud name when a media URL is built.
+ * Throws in development only when this runs (same as legacy `getCloudName()`), not at module import.
+ */
+function resolveFinalCloudName(): string {
+  if (MEDIA_OFF) return '';
+  if (CLOUD_NAME) return CLOUD_NAME;
+  if (process.env.NODE_ENV === 'development') {
+    throw new Error(
+      '[media.ts] NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME is not set. Add it to .env.local, or set NEXT_PUBLIC_CLOUDINARY_MEDIA=off to use local files.'
+    );
   }
-  return CLOUD_NAME;
-})();
+  return '';
+}
+
+// Surfaces misconfiguration in Vercel build logs (server chunks only).
+if (
+  typeof window === 'undefined' &&
+  process.env.VERCEL === '1' &&
+  !CLOUD_NAME &&
+  !MEDIA_OFF
+) {
+  console.warn(
+    '[media] NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME was empty at build for this environment — <Image> will use local /work/… URLs. Fix: attach the var to this deployment target (e.g. Preview) and redeploy with a cleared build cache.'
+  );
+}
 
 function titleCaseSegment(segment: string): string {
   if (!segment) return segment;
@@ -118,7 +132,8 @@ export function getMediaUrl(
     return localPath;
   }
 
-  if (!FINAL_CLOUD_NAME) return localPath;
+  const finalCloudName = resolveFinalCloudName();
+  if (!finalCloudName) return localPath;
 
   const segments = localPath.split('/').filter(Boolean);
   if (segments.length === 0) return localPath;
@@ -129,7 +144,7 @@ export function getMediaUrl(
   const isVideo = VIDEO_EXT_RE.test(filename);
   const cloudPath = buildCloudinaryPublicId(normSegments, isVideo, PATH_STYLE);
 
-  const baseUrl = `https://res.cloudinary.com/${FINAL_CLOUD_NAME}/${isVideo ? 'video' : 'image'}/upload`;
+  const baseUrl = `https://res.cloudinary.com/${finalCloudName}/${isVideo ? 'video' : 'image'}/upload`;
 
   const transformations: string[] = [];
   if (options.width) transformations.push(`w_${options.width}`);
