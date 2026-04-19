@@ -52,14 +52,17 @@ export function getMediaUrl(
   const mediaSubfolder = isVideo ? 'videos' : 'images';
   const dirAlreadyHasSubfolder = dir.endsWith(mediaSubfolder);
   const cloudPath = dirAlreadyHasSubfolder
-    ? `${dir}/${filename}`
-    : dir
-      ? `${dir}/${mediaSubfolder}/${filename}`
-      : `${mediaSubfolder}/${filename}`;
+  const pathParts = localPath.split('/').filter(Boolean);
+  pathParts.pop(); // Remove filename
+  const mediaSubfolder = isVideo ? 'videos' : 'images';
   
-  const baseUrl = isVideo 
-    ? `https://res.cloudinary.com/${cloudName}/video/upload` 
-    : `https://res.cloudinary.com/${cloudName}/image/upload`;
+  // Inject media subfolder if not already present as the parent directory
+  if (pathParts[pathParts.length - 1] !== mediaSubfolder) {
+    pathParts.push(mediaSubfolder);
+  }
+  const cloudPath = [...pathParts, filename].join('/');
+  
+  const baseUrl = `https://res.cloudinary.com/${cloudName}/${isVideo ? 'video' : 'image'}/upload`;
 
   // Build transformation string
   const transformations: string[] = [];
