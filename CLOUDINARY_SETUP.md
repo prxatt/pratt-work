@@ -1,9 +1,9 @@
 # Cloudinary Media Setup Guide (Non-Technical Developer Version)
 
-## Your Cloudinary Account Details
+## Your Cloudinary Account
 - **Cloud Name**: `dj0n7b4ma`
-- **API Key**: `622435791171169`
-- **API Secret**: `N6V2_7By1QGFYzUQ00m8EYxPFmU`
+
+**Note**: API credentials are stored securely in environment variables, not in code.
 
 ---
 
