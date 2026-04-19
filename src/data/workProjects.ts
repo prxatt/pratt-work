@@ -2,7 +2,7 @@
 // WORK PROJECTS DATA - Shared across components
 // ============================================
 
-import { getImageUrl, getVideoUrl } from '@/lib/media';
+import { getImageUrl, getVideoUrl, generateSrcSet } from '@/lib/media';
 
 export interface WorkProject {
   id: string;
