@@ -1,108 +1,158 @@
-# Cloudinary Media Setup Guide
+# Cloudinary Media Setup Guide (Non-Technical Developer Version)
 
-## Quick Start (5 minutes)
+## Your Cloudinary Account Details
+- **Cloud Name**: `dj0n7b4ma`
+- **API Key**: `622435791171169`
+- **API Secret**: `N6V2_7By1QGFYzUQ00m8EYxPFmU`
 
-### Step 1: Sign up for Cloudinary (Free)
-1. Go to https://cloudinary.com/users/register/free
-2. Sign up with GitHub or email
-3. Note your **Cloud Name** (e.g., `prxatt`)
-4. Get your **API Key** and **API Secret** from Dashboard → Settings → API Keys
+---
 
-### Step 2: Configure Environment Variable
+## Step 1: Configure Environment Variable (Simple)
+
+**What this does**: Tells your website where to find images and videos on Cloudinary instead of your computer.
+
+**Action**: Open your terminal and run this exact command:
+
 ```bash
-# Add to your shell profile (.zshrc or .bash_profile)
-export NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME="your-cloud-name"
-
-# Or create .env.local in project root
-echo "NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME=your-cloud-name" > .env.local
+cd path/to/your/project
+echo "NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME=dj0n7b4ma" > .env.local
 ```
 
-### Step 3: Upload Media
-**Option A: Drag & Drop (Easiest)**
+That's it! You just created a file called `.env.local` with your cloud name in it.
+
+---
+
+## Step 2: Upload Your Media to Cloudinary
+
+### Understanding Your Folders
+You have media files in several folders on your computer:
+- `public/work/` - Project images and videos
+- `public/recognition/` - Recognition/award images
+- `public/ventures/` - Ventures page media
+- `public/videos/` - General videos
+
+### Which Format to Upload? (Important!)
+
+**Upload ONLY ONE format per file**. Cloudinary will automatically create all other formats for you.
+
+**Images**:
+- Upload the **WebP** version if you have it (smallest file size)
+- If no WebP, upload **JPEG** or **PNG**
+- **Don't upload both** - Cloudinary creates WebP automatically
+
+**Videos**:
+- Upload **MP4** only (best compatibility)
+- **Don't upload WebM** - Cloudinary can serve WebM automatically if needed
+
+### Recommended Folder Structure in Cloudinary
+
+Create these folders in Cloudinary to match your local structure:
+
+```
+Media Library
+├── work/
+│   ├── images/
+│   └── videos/
+├── recognition/
+│   └── images/
+├── ventures/
+│   ├── images/
+│   └── videos/
+└── videos/
+    └── (upload directly here)
+```
+
+**Why organize this way?** It makes it easier to find and replace URLs in your code later.
+
+### How to Upload (Drag & Drop Method - Easiest)
+
 1. Go to https://console.cloudinary.com/console/c-geo
-2. Click "Media Library"
-3. Create folders: `images/` and `videos/`
-4. Drag files from `public/work/` into respective folders
+2. Click "Media Library" on the left
+3. Click "+ New Folder" and create folders as shown above
+4. Open each folder
+5. Drag files from your computer into the matching Cloudinary folder:
+   - Files from `public/work/images/` → Cloudinary `work/images/`
+   - Files from `public/work/videos/` → Cloudinary `work/videos/`
+   - Files from `public/recognition/` → Cloudinary `recognition/images/`
 
-**Option B: Command Line**
-```bash
-# Install Cloudinary CLI
-npm install -g cloudinary-cli
+**Keep the same filenames!** If your local file is named `boubyan-thumb.webp`, name it exactly the same in Cloudinary.
 
-# Configure
-cloudinary config cloud_name=your-cloud-name api_key=YOUR_KEY api_secret=YOUR_SECRET
+---
 
-# Upload
-cloudinary upload_dir public/work
-```
+## Step 3: Update Your Website Code to Use Cloudinary URLs
 
-### Step 4: Update Media References
-Find and replace in your components:
-
-**Before:**
+**Before** (using local files):
 ```tsx
 <Image src="/work/boubyan-thumb.webp" ... />
 <video src="/work/boubyan-video.mp4" ... />
 ```
 
-**After:**
+**After** (using Cloudinary):
+
+**Option A: Use the Helper Function (Easier)**
 ```tsx
 import { getImageUrl, getVideoUrl } from '@/lib/media';
 
+// For images
 <Image src={getImageUrl('/work/boubyan-thumb.webp', 800)} ... />
+
+// For videos
 <video src={getVideoUrl('/work/boubyan-video.mp4')} ... />
 ```
 
-Or use direct Cloudinary URLs:
+**Option B: Use Direct Cloudinary URLs**
 ```tsx
-<Image 
-  src="https://res.cloudinary.com/your-cloud/image/upload/images/boubyan-thumb.webp"
-  ... 
-/>
+// Image URL format:
+https://res.cloudinary.com/dj0n7b4ma/image/upload/work/images/boubyan-thumb.webp
+
+// Video URL format:
+https://res.cloudinary.com/dj0n7b4ma/video/upload/work/videos/boubyan-video.mp4
 ```
 
-## Benefits
+### URL Format Cheat Sheet
 
-| Metric | Before (Git) | After (Cloudinary) |
-|--------|-------------|-------------------|
-| Git Push | 30+ min (fails) | 10 seconds |
-| Vercel Build | 5+ min | 1 min |
-| Image Delivery | Unoptimized | Auto WebP/AVIF |
-| Global CDN | Vercel only | 300+ edge locations |
-| Responsive Images | Manual | Automatic |
+| Local Path | Cloudinary URL |
+|------------|----------------|
+| `/work/boubyan-thumb.webp` | `https://res.cloudinary.com/dj0n7b4ma/image/upload/work/images/boubyan-thumb.webp` |
+| `/recognition/award.jpg` | `https://res.cloudinary.com/dj0n7b4ma/image/upload/recognition/images/award.jpg` |
+| `/ventures/hero.mp4` | `https://res.cloudinary.com/dj0n7b4ma/video/upload/ventures/videos/hero.mp4` |
+| `/videos/reel.mp4` | `https://res.cloudinary.com/dj0n7b4ma/video/upload/videos/reel.mp4` |
+
+**Pattern**: `https://res.cloudinary.com/dj0n7b4ma/[image or video]/upload/[folder path]/[filename]`
+
+---
+
+## What Cloudinary Does Automatically
+
+Once uploaded, Cloudinary automatically:
+- ✓ Converts JPEG/PNG to WebP/AVIF (60% smaller files)
+- ✓ Delivers from 300+ global servers (faster loading)
+- ✓ Resizes images for mobile vs desktop (optimal sizes)
+- ✓ Compresses with best quality settings
+
+**You upload ONE format, Cloudinary serves the BEST format.**
+
+---
 
 ## Troubleshooting
 
 **Images not loading?**
-- Check `next.config.ts` has Cloudinary in `remotePatterns`
-- Verify `NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME` is set
+1. Check the URL is correct (use the format above)
+2. Make sure file is uploaded to Cloudinary Media Library
+3. Verify `.env.local` has your cloud name
 
-**Build failing?**
-```bash
-rm -rf .next
-npm run build
+**Not sure if Cloudinary is working?**
+Paste this in your browser:
 ```
-
-## Complete Migration
-
-Once you've verified Cloudinary works:
-
-```bash
-# Remove local media from Git tracking
-git rm -r --cached public/work/*.mp4 public/work/*.webm
-git commit -m "Move large media to Cloudinary"
-
-# Keep small images in repo for backup
-git add public/work/*.webp public/work/*.jpg
-git commit -m "Keep optimized images in repo"
+https://res.cloudinary.com/dj0n7b4ma/image/upload/work/images/[your-filename]
 ```
+If you see your image, it's working!
 
-## Advanced: Auto-Optimization
+---
 
-Cloudinary automatically:
-- Converts to WebP/AVIF (smaller than JPEG/PNG)
-- Resizes for device viewport
-- Compresses with quality: auto
-- Delivers from nearest edge server
+## Quick Reference
 
-No code changes needed - just change the URL!
+**Your Cloudinary Dashboard**: https://console.cloudinary.com/console/c-geo
+**Media Library**: https://console.cloudinary.com/console/media_library
+**Base URL for Images**: `https://res.cloudinary.com/dj0n7b4ma/image/upload/`
+**Base URL for Videos**: `https://res.cloudinary.com/dj0n7b4ma/video/upload/`

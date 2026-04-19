@@ -7,6 +7,7 @@ import { WorkProjectFooter } from '@/components/work/WorkProjectFooter';
 import { AnimatedCounter } from '@/components/micro-animations/AnimatedCounter';
 import { ScrambleText } from '@/components/micro-animations/ScrambleText';
 import { CornerDraw } from '@/components/micro-animations/CornerDraw';
+import { getVideoUrl, getImageUrl } from '@/lib/media';
 
 interface StabilityContentProps {
   metadata: {
@@ -232,10 +233,10 @@ export default function StabilityContent({
             loop
             playsInline
             className="w-full h-full object-cover"
-            poster="/work/stability-ai-thumb.webp"
+            poster={getImageUrl('/work/stability-ai-thumb.webp', 800)}
           >
-            <source src="/work/stability-vid.webm" type="video/webm" />
-            <source src="/work/stability-vid.mp4" type="video/mp4" />
+            <source src={getVideoUrl('/work/stability-vid.webm')} type="video/webm" />
+            <source src={getVideoUrl('/work/stability-vid.mp4')} type="video/mp4" />
           </video>
         </div>
 
@@ -601,9 +602,9 @@ export default function StabilityContent({
                 <CornerDraw color={neural} size={24} strokeWidth={2} isHovered={hoveredFrame === 0} />
 
                 <picture>
-                  <source srcSet="/work/stability-imad.webp" type="image/webp" />
+                  <source srcSet={getImageUrl('/work/stability-imad.webp', 1200)} type="image/webp" />
                   <Image
-                    src="/work/stability-imad.jpg"
+                    src={getImageUrl('/work/stability-imad.jpg', 1200)}
                     alt="Imad at Stability AI"
                     fill
                     className="object-cover transition-transform duration-700 ease-out group-hover:scale-105"
@@ -635,9 +636,9 @@ export default function StabilityContent({
                   <CornerDraw color={neural} size={20} strokeWidth={1.5} isHovered={hoveredFrame === 1} />
 
                   <picture>
-                    <source srcSet="/work/stability-team.webp" type="image/webp" />
+                    <source srcSet={getImageUrl('/work/stability-team.webp', 800)} type="image/webp" />
                     <Image
-                      src="/work/stability-team.jpg"
+                      src={getImageUrl('/work/stability-team.jpg', 800)}
                       alt="Stability AI Team"
                       fill
                       className="object-cover transition-transform duration-700 ease-out group-hover:scale-105"
@@ -666,9 +667,9 @@ export default function StabilityContent({
                   <CornerDraw color={diffusion} size={20} strokeWidth={1.5} isHovered={hoveredFrame === 2} />
 
                   <picture>
-                    <source srcSet="/work/stability-led.webp" type="image/webp" />
+                    <source srcSet={getImageUrl('/work/stability-led.webp', 800)} type="image/webp" />
                     <Image
-                      src="/work/stability-led.jpeg"
+                      src={getImageUrl('/work/stability-led.jpeg', 800)}
                       alt="LED Installation"
                       fill
                       className="object-cover transition-transform duration-700 ease-out group-hover:scale-105"

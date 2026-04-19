@@ -2,6 +2,7 @@
 
 import React, { useRef, useState, useEffect } from 'react';
 import { motion, useInView } from 'framer-motion';
+import { getVideoUrl } from '@/lib/media';
 
 interface Capability {
   id: string;
@@ -20,8 +21,8 @@ const capabilities: Capability[] = [
     title: 'Experiential Strategy',
     description: 'Translating brand objectives into immersive experiences that create cultural connections.',
     secondaryText: 'Strategic concepting, vendor orchestration, and production leadership for multi-dimensional activations.',
-    mp4Src: '/videos/stability-exp.mp4',
-    webmSrc: '/videos/stability-exp.webm',
+    mp4Src: getVideoUrl('/videos/stability-exp.mp4'),
+    webmSrc: getVideoUrl('/videos/stability-exp.webm'),
   },
   {
     id: 'live',
@@ -29,8 +30,8 @@ const capabilities: Capability[] = [
     title: 'Live Production',
     description: 'Large-scale activations for 500+ attendees with streaming infrastructure reaching 10K+ concurrent viewers.',
     secondaryText: 'Managing cross-functional teams and $1M budgets from concept through execution.',
-    mp4Src: '/videos/wb-prod.mp4',
-    webmSrc: '/videos/wb-prod.webm',
+    mp4Src: getVideoUrl('/videos/wb-prod.mp4'),
+    webmSrc: getVideoUrl('/videos/wb-prod.webm'),
   },
   {
     id: 'immersive',
@@ -38,8 +39,8 @@ const capabilities: Capability[] = [
     title: 'Immersive Content',
     description: 'VR/AR experiences and 360° video for enterprise training and brand storytelling.',
     secondaryText: 'Complete production oversight from creative concepts to platform optimization.',
-    mp4Src: '/videos/tcy-immersive.mp4',
-    webmSrc: '/videos/tcy-immersive.webm',
+    mp4Src: getVideoUrl('/videos/tcy-immersive.mp4'),
+    webmSrc: getVideoUrl('/videos/tcy-immersive.webm'),
   },
   {
     id: 'ai',
@@ -47,8 +48,8 @@ const capabilities: Capability[] = [
     title: 'AI Workflow Design',
     description: 'Building tools and systems that remove friction from creative processes.',
     secondaryText: 'Productivity platforms to automation frameworks that accelerate ideation.',
-    mp4Src: '/videos/st-ai.mp4',
-    webmSrc: '/videos/st-ai.webm',
+    mp4Src: getVideoUrl('/videos/st-ai.mp4'),
+    webmSrc: getVideoUrl('/videos/st-ai.webm'),
   },
 ];
 

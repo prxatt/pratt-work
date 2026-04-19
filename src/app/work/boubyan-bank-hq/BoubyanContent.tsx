@@ -3,6 +3,7 @@
 import { motion, useInView } from 'framer-motion';
 import { useRef, ReactNode } from 'react';
 import { WorkProjectFooter } from '@/components/work/WorkProjectFooter';
+import { getVideoUrl, getImageUrl } from '@/lib/media';
 
 interface BoubyanContentProps {
   metadata: {
@@ -223,10 +224,10 @@ export default function BoubyanContent({ metadata, mainContent, approachSections
             muted
             playsInline
             className="w-full h-full object-cover opacity-60"
-            poster="/work/boubyan-bank-thumb.webp"
+            poster={getImageUrl('/work/boubyan-bank-thumb.webp', 800)}
           >
-            <source src="/work/boubyan-bank-card.webm" type="video/webm" />
-            <source src="/work/boubyan-bank-card.mp4" type="video/mp4" />
+            <source src={getVideoUrl('/work/boubyan-bank-card.webm')} type="video/webm" />
+            <source src={getVideoUrl('/work/boubyan-bank-card.mp4')} type="video/mp4" />
           </video>
         </div>
 
@@ -452,35 +453,7 @@ export default function BoubyanContent({ metadata, mainContent, approachSections
                 >
                   Project Brief
                 </motion.span>
-              </div>
 
-              <div className="prose prose-invert prose-lg max-w-none">
-                <div className="font-sans text-lg md:text-xl uppercase tracking-wide leading-[1.9] text-[#A3A3A3]">
-                  {mainContent}
-                </div>
-              </div>
-            </motion.div>
-
-            {/* Right: Tech Specs (5 cols) */}
-            <motion.div 
-              className="lg:col-span-5 space-y-6"
-              variants={slideInRight}
-            >
-              <motion.div 
-                className="p-8 border"
-                style={{ 
-                  borderColor: `${steel}20`,
-                  backgroundColor: `${dark}60`
-                }}
-                whileHover={{ borderColor: `${steel}40` }}
-                transition={{ duration: 0.3 }}
-              >
-                <motion.span 
-                  className="font-mono text-[10px] tracking-[0.3em] uppercase block mb-6" 
-                  style={{ color: steel }}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={contentInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
-                  transition={{ delay: 0.4 }}
                 >
                   Technical Specifications
                 </motion.span>
