@@ -8,9 +8,9 @@ const nextConfig: NextConfig = {
   },
   images: {
     formats: ['image/avif', 'image/webp'],
-    // Always allow Cloudinary for next/image. Do NOT gate this on env at build time: if the cloud
-    // name was missing during `next build`, remotePatterns would be [] and every <Image src=…>
-    // pointing at res.cloudinary.com would fail (blank cards) even though NEXT_PUBLIC_* is set at runtime.
+    // Single permissive pattern: scoped `/${cloud}/**` breaks `next/image` if build-time env
+    // differs from runtime, casing mismatches, or Vercel env ordering. Src URLs still only come
+    // from our own getImageUrl (Cloudinary account in NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME).
     remotePatterns: [
       {
         protocol: 'https',

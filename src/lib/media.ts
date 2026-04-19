@@ -18,16 +18,22 @@
  *     segment. Use ONLY if you uploaded flat; wrong for Work/Images layouts → 404.
  */
 
-const PATH_STYLE = (() => {
+const MEDIA_OFF_RE = /^(off|0|false)$/i;
+const VIDEO_EXT_RE = /\.(mp4|webm|mov|m4v)$/i;
+const ABS_URL_RE = /^https?:\/\//i;
+
+type PathStyle = 'mirror' | 'nested' | 'nested_title';
+
+function getPathStyle(): PathStyle {
   const raw = (process.env.NEXT_PUBLIC_CLOUDINARY_PATH_STYLE ?? 'nested_title').trim();
   const v = raw.toLowerCase().replace(/-/g, '_');
   if (v === 'mirror' || v === 'nested' || v === 'nested_title') return v;
   return 'nested_title';
-})();
+}
 
 function getCloudName(): string {
   const raw = (process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || '').trim();
-  const mediaOff = /^(off|0|false)$/i.test((process.env.NEXT_PUBLIC_CLOUDINARY_MEDIA || '').trim());
+  const mediaOff = MEDIA_OFF_RE.test((process.env.NEXT_PUBLIC_CLOUDINARY_MEDIA || '').trim());
   if (mediaOff || !raw) {
     if (!mediaOff && !raw && process.env.NODE_ENV === 'development') {
       throw new Error(
@@ -59,11 +65,11 @@ function normalizeFilenameExtension(filename: string): string {
 /**
  * Build Cloudinary public_id (folder + filename, slashes, no leading slash).
  */
-function buildCloudinaryPublicId(segments: string[], isVideo: boolean): string {
+function buildCloudinaryPublicId(segments: string[], isVideo: boolean, pathStyle: PathStyle): string {
   const filename = segments[segments.length - 1]!;
   const dirSegments = segments.slice(0, -1);
 
-  if (PATH_STYLE === 'mirror') {
+  if (pathStyle === 'mirror') {
     return segments.join('/');
   }
 
@@ -71,7 +77,7 @@ function buildCloudinaryPublicId(segments: string[], isVideo: boolean): string {
     return filename;
   }
 
-  const useTitle = PATH_STYLE === 'nested_title';
+  const useTitle = pathStyle === 'nested_title';
   const normDir = (s: string) => (useTitle ? titleCaseSegment(s) : s.toLowerCase());
   const titledDirs = dirSegments.map(normDir);
   const lastRaw = dirSegments[dirSegments.length - 1]!;
@@ -105,7 +111,7 @@ export function getMediaUrl(
   } = {}
 ): string {
   const trimmed = localPath.trim();
-  if (trimmed.startsWith('//') || /^https?:\/\//i.test(trimmed)) {
+  if (trimmed.startsWith('//') || ABS_URL_RE.test(trimmed)) {
     return localPath;
   }
 
@@ -118,8 +124,9 @@ export function getMediaUrl(
   const rawFilename = segments[segments.length - 1]!;
   const filename = normalizeFilenameExtension(rawFilename);
   const normSegments = [...segments.slice(0, -1), filename];
-  const isVideo = /\.(mp4|webm|mov|m4v)$/i.test(filename);
-  const cloudPath = buildCloudinaryPublicId(normSegments, isVideo);
+  const isVideo = VIDEO_EXT_RE.test(filename);
+  const pathStyle = getPathStyle();
+  const cloudPath = buildCloudinaryPublicId(normSegments, isVideo, pathStyle);
 
   const baseUrl = `https://res.cloudinary.com/${cloudName}/${isVideo ? 'video' : 'image'}/upload`;
 
