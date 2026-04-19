@@ -8,6 +8,8 @@
  *
  * Env:
  * - NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME — required for CDN (trimmed). If empty, URLs stay local (/work/…).
+ *   On Vercel, set it for every environment you deploy (Production and Preview); then redeploy so the
+ *   client bundle is rebuilt with the value inlined.
  * - NEXT_PUBLIC_CLOUDINARY_MEDIA=off — force local paths even if cloud name is set (emergency / debugging).
  * - NEXT_PUBLIC_CLOUDINARY_PATH_STYLE (optional; default matches the folders above):
  *   - nested_title — DEFAULT. `/work/a.webp` → `Work/Images/a.webp`, `/work/a.webm` → `Work/Videos/a.webm`.
@@ -15,10 +17,6 @@
  *   - mirror — public_id is exactly the path under `public/` (e.g. `work/a.webp`) with NO extra Images/Videos
  *     segment. Use ONLY if you uploaded flat; wrong for Work/Images layouts → 404.
  */
-
-const RAW_CLOUD_NAME = (process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || '').trim();
-const MEDIA_OFF =
-  /^(off|0|false)$/i.test((process.env.NEXT_PUBLIC_CLOUDINARY_MEDIA || '').trim());
 
 const PATH_STYLE = (() => {
   const raw = (process.env.NEXT_PUBLIC_CLOUDINARY_PATH_STYLE ?? 'nested_title').trim();
@@ -28,15 +26,17 @@ const PATH_STYLE = (() => {
 })();
 
 function getCloudName(): string {
-  if (MEDIA_OFF || !RAW_CLOUD_NAME) {
-    if (!MEDIA_OFF && !RAW_CLOUD_NAME && process.env.NODE_ENV === 'development') {
+  const raw = (process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || '').trim();
+  const mediaOff = /^(off|0|false)$/i.test((process.env.NEXT_PUBLIC_CLOUDINARY_MEDIA || '').trim());
+  if (mediaOff || !raw) {
+    if (!mediaOff && !raw && process.env.NODE_ENV === 'development') {
       throw new Error(
         '[media.ts] NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME is not set. Add it to .env.local, or set NEXT_PUBLIC_CLOUDINARY_MEDIA=off to use local files.'
       );
     }
     return '';
   }
-  return RAW_CLOUD_NAME;
+  return raw;
 }
 
 function titleCaseSegment(segment: string): string {
