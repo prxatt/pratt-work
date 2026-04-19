@@ -151,7 +151,7 @@ export default function ContactPage() {
   const remarkableLetters = useMemo(() => 'REMARKABLE'.split(''), []);
 
   return (
-    <div className="min-h-[100dvh] h-screen w-full bg-[#0D0D0D] relative overflow-hidden flex flex-col pt-[max(0.5rem,env(safe-area-inset-top))] pb-[max(0.5rem,env(safe-area-inset-bottom))]">
+    <div className="min-h-[100dvh] w-full bg-[#0D0D0D] relative overflow-hidden flex flex-col pt-[max(0.5rem,env(safe-area-inset-top))] pb-[max(0.5rem,env(safe-area-inset-bottom))]">
         {/* Interactive GridScan Background - Optimized for mobile */}
         <div className="absolute inset-0 z-0">
           <GridScan
