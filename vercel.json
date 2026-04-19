@@ -2,7 +2,7 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "buildCommand": "next build",
   "devCommand": "next dev",
-  "installCommand": "npm install",
+  "installCommand": "git lfs pull && npm install",
   "framework": "nextjs",
   "outputDirectory": ".next",
   "regions": ["iad1"],
