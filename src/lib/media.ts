@@ -102,7 +102,7 @@ export function getMediaUrl(
   if (segments.length === 0) return localPath;
 
   const filename = segments[segments.length - 1]!;
-  const isVideo = /\.(mp4|webm|mov)$/i.test(filename);
+  const isVideo = /\.(mp4|webm|mov|m4v)$/i.test(filename);
   const cloudPath = buildCloudinaryPublicId(segments, isVideo);
 
   const baseUrl = `https://res.cloudinary.com/${cloudName}/${isVideo ? 'video' : 'image'}/upload`;
