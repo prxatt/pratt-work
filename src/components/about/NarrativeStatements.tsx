@@ -2,6 +2,7 @@
 
 import React, { useRef, useState, useEffect } from 'react';
 import { motion, useScroll, useTransform, useInView } from 'framer-motion';
+import { getVideoUrl } from '@/lib/media';
 
 // Large Video Frame Component for Building Connection section - 50% viewport
 interface LargeVideoFrameProps {
@@ -423,9 +424,9 @@ export const NarrativeStatements = () => {
             transition={{ duration: 0.8, delay: 0.5, ease: [0.16, 1, 0.3, 1] }}
             className="mt-16 flex gap-4 w-full justify-center px-[5vw]"
           >
-            <VideoFrame label="Experiential" index={0} mp4Src="/videos/the-crypt-space.mp4" webmSrc="/videos/the-crypt-space.webm" />
-            <VideoFrame label="Production" index={1} mp4Src="/videos/st-dd-prod.mp4" webmSrc="/videos/st-dd-prod.webm" />
-            <VideoFrame label="Strategy" index={2} mp4Src="/videos/the-crypt-run.mp4" webmSrc="/videos/the-crypt-run.webm" />
+            <VideoFrame label="Experiential" index={0} mp4Src={getVideoUrl('/videos/the-crypt-space.mp4')} webmSrc={getVideoUrl('/videos/the-crypt-space.webm')} />
+            <VideoFrame label="Production" index={1} mp4Src={getVideoUrl('/videos/st-dd-prod.mp4')} webmSrc={getVideoUrl('/videos/st-dd-prod.webm')} />
+            <VideoFrame label="Strategy" index={2} mp4Src={getVideoUrl('/videos/the-crypt-run.mp4')} webmSrc={getVideoUrl('/videos/the-crypt-run.webm')} />
           </motion.div>
         </motion.div>
       </div>
@@ -594,7 +595,7 @@ export const NarrativeStatements = () => {
                 transition={{ duration: 0.6, delay: 0.4 }}
                 className="mt-8 lg:mt-16 w-full flex justify-end"
               >
-                <LargeVideoFrame mp4Src="/videos/pr8-lv.mp4" webmSrc="/videos/pr8-lv.webm" />
+                <LargeVideoFrame mp4Src={getVideoUrl('/videos/pr8-lv.mp4')} webmSrc={getVideoUrl('/videos/pr8-lv.webm')} />
               </motion.div>
             </div>
           </div>

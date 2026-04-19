@@ -2,6 +2,8 @@
 // WORK PROJECTS DATA - Shared across components
 // ============================================
 
+import { getImageUrl, getVideoUrl } from '@/lib/media';
+
 export interface WorkProject {
   id: string;
   slug: string;
@@ -17,6 +19,7 @@ export interface WorkProject {
   thumbnail: {
     type: 'image' | 'video';
     src: string;
+    srcSet?: string;
     fallback?: string;
     alt: string;
     objectPosition?: string;
@@ -41,11 +44,11 @@ export const workProjects: WorkProject[] = [
     featuredSize: 'large',
     thumbnail: {
       type: 'video',
-      src: '/work/the-crypt-thumb.webm',
-      fallback: '/work/the-crypt-thumb.mp4',
+      src: getVideoUrl('/work/the-crypt-thumb.webm'),
+      fallback: getVideoUrl('/work/the-crypt-thumb.mp4'),
       alt: 'The Crypt volumetric capture immersive experience',
     },
-    heroMedia: '/work/the-crypt-hero.webm',
+    heroMedia: getVideoUrl('/work/the-crypt-hero.webm'),
     tags: ['volumetric', 'video', 'spatial', 'computing', 'research', 'immersive', 'capture', 'playback']
   },
   {
@@ -62,8 +65,9 @@ export const workProjects: WorkProject[] = [
     featuredSize: 'medium',
     thumbnail: {
       type: 'image',
-      src: '/work/weights-biases-thumb.webp',
-      fallback: '/work/weights-biases-thumb.jpeg',
+      src: getImageUrl('/work/weights-biases-thumb.webp', 800),
+      srcSet: getImageUrl('/work/weights-biases-thumb.webp', 800),
+      fallback: getImageUrl('/work/weights-biases-thumb.jpeg', 800),
       alt: 'Weights & Biases Fully Connected AI conference stage',
     },
     clientLogos: ['/logos/weights-biases.svg'],
@@ -83,8 +87,8 @@ export const workProjects: WorkProject[] = [
     featuredSize: 'medium',
     thumbnail: {
       type: 'video',
-      src: '/work/surface-tension-thumb.webm',
-      fallback: '/work/surface-tension-thumb.mp4',
+      src: getVideoUrl('/work/surface-tension-thumb.webm'),
+      fallback: getVideoUrl('/work/surface-tension-thumb.mp4'),
       alt: 'Surface Tension Digital Drip immersive art installation',
     },
     tags: ['experiential', 'immersive', 'art', 'installation', 'interactive', 'generative', 'spatial audio']
@@ -103,11 +107,11 @@ export const workProjects: WorkProject[] = [
     featuredSize: 'medium',
     thumbnail: {
       type: 'image',
-      src: '/work/boubyan-bank-thumb.webp',
-      fallback: '/work/boubyan-bank-thumb.jpg',
+      src: getImageUrl('/work/boubyan-bank-thumb.webp', 800),
+      fallback: getImageUrl('/work/boubyan-bank-thumb.jpg', 800),
       alt: 'Boubyan Bank HQ 3D generative architectural visualization',
     },
-    heroMedia: '/work/boubyan-hero.webm',
+    heroMedia: getVideoUrl('/work/boubyan-hero.webm'),
     clientLogos: ['/logos/khabari.svg'],
     tags: ['3d', 'previsualization', 'kuwait', 'architectural', 'renderings', 'lighting', 'interactive']
   },
@@ -125,8 +129,8 @@ export const workProjects: WorkProject[] = [
     featuredSize: 'small',
     thumbnail: {
       type: 'image',
-      src: '/work/salesforce-thumb.webp',
-      fallback: '/work/salesforce-thumb.jpeg',
+      src: getImageUrl('/work/salesforce-thumb.webp', 800),
+      fallback: getImageUrl('/work/salesforce-thumb.jpeg', 800),
       alt: 'Salesforce Grant Celebration Dreamforce activation event',
     },
     tags: ['corporate', 'events', 'fundraiser', 'dreamforce', 'conference', 'broadcast']
@@ -145,8 +149,8 @@ export const workProjects: WorkProject[] = [
     featuredSize: 'small',
     thumbnail: {
       type: 'image',
-      src: '/work/levis-thumb.webp',
-      fallback: '/work/levis-thumb.jpg',
+      src: getImageUrl('/work/levis-thumb.webp', 800),
+      fallback: getImageUrl('/work/levis-thumb.jpg', 800),
       alt: "Levi's Innovation Labs VR 360 immersive brand experience",
     },
     tags: ['vr', '360', 'immersive', 'brand', 'experience', 'retail', 'storytelling', 'heritage']
@@ -165,8 +169,8 @@ export const workProjects: WorkProject[] = [
     featuredSize: 'small',
     thumbnail: {
       type: 'image',
-      src: '/work/pwc-liftoff-thumb.webp',
-      fallback: '/work/pwc-liftoff-thumb.jpg',
+      src: getImageUrl('/work/pwc-liftoff-thumb.webp', 800),
+      fallback: getImageUrl('/work/pwc-liftoff-thumb.jpg', 800),
       alt: 'PwC Liftoff VR 360 conference immersive experience',
     },
     tags: ['vr', '360', 'conference', 'pwc', 'accelerators', 'startup', 'showcase']
@@ -185,8 +189,8 @@ export const workProjects: WorkProject[] = [
     featuredSize: 'small',
     thumbnail: {
       type: 'image',
-      src: '/work/stability-ai-thumb.webp',
-      fallback: '/work/stability-ai-thumb.jpg',
+      src: getImageUrl('/work/stability-ai-thumb.webp', 800),
+      fallback: getImageUrl('/work/stability-ai-thumb.jpg', 800),
       alt: 'Stability AI brand launch event presentation',
     },
     tags: ['ai', 'generative', 'brand launch', 'keynote', 'visual identity', 'presentation']
@@ -205,8 +209,8 @@ export const workProjects: WorkProject[] = [
     featuredSize: 'small',
     thumbnail: {
       type: 'image',
-      src: '/work/women-is-losers-thumb.webp',
-      fallback: '/work/women-is-losers-thumb.jpeg',
+      src: getImageUrl('/work/women-is-losers-thumb.webp', 800),
+      fallback: getImageUrl('/work/women-is-losers-thumb.jpeg', 800),
       alt: 'Women Is Losers independent film production still',
       objectPosition: 'center 10%',
     },

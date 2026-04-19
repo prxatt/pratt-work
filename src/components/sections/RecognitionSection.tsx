@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useCursor } from '@/context/CursorContext';
 import { X, Trophy, Film, Award, BarChart3, Play } from 'lucide-react';
 import Image from 'next/image';
+import { getImageUrl, getVideoUrl } from '@/lib/media';
 
 interface Award {
   id: string;
@@ -42,7 +43,7 @@ const awards: Award[] = [
     fullDescription: 'Negotiated a landmark 3-year exclusive licensing agreement with Shorts.TV, the world\'s largest short film broadcaster reaching 40M+ homes globally. Structured deal to include backend participation and international rights retention.',
     impact: ['40M+ households reached', '3-year exclusive term', 'International rights retained', 'Backend revenue participation'],
     icon: Film,
-    image: '/awards/alone-shorts.jpg',
+    image: getImageUrl('/awards/alone-shorts.jpg', 400),
   },
   {
     id: '[3]',
@@ -116,10 +117,10 @@ const AloneModal = ({ onClose }: { onClose: () => void }) => {
               playsInline
               preload="auto"
               className="absolute inset-0 w-full h-full object-cover"
-              poster="/recognition/alone-poster.jpg"
+              poster={getImageUrl('/recognition/alone-poster.jpg', 1920)}
             >
-              <source src="/recognition/alone-trailer.mp4" type="video/mp4" />
-              <source src="/recognition/alone-trailer.webm" type="video/webm" />
+              <source src={getVideoUrl('/recognition/alone-trailer.mp4')} type="video/mp4" />
+              <source src={getVideoUrl('/recognition/alone-trailer.webm')} type="video/webm" />
             </video>
           </div>
           
@@ -400,10 +401,10 @@ const WomenIsLosersModal = ({ onClose }: { onClose: () => void }) => {
               playsInline
               preload="auto"
               className="absolute inset-0 w-full h-full object-cover"
-              poster="/recognition/women-is-losers-poster.jpg"
+              poster={getImageUrl('/recognition/women-is-losers-poster.jpg', 1920)}
             >
-              <source src="/recognition/women-is-losers-trailer.mp4" type="video/mp4" />
-              <source src="/recognition/women-is-losers-trailer.webm" type="video/webm" />
+              <source src={getVideoUrl('/recognition/women-is-losers-trailer.mp4')} type="video/mp4" />
+              <source src={getVideoUrl('/recognition/women-is-losers-trailer.webm')} type="video/webm" />
             </video>
           </div>
           
@@ -1111,10 +1112,10 @@ const SynchronicityDocumentaryModal = ({ onClose }: { onClose: () => void }) => 
               playsInline
               preload="auto"
               className="absolute inset-0 w-full h-full object-cover"
-              poster="/recognition/synchronicity-poster.jpg"
+              poster={getImageUrl('/recognition/synchronicity-poster.jpg', 1920)}
             >
-              <source src="/recognition/synchronicity-trailer.mp4" type="video/mp4" />
-              <source src="/recognition/synchronicity-trailer.webm" type="video/webm" />
+              <source src={getVideoUrl('/recognition/synchronicity-trailer.mp4')} type="video/mp4" />
+              <source src={getVideoUrl('/recognition/synchronicity-trailer.webm')} type="video/webm" />
             </video>
           </div>
           
@@ -1149,7 +1150,7 @@ const SynchronicityDocumentaryModal = ({ onClose }: { onClose: () => void }) => 
                 className="w-32 h-48 md:w-44 md:h-64 lg:w-52 lg:h-80 bg-gradient-to-br from-[#1a1a2e] to-[#0f0a1a] border border-[#6366f1]/50 rounded-lg overflow-hidden flex-shrink-0 shadow-2xl relative z-20"
               >
                 <Image
-                  src="/recognition/synchronicity-poster.jpg"
+                  src={getImageUrl('/recognition/synchronicity-poster.jpg', 800)}
                   alt="Synchronicity - Documentary Poster"
                   fill
                   className="object-cover"

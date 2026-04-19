@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useCursor } from '@/context/CursorContext';
 import { X, Lock } from 'lucide-react';
 import Image from 'next/image';
+import { getImageUrl } from '@/lib/media';
 
 // Status color configurations - distinct for each entity
 const statusColors: Record<string, { bg: string; text: string }> = {
@@ -395,7 +396,7 @@ export const VenturesSection = () => {
                   {/* Teaser Image on Hover - Desktop only */}
                   <TeaserImageHover 
                     isVisible={soenHovered} 
-                    imageSrc="/ventures/soen-teaser.jpg" 
+                    imageSrc={getImageUrl('/ventures/soen-teaser.jpg', 600)} 
                     alt="SOEN - AI for Humans"
                     position="left"
                     vertical="top"
@@ -445,7 +446,7 @@ export const VenturesSection = () => {
                   {/* Teaser Image on Hover - Desktop only */}
                   <TeaserImageHover 
                     isVisible={culturePulseHovered} 
-                    imageSrc="/ventures/culturepulse-teaser.webp" 
+                    imageSrc={getImageUrl('/ventures/culturepulse-teaser.webp', 600)} 
                     alt="CulturePulse - Enterprise Intelligence Platform"
                     position="left"
                     vertical="bottom"
@@ -496,7 +497,7 @@ export const VenturesSection = () => {
           <TeaserImageModal
             isOpen={soenModalOpen}
             onClose={() => setSoenModalOpen(false)}
-            imageSrc="/ventures/soen-teaser.jpg"
+            imageSrc={getImageUrl('/ventures/soen-teaser.jpg', 800)}
             alt="SOEN - AI for Humans"
           />
         )}
@@ -508,8 +509,8 @@ export const VenturesSection = () => {
           <TeaserImageModal
             isOpen={culturePulseModalOpen}
             onClose={() => setCulturePulseModalOpen(false)}
-            imageSrc="/ventures/culturepulse-teaser.webp"
-            fallbackSrc="/ventures/culturepulse-teaser.jpg"
+            imageSrc={getImageUrl('/ventures/culturepulse-teaser.webp', 800)}
+            fallbackSrc={getImageUrl('/ventures/culturepulse-teaser.jpg', 800)}
             alt="CulturePulse - Enterprise Intelligence Platform"
           />
         )}
