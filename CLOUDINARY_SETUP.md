@@ -1,9 +1,9 @@
 # Cloudinary Media Setup Guide (Non-Technical Developer Version)
 
-## Your Cloudinary Account Details
+## Your Cloudinary Account
 - **Cloud Name**: `dj0n7b4ma`
-- **API Key**: `622435791171169`
-- **API Secret**: `N6V2_7By1QGFYzUQ00m8EYxPFmU`
+
+**Note**: API credentials are stored securely in environment variables, not in code.
 
 ---
 
@@ -14,7 +14,7 @@
 **Action**: Open your terminal and run this exact command:
 
 ```bash
-cd /Users/prattmajmudar/Desktop/pratt.work
+cd path/to/your/project
 echo "NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME=dj0n7b4ma" > .env.local
 ```
 

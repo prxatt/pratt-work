@@ -19,7 +19,6 @@ export interface WorkProject {
   thumbnail: {
     type: 'image' | 'video';
     src: string;
-    srcSet?: string;
     fallback?: string;
     alt: string;
     objectPosition?: string;
@@ -66,7 +65,6 @@ export const workProjects: WorkProject[] = [
     thumbnail: {
       type: 'image',
       src: getImageUrl('/work/weights-biases-thumb.webp', 800),
-      srcSet: getImageUrl('/work/weights-biases-thumb.webp', 800),
       fallback: getImageUrl('/work/weights-biases-thumb.jpeg', 800),
       alt: 'Weights & Biases Fully Connected AI conference stage',
     },

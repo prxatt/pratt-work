@@ -445,19 +445,47 @@ export default function BoubyanContent({ metadata, mainContent, approachSections
                   transition={{ duration: 0.8, ease: "easeOut" }}
                 />
                 <motion.span 
-                  className="font-mono text-[10px] tracking-[0.3em] uppercase" 
+                  className="font-mono text-[10px] tracking-[0.3em] uppercase block mb-6" 
                   style={{ color: rust }}
-                  initial={{ opacity: 0 }}
-                  animate={contentInView ? { opacity: 1 } : { opacity: 0 }}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={contentInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
                   transition={{ delay: 0.3 }}
                 >
                   Project Brief
                 </motion.span>
+              </div>
 
+              <div className="prose prose-invert prose-lg max-w-none">
+                <div className="font-sans text-lg md:text-xl uppercase tracking-wide leading-[1.9] text-[#A3A3A3]">
+                  {mainContent}
+                </div>
+              </div>
+            </motion.div>
+
+            {/* Right: Tech Specs (5 cols) */}
+            <motion.div 
+              className="lg:col-span-5 space-y-6"
+              variants={slideInRight}
+            >
+              <motion.div 
+                className="p-8 border"
+                style={{ 
+                  borderColor: `${steel}20`,
+                  backgroundColor: `${dark}60` 
+                }}
+                whileHover={{ borderColor: `${steel}40` }}
+                transition={{ duration: 0.3 }}
+              >
+                <motion.span 
+                  className="font-mono text-[10px] tracking-[0.3em] uppercase block mb-6" 
+                  style={{ color: steel }}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={contentInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
+                  transition={{ delay: 0.4 }}
                 >
                   Technical Specifications
                 </motion.span>
-                
+
                 <div className="space-y-4">
                   {[
                     { label: 'Render Engine', value: 'V-Ray / Corona' },
@@ -488,7 +516,7 @@ export default function BoubyanContent({ metadata, mainContent, approachSections
                 transition={{ duration: 0.3 }}
               >
                 <span className="font-mono text-[9px] tracking-[0.2em] uppercase text-[#666]">Category</span>
-                <span className="font-display text-sm" style={{ color: steel }}>FUNDRAISING PREVISUALIZATION</span>
+                <span className="font-display text-sm" style={{ color: steel }}>ARCHITECTURAL VISUALIZATION</span>
               </motion.div>
             </motion.div>
           </div>

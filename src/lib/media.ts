@@ -88,13 +88,19 @@ export function getImageUrl(
 
 /**
  * Get video URL with format optimization
+ * Preserves original format (webm/mp4) when format='auto'
  */
 export function getVideoUrl(
   localPath: string,
   format: 'auto' | 'mp4' | 'webm' = 'auto'
 ): string {
+  // If format is auto, preserve the original file extension
+  const detectedFormat = format === 'auto' 
+    ? (localPath.endsWith('.webm') ? 'webm' : 'mp4')
+    : format;
+  
   return getMediaUrl(localPath, {
-    format: format === 'auto' ? 'mp4' : format,
+    format: detectedFormat,
     quality: 'auto',
   });
 }
