@@ -30,7 +30,8 @@ function isImagesOrVideosFolder(segment: string): boolean {
 
 /**
  * Get optimized media URL
- * @param localPath - Original path like '/work/video.mp4'
+ * @param localPath - Original path like '/work/video.mp4'. `/awards/…` is treated as
+ *   Recognition on Cloudinary (same home-page section); local fallback still uses `/awards/…`.
  * @param options - Cloudinary transformation options
  * @returns CDN URL or local fallback
  */
@@ -57,7 +58,12 @@ export function getMediaUrl(
   if (segments.length === 0) return localPath;
 
   const filename = segments[segments.length - 1]!;
-  const dirSegments = segments.slice(0, -1);
+  const rawDirSegments = segments.slice(0, -1);
+  // Home-page "awards" tiles use `/awards/…` in code but live under Recognition in Cloudinary.
+  const dirSegments =
+    rawDirSegments.length > 0 && rawDirSegments[0].toLowerCase() === 'awards'
+      ? ['recognition', ...rawDirSegments.slice(1)]
+      : rawDirSegments;
   const isVideo = /\.(mp4|webm|mov)$/i.test(filename);
 
   // Cloudinary library layout: category folders contain `Images` and `Videos` subfolders
