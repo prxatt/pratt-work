@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useCursor } from '@/context/CursorContext';
+import { getImageUrl, getVideoUrl } from '@/lib/media';
 import { ArrowLeft, ArrowRight, Shuffle } from 'lucide-react';
 
 // Thumbnail mapping for projects
@@ -247,10 +248,17 @@ function ProjectCard({
                       onError={() => setImageLoaded(false)}
                       style={{ willChange: 'transform' }}
                     >
-                      <source 
-                        src={thumbnail.src} 
-                        type={thumbnail.src.toLowerCase().endsWith('.webm') ? 'video/webm' : 'video/mp4'} 
-                      />
+                      {thumbnail.src.toLowerCase().endsWith('.webm') ? (
+                        <>
+                          <source src={getVideoUrl(thumbnail.src)} type="video/webm" />
+                          <source
+                            src={getVideoUrl(thumbnail.src.replace(/\.webm$/i, '.mp4'))}
+                            type="video/mp4"
+                          />
+                        </>
+                      ) : (
+                        <source src={getVideoUrl(thumbnail.src)} type="video/mp4" />
+                      )}
                     </video>
                     {/* Subtle overlay for text readability */}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
@@ -259,7 +267,7 @@ function ProjectCard({
                   /* Image Thumbnail */
                   <>
                     <Image
-                      src={thumbnail.src}
+                      src={getImageUrl(thumbnail.src, 1200)}
                       alt={thumbnail.alt}
                       fill
                       className="object-cover"

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useCallback } from 'react';
+import { getVideoUrl } from '@/lib/media';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -98,8 +99,8 @@ const FRAGMENT_SHADER = /* glsl */ `
 // Component
 // ---------------------------------------------------------------------------
 export default function CryptVolumetric3D({
-  webmSrc = '/work/crypt-demo.webm',
-  mp4Src = '/work/crypt-demo.mp4',
+  webmSrc = getVideoUrl('/work/crypt-demo.webm'),
+  mp4Src = getVideoUrl('/work/crypt-demo.mp4'),
   posterSrc,
   depthIntensity = 0.38,
   height = '70vh',

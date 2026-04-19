@@ -8,6 +8,7 @@ import { EnterCinemaButton } from '@/components/work/EnterCinemaButton';
 import { AnimatedCounter } from '@/components/micro-animations/AnimatedCounter';
 import { ScrambleText } from '@/components/micro-animations/ScrambleText';
 import { CornerDraw } from '@/components/micro-animations/CornerDraw';
+import { getImageUrl, getVideoUrl } from '@/lib/media';
 
 interface WomenIsLosersContentProps {
   metadata: {
@@ -202,9 +203,9 @@ export default function WomenIsLosersContent({
         {/* Film Video Background - Full Viewport */}
         <div className="absolute inset-0 z-0">
           <FilmVideoPlayer
-            webmSrc="/work/wil-trailer.webm"
-            mp4Src="/work/wil-trailer.mp4"
-            posterSrc="/work/wil-poster.webp"
+            webmSrc={getVideoUrl('/work/wil-trailer.webm')}
+            mp4Src={getVideoUrl('/work/wil-trailer.mp4')}
+            posterSrc={getImageUrl('/work/wil-poster.webp', 1920)}
             className="w-full h-full"
           />
         </div>
@@ -423,9 +424,9 @@ export default function WomenIsLosersContent({
                 {/* Film poster image */}
                 <div className="absolute inset-4 sm:inset-8 overflow-hidden bg-[#151210]">
                   <picture>
-                    <source srcSet="/work/wil-poster.webp" type="image/webp" />
+                    <source srcSet={getImageUrl('/work/wil-poster.webp', 1200)} type="image/webp" />
                     <img
-                      src="/work/wil-poster.jpg"
+                      src={getImageUrl('/work/wil-poster.jpg', 1200)}
                       alt="Women Is Losers Film Poster"
                       className="w-full h-full object-cover"
                       style={{

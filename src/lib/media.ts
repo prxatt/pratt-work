@@ -42,17 +42,17 @@ export function getMediaUrl(
   const isVideo = /\.(mp4|webm|mov)$/i.test(filename);
   const mediaSubfolder = isVideo ? 'videos' : 'images';
 
-  // Build path parts from the original directory, excluding the filename
-  const pathParts = localPath.split('/').filter(Boolean);
-  pathParts.pop(); // remove filename
+  // Smart path builder — avoids doubling up folder names
+  const lastSlashIndex = localPath.lastIndexOf('/');
+  const dir = lastSlashIndex > 0 ? localPath.substring(1, lastSlashIndex) : '';
 
-  // Only inject the subfolder if the last directory segment isn't already it
-  // This prevents videos/videos/ or images/images/ doubling
-  if (pathParts[pathParts.length - 1] !== mediaSubfolder) {
-    pathParts.push(mediaSubfolder);
-  }
-
-  const cloudPath = [...pathParts, filename].join('/');
+  // Only inject the subfolder if the directory doesn't already end with it
+  const dirAlreadyHasSubfolder = dir.endsWith(mediaSubfolder);
+  const cloudPath = dirAlreadyHasSubfolder
+    ? `${dir}/${filename}`
+    : dir
+      ? `${dir}/${mediaSubfolder}/${filename}`
+      : `${mediaSubfolder}/${filename}`;
 
   const baseUrl = `https://res.cloudinary.com/${cloudName}/${isVideo ? 'video' : 'image'}/upload`;
 

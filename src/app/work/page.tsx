@@ -6,6 +6,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useCursor } from '@/context/CursorContext';
 import Head from 'next/head';
+import { getImageUrl, getVideoUrl } from '@/lib/media';
 
 const projects = [
   {
@@ -16,8 +17,8 @@ const projects = [
     year: '2026',
     thumbnail: {
       type: 'video' as const,
-      src: '/work/the-crypt-thumb.webm',
-      fallback: '/work/the-crypt-thumb.mp4',
+      src: getVideoUrl('/work/the-crypt-thumb.webm'),
+      fallback: getVideoUrl('/work/the-crypt-thumb.mp4'),
       alt: 'The Crypt volumetric capture immersive experience',
     },
   },
@@ -29,8 +30,8 @@ const projects = [
     year: '2025',
     thumbnail: {
       type: 'image' as const,
-      src: '/work/weights-biases-thumb.webp',
-      fallback: '/work/weights-biases-thumb.jpeg',
+      src: getImageUrl('/work/weights-biases-thumb.webp', 1200),
+      fallback: getImageUrl('/work/weights-biases-thumb.jpeg', 1200),
       alt: 'Weights & Biases Fully Connected AI conference stage',
     },
   },
@@ -42,8 +43,8 @@ const projects = [
     year: '2025',
     thumbnail: {
       type: 'video' as const,
-      src: '/work/surface-tension-thumb.webm',
-      fallback: '/work/surface-tension-thumb.mp4',
+      src: getVideoUrl('/work/surface-tension-thumb.webm'),
+      fallback: getVideoUrl('/work/surface-tension-thumb.mp4'),
       alt: 'Surface Tension Digital Drip immersive art installation',
     },
   },
@@ -55,8 +56,8 @@ const projects = [
     year: '2024',
     thumbnail: {
       type: 'image' as const,
-      src: '/work/boubyan-bank-thumb.webp',
-      fallback: '/work/boubyan-bank-thumb.jpg',
+      src: getImageUrl('/work/boubyan-bank-thumb.webp', 1200),
+      fallback: getImageUrl('/work/boubyan-bank-thumb.jpg', 1200),
       alt: 'Boubyan Bank HQ 3D generative architectural visualization',
     },
   },
@@ -68,8 +69,8 @@ const projects = [
     year: '2023',
     thumbnail: {
       type: 'image' as const,
-      src: '/work/salesforce-thumb.webp',
-      fallback: '/work/salesforce-thumb.jpeg',
+      src: getImageUrl('/work/salesforce-thumb.webp', 1200),
+      fallback: getImageUrl('/work/salesforce-thumb.jpeg', 1200),
       alt: 'Salesforce Grant Celebration Dreamforce activation event',
     },
   },
@@ -81,8 +82,8 @@ const projects = [
     year: '2023',
     thumbnail: {
       type: 'image' as const,
-      src: '/work/levis-thumb.webp',
-      fallback: '/work/levis-thumb.jpg',
+      src: getImageUrl('/work/levis-thumb.webp', 1200),
+      fallback: getImageUrl('/work/levis-thumb.jpg', 1200),
       alt: "Levi's Innovation Labs VR 360 immersive brand experience",
     },
   },
@@ -94,8 +95,8 @@ const projects = [
     year: '2023',
     thumbnail: {
       type: 'image' as const,
-      src: '/work/pwc-liftoff-thumb.webp',
-      fallback: '/work/pwc-liftoff-thumb.jpg',
+      src: getImageUrl('/work/pwc-liftoff-thumb.webp', 1200),
+      fallback: getImageUrl('/work/pwc-liftoff-thumb.jpg', 1200),
       alt: 'PwC Liftoff VR 360 conference immersive experience',
     },
   },
@@ -107,8 +108,8 @@ const projects = [
     year: '2022',
     thumbnail: {
       type: 'image' as const,
-      src: '/work/stability-ai-thumb.webp',
-      fallback: '/work/stability-ai-thumb.jpg',
+      src: getImageUrl('/work/stability-ai-thumb.webp', 1200),
+      fallback: getImageUrl('/work/stability-ai-thumb.jpg', 1200),
       alt: 'Stability AI brand launch event presentation',
     },
   },
@@ -120,8 +121,8 @@ const projects = [
     year: '2021',
     thumbnail: {
       type: 'image' as const,
-      src: '/work/women-is-losers-thumb.webp',
-      fallback: '/work/women-is-losers-thumb.jpeg',
+      src: getImageUrl('/work/women-is-losers-thumb.webp', 1200),
+      fallback: getImageUrl('/work/women-is-losers-thumb.jpeg', 1200),
       alt: 'Women Is Losers independent film production still',
       objectPosition: 'center 10%',
     },

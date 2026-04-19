@@ -155,7 +155,7 @@ const AloneModal = ({ onClose }: { onClose: () => void }) => {
                 className="w-32 h-48 md:w-44 md:h-64 lg:w-52 lg:h-80 bg-gradient-to-br from-[#1a1a2e] to-[#0a0a0a] border border-[#2a2a3a] rounded-lg overflow-hidden flex-shrink-0 shadow-2xl relative z-20"
               >
                 <Image
-                  src="/recognition/alone-poster.jpg"
+                  src={getImageUrl('/recognition/alone-poster.jpg', 800)}
                   alt="ALONE - Film Poster"
                   fill
                   className="object-cover"
@@ -439,7 +439,7 @@ const WomenIsLosersModal = ({ onClose }: { onClose: () => void }) => {
                 className="w-32 h-48 md:w-44 md:h-64 lg:w-52 lg:h-80 bg-gradient-to-br from-[#1a1a1a] to-[#0f0f0f] border-2 border-[#f59e0b] rounded-lg overflow-hidden flex-shrink-0 shadow-2xl relative z-20"
               >
                 <Image
-                  src="/recognition/women-is-losers-poster.jpg"
+                  src={getImageUrl('/recognition/women-is-losers-poster.jpg', 800)}
                   alt="Women Is Losers - Film Poster"
                   fill
                   className="object-cover"

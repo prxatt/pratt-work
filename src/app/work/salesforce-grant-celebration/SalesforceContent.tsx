@@ -8,6 +8,7 @@ import { AnimatedCounter } from '@/components/micro-animations/AnimatedCounter';
 import { ScrambleText } from '@/components/micro-animations/ScrambleText';
 import { CornerDraw } from '@/components/micro-animations/CornerDraw';
 import { MagneticArrow } from '@/components/micro-animations/MagneticArrow';
+import { getImageUrl } from '@/lib/media';
 
 interface SalesforceContentProps {
   metadata: {
@@ -421,10 +422,10 @@ export default function SalesforceContent({ metadata, content, mainDescriptionMd
                       transition={{ duration: 0.4 }}
                     >
                       <picture>
-                        <source srcSet="/work/salesforce-mayor.webp" type="image/webp" />
-                        <source srcSet="/work/salesforce-mayor.jpeg" type="image/jpeg" />
+                        <source srcSet={getImageUrl('/work/salesforce-mayor.webp', 1400)} type="image/webp" />
+                        <source srcSet={getImageUrl('/work/salesforce-mayor.jpeg', 1400)} type="image/jpeg" />
                         <img 
-                          src="/work/salesforce-mayor.jpeg"
+                          src={getImageUrl('/work/salesforce-mayor.jpeg', 1400)}
                           alt="Mayor speaking at Salesforce grant celebration event"
                           className="w-full h-full object-cover"
                           loading="eager"
@@ -463,10 +464,10 @@ export default function SalesforceContent({ metadata, content, mainDescriptionMd
                       transition={{ duration: 0.4 }}
                     >
                       <picture>
-                        <source srcSet="/work/salesforce-class.webp" type="image/webp" />
-                        <source srcSet="/work/salesforce-class.jpeg" type="image/jpeg" />
+                        <source srcSet={getImageUrl('/work/salesforce-class.webp', 1400)} type="image/webp" />
+                        <source srcSet={getImageUrl('/work/salesforce-class.jpeg', 1400)} type="image/jpeg" />
                         <img 
-                          src="/work/salesforce-class.jpeg"
+                          src={getImageUrl('/work/salesforce-class.jpeg', 1400)}
                           alt="Students participating in STEM class activity"
                           className="w-full h-full object-cover"
                           loading="lazy"
@@ -503,10 +504,10 @@ export default function SalesforceContent({ metadata, content, mainDescriptionMd
                       transition={{ duration: 0.4 }}
                     >
                       <picture>
-                        <source srcSet="/work/salesforce-qa.webp" type="image/webp" />
-                        <source srcSet="/work/salesforce-qa.jpeg" type="image/jpeg" />
+                        <source srcSet={getImageUrl('/work/salesforce-qa.webp', 1400)} type="image/webp" />
+                        <source srcSet={getImageUrl('/work/salesforce-qa.jpeg', 1400)} type="image/jpeg" />
                         <img 
-                          src="/work/salesforce-qa.jpeg"
+                          src={getImageUrl('/work/salesforce-qa.jpeg', 1400)}
                           alt="Students asking questions during Q&A session"
                           className="w-full h-full object-cover"
                           loading="lazy"
@@ -546,10 +547,10 @@ export default function SalesforceContent({ metadata, content, mainDescriptionMd
                       transition={{ duration: 0.4 }}
                     >
                       <picture>
-                        <source srcSet="/work/salesforce-lab.webp" type="image/webp" />
-                        <source srcSet="/work/salesforce-lab.jpeg" type="image/jpeg" />
+                        <source srcSet={getImageUrl('/work/salesforce-lab.webp', 1400)} type="image/webp" />
+                        <source srcSet={getImageUrl('/work/salesforce-lab.jpeg', 1400)} type="image/jpeg" />
                         <img 
-                          src="/work/salesforce-lab.jpeg"
+                          src={getImageUrl('/work/salesforce-lab.jpeg', 1400)}
                           alt="Students exploring VR and technology lab"
                           className="w-full h-full object-cover"
                           loading="lazy"

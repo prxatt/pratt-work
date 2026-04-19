@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { AnimatedCounter } from '@/components/micro-animations/AnimatedCounter';
 import { ArrowUpRight, Play, Pause, ChevronRight, Zap, Eye, Layers, Crosshair, Scan, Box } from 'lucide-react';
 import CryptVolumetric3D from '@/components/work/crypt-volumetric/CryptVolumetric3D';
+import { getImageUrl, getVideoUrl } from '@/lib/media';
 
 // Advanced particle system with depth layers
 const DepthField = () => {
@@ -432,8 +433,8 @@ const VideoModal = ({ onClose }: { onClose: () => void }) => {
               }}
               onClick={togglePlay}
             >
-              <source src="/work/the-crypt-modal.webm" type="video/webm" />
-              <source src="/work/the-crypt-modal.mp4" type="video/mp4" />
+              <source src={getVideoUrl('/work/the-crypt-modal.webm')} type="video/webm" />
+              <source src={getVideoUrl('/work/the-crypt-modal.mp4')} type="video/mp4" />
             </video>
             
             {/* Subtle overlay */}
@@ -1006,9 +1007,9 @@ export default function TheCryptPage() {
               <div className="relative aspect-[21/9] bg-gradient-to-b from-[#050505] via-[#080808] to-[#050505] flex items-center justify-center overflow-hidden">
                 {/* Interactive 3D volumetric capture - drag to orbit */}
                 <CryptVolumetric3D
-                  webmSrc="/work/crypt-demo.webm"
-                  mp4Src="/work/crypt-demo.mp4"
-                  posterSrc="/work/the-crypt.jpg"
+                  webmSrc={getVideoUrl('/work/crypt-demo.webm')}
+                  mp4Src={getVideoUrl('/work/crypt-demo.mp4')}
+                  posterSrc={getImageUrl('/work/the-crypt.jpg', 1920)}
                   depthIntensity={0.38}
                   height="70vh"
                 />
