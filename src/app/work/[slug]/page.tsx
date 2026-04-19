@@ -5,6 +5,7 @@ import { mdxComponents } from '@/components/mdx/MDXComponents';
 import { WorkProjectFooter } from '@/components/work/WorkProjectFooter';
 import { Metadata } from 'next';
 import Image from 'next/image';
+import { getImageUrl, getVideoUrl } from '@/lib/media';
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -144,10 +145,10 @@ export default async function WorkProjectPage({ params }: PageProps) {
               <div className="absolute top-0 right-0 w-[2px] h-12 z-20" style={{ backgroundColor: accentColor }} />
 
               <div className="relative aspect-[21/9] bg-[#0a0a0a]">
-                {metadata.heroMedia.endsWith('.webm') || metadata.heroMedia.endsWith('.mp4') ? (
-                  <video src={metadata.heroMedia} autoPlay muted loop playsInline className="w-full h-full object-cover" />
+                {/\.(webm|mp4|mov)$/i.test(metadata.heroMedia) ? (
+                  <video src={getVideoUrl(metadata.heroMedia)} autoPlay muted loop playsInline className="w-full h-full object-cover" />
                 ) : (
-                  <Image src={metadata.heroMedia} alt={metadata.title} fill className="object-cover" priority />
+                  <Image src={getImageUrl(metadata.heroMedia, 1920)} alt={metadata.title} fill className="object-cover" priority />
                 )}
                 <div className="absolute inset-0 bg-gradient-to-t from-[#0D0D0D]/50 via-transparent to-transparent" />
               </div>

@@ -8,6 +8,7 @@ import { ScrambleText } from '@/components/micro-animations/ScrambleText';
 import { CornerDraw } from '@/components/micro-animations/CornerDraw';
 import { VideoPlayer } from '@/components/ui/VideoPlayer';
 import Image from 'next/image';
+import { getImageUrl, getVideoUrl } from '@/lib/media';
 
 interface WeightsBiasesContentProps {
   metadata: {
@@ -468,9 +469,9 @@ export default function WeightsBiasesContent({
                   transition={{ duration: 0.4 }}
                 >
                   <picture>
-                    <source srcSet="/work/conference-wb.webp" type="image/webp" />
+                    <source srcSet={getImageUrl('/work/conference-wb.webp', 1600)} type="image/webp" />
                     <Image
-                      src="/work/conference-wb.jpg"
+                      src={getImageUrl('/work/conference-wb.jpg', 1600)}
                       alt="Conference atmosphere at Weights & Biases Fully Connected"
                       fill
                       className="object-cover"
@@ -520,9 +521,9 @@ export default function WeightsBiasesContent({
                     transition={{ duration: 0.4 }}
                   >
                     <picture>
-                      <source srcSet="/work/keynote-wb.webp" type="image/webp" />
+                      <source srcSet={getImageUrl('/work/keynote-wb.webp', 1200)} type="image/webp" />
                       <Image
-                        src="/work/keynote-wb.jpg"
+                        src={getImageUrl('/work/keynote-wb.jpg', 1200)}
                         alt="Keynote stage at Weights & Biases Fully Connected"
                         fill
                         className="object-cover"
@@ -564,9 +565,9 @@ export default function WeightsBiasesContent({
                     transition={{ duration: 0.4 }}
                   >
                     <picture>
-                      <source srcSet="/work/weave-wb.webp" type="image/webp" />
+                      <source srcSet={getImageUrl('/work/weave-wb.webp', 1200)} type="image/webp" />
                       <Image
-                        src="/work/weave-wb.jpg"
+                        src={getImageUrl('/work/weave-wb.jpg', 1200)}
                         alt="Weave launch at Weights & Biases Fully Connected"
                         fill
                         className="object-cover"
@@ -718,9 +719,9 @@ export default function WeightsBiasesContent({
 
           <motion.div variants={scaleIn}>
             <VideoPlayer
-              webmSrc="/work/wb-teaser.webm"
-              mp4Src="/work/wb-teaser.mp4"
-              poster="/work/conference-wb.jpg"
+              webmSrc={getVideoUrl('/work/wb-teaser.webm')}
+              mp4Src={getVideoUrl('/work/wb-teaser.mp4')}
+              poster={getImageUrl('/work/conference-wb.jpg', 1600)}
               accentColor={accentColor}
               title="Conference Recap"
               subtitle="YOUTUBE MARKETING CONTENT"

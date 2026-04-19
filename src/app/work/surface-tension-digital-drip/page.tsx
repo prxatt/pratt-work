@@ -6,6 +6,7 @@ import { WorkProjectFooter } from '@/components/work/WorkProjectFooter';
 import { OptimizedHorizontalGallery } from '@/components/work/OptimizedHorizontalGallery';
 import { VideoMuteToggle } from '@/components/work/VideoMuteToggle';
 import { Metadata } from 'next';
+import { getImageUrl, getVideoUrl } from '@/lib/media';
 
 export async function generateMetadata(): Promise<Metadata> {
   const project = await getFileBySlug('work', 'surface-tension-digital-drip');
@@ -154,8 +155,8 @@ export default async function DigitalDripPage() {
           playsInline
           className="absolute inset-0 w-full h-full object-cover z-0"
         >
-          <source src="/work/st-mapped.webm" type="video/webm" />
-          <source src="/work/st-mapped.mp4" type="video/mp4" />
+          <source src={getVideoUrl('/work/st-mapped.webm')} type="video/webm" />
+          <source src={getVideoUrl('/work/st-mapped.mp4')} type="video/mp4" />
         </video>
         
         {/* Mute toggle for hero video */}
@@ -309,8 +310,8 @@ export default async function DigitalDripPage() {
                       playsInline
                       className="absolute inset-0 w-full h-full object-cover z-0"
                     >
-                      <source src="/work/st-create.webm" type="video/webm" />
-                      <source src="/work/st-create.mp4" type="video/mp4" />
+                      <source src={getVideoUrl('/work/st-create.webm')} type="video/webm" />
+                      <source src={getVideoUrl('/work/st-create.mp4')} type="video/mp4" />
                     </video>
 
                     {/* Corner keystone markers - projection mapping style */}
@@ -346,8 +347,8 @@ export default async function DigitalDripPage() {
                         playsInline
                         className="absolute inset-0 w-full h-full object-cover z-0"
                       >
-                        <source src="/work/st-crt.webm" type="video/webm" />
-                        <source src="/work/st-crt.mp4" type="video/mp4" />
+                        <source src={getVideoUrl('/work/st-crt.webm')} type="video/webm" />
+                        <source src={getVideoUrl('/work/st-crt.mp4')} type="video/mp4" />
                       </video>
 
                       {/* CRT phosphor glow */}
@@ -381,8 +382,8 @@ export default async function DigitalDripPage() {
                         playsInline
                         className="absolute inset-0 w-full h-full object-cover z-0"
                       >
-                        <source src="/work/st-coffee.webm" type="video/webm" />
-                        <source src="/work/st-coffee.mp4" type="video/mp4" />
+                        <source src={getVideoUrl('/work/st-coffee.webm')} type="video/webm" />
+                        <source src={getVideoUrl('/work/st-coffee.mp4')} type="video/mp4" />
                       </video>
 
                       <div className="absolute top-2 left-2 w-3 h-3 border-l border-t z-10" style={{ borderColor: phosphor }} />
@@ -410,8 +411,8 @@ export default async function DigitalDripPage() {
                       playsInline
                       className="absolute inset-0 w-full h-full object-cover z-0"
                     >
-                      <source src="/work/st-atmosphere.webm" type="video/webm" />
-                      <source src="/work/st-atmosphere.mp4" type="video/mp4" />
+                      <source src={getVideoUrl('/work/st-atmosphere.webm')} type="video/webm" />
+                      <source src={getVideoUrl('/work/st-atmosphere.mp4')} type="video/mp4" />
                     </video>
 
                     <div className="absolute top-3 left-3 w-4 h-4 border-l-2 border-t-2 z-10" style={{ borderColor: amber }} />
@@ -445,13 +446,13 @@ export default async function DigitalDripPage() {
       <OptimizedHorizontalGallery 
         phosphor={phosphor} 
         images={[
-          { webp: '/work/st-dd1.webp', jpg: '/work/st-dd1.jpg', alt: 'Digital Drip Event - Photo 1' },
-          { webp: '/work/st-dd2.webp', jpg: '/work/st-dd2.jpg', alt: 'Digital Drip Event - Photo 2' },
-          { webp: '/work/st-dd3.webp', jpg: '/work/st-dd3.jpg', alt: 'Digital Drip Event - Photo 3' },
-          { webp: '/work/st-dd4.webp', jpg: '/work/st-dd4.jpg', alt: 'Digital Drip Event - Photo 4' },
-          { webp: '/work/st-dd5.webp', jpg: '/work/st-dd5.jpg', alt: 'Digital Drip Event - Photo 5' },
-          { webp: '/work/st-dd6.webp', jpg: '/work/st-dd6.jpg', alt: 'Digital Drip Event - Photo 6' },
-          { webp: '/work/st-dd7.webp', jpg: '/work/st-dd7.jpg', alt: 'Digital Drip Event - Photo 7' },
+          { webp: getImageUrl('/work/st-dd1.webp', 1920), jpg: getImageUrl('/work/st-dd1.jpg', 1920), alt: 'Digital Drip Event - Photo 1' },
+          { webp: getImageUrl('/work/st-dd2.webp', 1920), jpg: getImageUrl('/work/st-dd2.jpg', 1920), alt: 'Digital Drip Event - Photo 2' },
+          { webp: getImageUrl('/work/st-dd3.webp', 1920), jpg: getImageUrl('/work/st-dd3.jpg', 1920), alt: 'Digital Drip Event - Photo 3' },
+          { webp: getImageUrl('/work/st-dd4.webp', 1920), jpg: getImageUrl('/work/st-dd4.jpg', 1920), alt: 'Digital Drip Event - Photo 4' },
+          { webp: getImageUrl('/work/st-dd5.webp', 1920), jpg: getImageUrl('/work/st-dd5.jpg', 1920), alt: 'Digital Drip Event - Photo 5' },
+          { webp: getImageUrl('/work/st-dd6.webp', 1920), jpg: getImageUrl('/work/st-dd6.jpg', 1920), alt: 'Digital Drip Event - Photo 6' },
+          { webp: getImageUrl('/work/st-dd7.webp', 1920), jpg: getImageUrl('/work/st-dd7.jpg', 1920), alt: 'Digital Drip Event - Photo 7' },
         ]}
       />
 
@@ -550,8 +551,8 @@ export default async function DigitalDripPage() {
                     playsInline
                     className="absolute inset-0 w-full h-full object-cover z-0"
                   >
-                    <source src="/work/st-mobile.webm" type="video/webm" />
-                    <source src="/work/st-mobile.mp4" type="video/mp4" />
+                    <source src={getVideoUrl('/work/st-mobile.webm')} type="video/webm" />
+                    <source src={getVideoUrl('/work/st-mobile.mp4')} type="video/mp4" />
                   </video>
 
                   {/* Phone notch area */}

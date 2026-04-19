@@ -688,22 +688,22 @@ export default function BoubyanContent({ metadata, mainContent, approachSections
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[
               { 
-                webp: '/work/boubyan1.webp', 
-                jpg: '/work/boubyan1.jpg', 
+                webp: getImageUrl('/work/boubyan1.webp', 1920), 
+                jpg: getImageUrl('/work/boubyan1.jpg', 1920), 
                 alt: 'Exterior View', 
                 label: 'EXT_NIGHT_01',
                 borderColor: steel
               },
               { 
-                webp: '/work/boubyan-2.webp', 
-                jpg: '/work/boubyan-2.jpg', 
+                webp: getImageUrl('/work/boubyan-2.webp', 1920), 
+                jpg: getImageUrl('/work/boubyan-2.jpg', 1920), 
                 alt: 'Interior Lobby', 
                 label: 'INT_LOBBY_02',
                 borderColor: concrete
               },
               { 
-                webp: '/work/boubyan-3.webp', 
-                jpg: '/work/boubyan-3.jpg', 
+                webp: getImageUrl('/work/boubyan-3.webp', 1920), 
+                jpg: getImageUrl('/work/boubyan-3.jpg', 1920), 
                 alt: 'Aerial View', 
                 label: 'DRONE_04K',
                 borderColor: rust

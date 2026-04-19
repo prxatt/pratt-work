@@ -5,6 +5,7 @@ import { motion, useReducedMotion } from 'framer-motion';
 import Link from 'next/link';
 import { ArrowUpRight, ChevronRight } from 'lucide-react';
 import { AnimatedCounter } from '@/components/micro-animations/AnimatedCounter';
+import { getImageUrl } from '@/lib/media';
 
 // Memoized animation variants for performance - Denim/Industrial aesthetic
 const useLevisAnimationVariants = (prefersReducedMotion: boolean | null) => {
@@ -778,22 +779,22 @@ export default function LevisInnovationLabsPage() {
             <PhotoFrame 
               label="Rig Assembly" 
               index={0} 
-              webp="/work/levis-thumb.webp"
-              jpeg="/work/levis-thumb.jpg"
+              webp={getImageUrl('/work/levis-thumb.webp', 1600)}
+              jpeg={getImageUrl('/work/levis-thumb.jpg', 1600)}
               alt="Levi's rig assembly thumbnail"
             />
             <PhotoFrame 
               label="Live Capture" 
               index={1}
-              webp="/work/levis-lab.webp"
-              jpeg="/work/levis-lab.jpg"
+              webp={getImageUrl('/work/levis-lab.webp', 1600)}
+              jpeg={getImageUrl('/work/levis-lab.jpg', 1600)}
               alt="Levi's live capture lab"
             />
             <PhotoFrame 
               label="Post Production" 
               index={2}
-              webp="/work/levis-collection.webp"
-              jpeg="/work/levis-collection.jpg"
+              webp={getImageUrl('/work/levis-collection.webp', 1600)}
+              jpeg={getImageUrl('/work/levis-collection.jpg', 1600)}
               alt="Levi's collection post production"
             />
           </div>

@@ -2,6 +2,7 @@
 
 import React, { useRef, useState, useEffect } from 'react';
 import { motion, useInView } from 'framer-motion';
+import { getVideoUrl } from '@/lib/media';
 
 // Portrait Video Frame Component
 const PortraitVideoFrame = () => {
@@ -64,8 +65,8 @@ const PortraitVideoFrame = () => {
             transform: 'translateZ(0)',
           }}
         >
-          <source src="/videos/pr8-ff-portrait.webm" type="video/webm" />
-          <source src="/videos/pr8-ff-portrait.mp4" type="video/mp4" />
+          <source src={getVideoUrl('/videos/pr8-ff-portrait.webm')} type="video/webm" />
+          <source src={getVideoUrl('/videos/pr8-ff-portrait.mp4')} type="video/mp4" />
         </video>
 
         {/* Loading placeholder */}

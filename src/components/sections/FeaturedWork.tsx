@@ -4,6 +4,7 @@ import React, { useRef, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { motion, useInView } from 'framer-motion';
 import { useCursor } from '@/context/CursorContext';
+import { getImageUrl, getVideoUrl } from '@/lib/media';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // DEVICE CAPS — ONE call at FeaturedWork root, passed as props.
@@ -155,7 +156,7 @@ const LazyVideo = ({
       {/* Poster image - immediately visible */}
       {poster && (
         <img 
-          src={poster}
+          src={getImageUrl(poster, 1400)}
           alt=""
           className="absolute inset-0 w-full h-full object-cover"
           loading="eager"
@@ -174,8 +175,8 @@ const LazyVideo = ({
       >
         {load && (
           <>
-            <source src={src.webm} type="video/webm" />
-            <source src={src.mp4}  type="video/mp4" />
+            <source src={getVideoUrl(src.webm)} type="video/webm" />
+            <source src={getVideoUrl(src.mp4)} type="video/mp4" />
           </>
         )}
       </video>
@@ -402,7 +403,7 @@ const ImageCard = ({
             {isWeights ? (
               <div className="absolute inset-0 w-full h-full flex items-center justify-center">
                 <img 
-                  src="/work/weights-biases-card.webp" 
+                  src={getImageUrl('/work/weights-biases-card.webp', 1600)} 
                   alt={project.title}
                   className="w-full h-full object-cover"
                   loading={index === 0 ? "eager" : "lazy"}
@@ -416,7 +417,7 @@ const ImageCard = ({
             ) : isSurface ? (
               <div className="absolute inset-0 w-full h-full flex items-center justify-center">
                 <img 
-                  src="/work/surface-tension-drip.webp" 
+                  src={getImageUrl('/work/surface-tension-drip.webp', 1600)} 
                   alt={project.title}
                   className="w-full h-full object-cover"
                   loading={index === 0 ? "eager" : "lazy"}
