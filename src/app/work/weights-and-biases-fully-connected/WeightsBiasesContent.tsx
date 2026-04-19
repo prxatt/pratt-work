@@ -723,6 +723,7 @@ export default function WeightsBiasesContent({
               mp4Src={getVideoUrl('/work/wb-teaser.mp4')}
               poster={getImageUrl('/work/conference-wb.jpg', 1600)}
               accentColor={accentColor}
+              deckLabel="FULLY_CONNECTED_2023"
               title="Conference Recap"
               subtitle="YOUTUBE MARKETING CONTENT"
             />

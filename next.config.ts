@@ -8,15 +8,17 @@ const nextConfig: NextConfig = {
   },
   images: {
     formats: ['image/avif', 'image/webp'],
-    // Next.js 16+: local `src` paths must match `localPatterns` or the optimizer returns 400.
-    // Needed when `getImageUrl` falls back to `/work/...` (no NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME on
-    // that build) and for any plain local `<Image src="/work/...">`.
+    // Next.js 16.x (see package.json): local `next/image` sources must match `localPatterns` or the
+    // optimizer returns 400. Keep this list explicit (narrower than `/**`) so the optimizer is not
+    // a catch-all for arbitrary paths under `public/`. Add a segment when new image roots appear.
+    // Needed when `getImageUrl` falls back to `/work/...` (no cloud name on that build).
     localPatterns: [
       { pathname: '/work/**' },
       { pathname: '/recognition/**' },
       { pathname: '/ventures/**' },
       { pathname: '/logos/**' },
       { pathname: '/images/**' },
+      { pathname: '/playground/**' },
     ],
     // Cloudinary (absolute URLs from getImageUrl when cloud name is set).
     remotePatterns: [
