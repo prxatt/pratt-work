@@ -490,7 +490,7 @@ const AnimatedHeader = () => {
       >
         SELECTED PROJECTS
       </motion.span>
-      <h2 className="text-section-header text-primary uppercase whitespace-nowrap">
+      <h2 className="text-section-header text-primary uppercase text-balance max-w-full">
         {['FEATURED', 'WORK'].map((word, wi) => (
           <span key={wi} className="block overflow-hidden">
             {word.split('').map((letter, li) => (

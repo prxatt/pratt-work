@@ -40,7 +40,7 @@ export const TypographicCTA = () => {
   };
 
   return (
-    <section className="py-16 md:py-20 w-full flex items-center justify-center px-6 overflow-hidden">
+    <section className="py-16 md:py-20 w-full flex items-center justify-center px-4 sm:px-6 overflow-hidden">
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         whileInView={{ opacity: 1, scale: 1 }}
@@ -66,7 +66,7 @@ export const TypographicCTA = () => {
               variants={wordVariants}
               className="inline-block text-[#F2F2F0]"
             >
-              Let&apos;S CREATE
+              Let&apos;s Create
             </motion.span>
           </span>
           <br />
@@ -111,7 +111,7 @@ export const TypographicCTA = () => {
         <div className="flex flex-col items-center">
           <motion.a
             href="/contact"
-            className="group relative px-16 py-5 border border-primary/30 rounded-full overflow-hidden bg-transparent"
+            className="group relative max-w-[calc(100vw-2rem)] px-8 sm:px-14 py-4 sm:py-5 border border-primary/30 rounded-full overflow-hidden bg-transparent"
             onMouseEnter={() => setCursorState('magnetic')}
             onMouseLeave={() => setCursorState('default')}
             whileHover={{ scale: 1.03 }}
@@ -128,7 +128,7 @@ export const TypographicCTA = () => {
               className="absolute inset-0 bg-gradient-to-r from-emerald-500/20 via-amber-500/20 to-cyan-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
             />
             
-            <span className="relative z-10 font-mono text-sm tracking-[0.3em] text-primary uppercase group-hover:text-white transition-colors duration-300 flex items-center gap-4">
+            <span className="relative z-10 font-mono text-[11px] sm:text-sm tracking-[0.2em] sm:tracking-[0.28em] text-primary uppercase group-hover:text-white transition-colors duration-300 inline-flex flex-nowrap items-center gap-3 sm:gap-4 whitespace-nowrap">
               <span>Connect with me</span>
               <svg 
                 width="16" 

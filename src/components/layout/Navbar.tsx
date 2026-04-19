@@ -368,7 +368,7 @@ export const Navbar = () => {
           transition: 'transform 80ms linear',
         }}
       >
-        <div className="px-6 md:px-12 lg:px-20 py-6 flex items-center justify-between">
+        <div className="px-4 sm:px-6 md:px-12 lg:px-20 pt-[max(1rem,env(safe-area-inset-top))] pb-4 sm:pb-6 flex items-center justify-between gap-3">
           {/* Left: PRATT/WORK with premium glitch effect */}
           <div className="flex flex-col gap-1">
             <Link 
@@ -387,26 +387,30 @@ export const Navbar = () => {
           </div>
 
           {/* Right: Search + MENU Buttons */}
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-4 sm:gap-6 shrink-0">
             {/* Search Button */}
             <button
+              type="button"
               onClick={() => setIsSearchOpen(true)}
-              className="group flex items-center"
+              className="group flex items-center justify-center min-h-[44px] min-w-[44px] -mr-1 sm:min-h-0 sm:min-w-0 sm:mr-0"
+              aria-label="Open search"
               onMouseEnter={() => setCursorState('hover')}
               onMouseLeave={() => setCursorState('default')}
             >
-              <Search className="w-4 h-4 text-primary" />
+              <Search className="w-[18px] h-[18px] sm:w-4 sm:h-4 text-primary" strokeWidth={1.75} />
             </button>
 
             {/* Menu Button */}
             <button
+              type="button"
               onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="group flex items-center gap-3"
+              className="group flex items-center gap-2.5 sm:gap-3 min-h-[44px] pl-1"
+              aria-label={isMenuOpen ? 'Close menu' : 'Open menu'}
               onMouseEnter={() => setCursorState('hover')}
               onMouseLeave={() => setCursorState('default')}
             >
-              <span className="font-mono text-xs tracking-[0.15em] text-primary uppercase">MENU</span>
-              <div className="flex flex-col gap-1.5 items-end w-6">
+              <span className="font-mono text-[11px] sm:text-xs tracking-[0.15em] text-primary uppercase leading-none">MENU</span>
+              <div className="flex flex-col gap-1.5 items-end justify-center w-6 shrink-0">
                 <motion.span 
                   className="h-[1px] bg-primary w-full origin-center"
                   animate={{ rotate: isMenuOpen ? 45 : 0, y: isMenuOpen ? 5 : 0 }}

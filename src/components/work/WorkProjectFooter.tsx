@@ -518,7 +518,7 @@ export function WorkProjectFooter({ currentSlug }: WorkProjectFooterProps) {
         onMouseLeave={() => setIsHovered(false)}
       >
         <div className="px-6 md:px-12 lg:px-20">
-          <div className="flex items-center justify-between py-8">
+          <div className="flex flex-col gap-10 sm:flex-row sm:items-center sm:justify-between py-8 sm:gap-6">
             {/* Left: Back to All Projects */}
             <motion.div
               initial={{ opacity: 0, x: -20 }}
@@ -528,7 +528,7 @@ export function WorkProjectFooter({ currentSlug }: WorkProjectFooterProps) {
             >
               <Link
                 href="/work"
-                className="group flex items-center gap-4 text-[#F2F2F0] hover:text-white/70 transition-colors duration-300"
+                className="group flex items-center gap-4 text-[#F2F2F0] hover:text-white/70 transition-colors duration-300 min-w-0 shrink-0"
                 onMouseEnter={() => setCursorState('hover')}
                 onMouseLeave={() => setCursorState('default')}
               >
@@ -585,16 +585,16 @@ export function WorkProjectFooter({ currentSlug }: WorkProjectFooterProps) {
             >
               <Link
                 href={`/work/${randomProject.slug}`}
-                className="group flex items-center gap-4 text-[#F2F2F0] hover:text-white/70 transition-colors duration-300"
+                className="group flex items-center gap-4 text-[#F2F2F0] hover:text-white/70 transition-colors duration-300 min-w-0 sm:max-w-[58%] sm:ml-auto"
                 onMouseEnter={() => setCursorState('hover')}
                 onMouseLeave={() => setCursorState('default')}
               >
-                <div className="flex flex-col items-end">
+                <div className="flex flex-col items-start sm:items-end min-w-0 flex-1 text-left sm:text-right">
                   <span className="font-mono text-[10px] tracking-widest text-tertiary uppercase">
                     Next Project
                   </span>
                   <span 
-                    className="font-display text-lg tracking-widest uppercase max-w-[200px] truncate"
+                    className="font-display text-base sm:text-lg tracking-wide uppercase line-clamp-2 break-words w-full sm:max-w-none"
                     style={{ color: categoryColor }}
                   >
                     {randomProject.title}

@@ -247,7 +247,7 @@ export const AboutHero = () => {
         >
           <div className="flex items-center gap-4">
             <div className="w-16 h-[2px] bg-gradient-to-r from-[#F2F2F0] to-transparent" />
-            <span className="font-mono text-[12px] text-[#F2F2F0] uppercase tracking-[0.3em] font-medium" style={{ textShadow: '0 0 20px rgba(242,242,240,0.5), 0 0 40px rgba(242,242,240,0.3)' }}>
+            <span className="font-mono text-[11px] sm:text-[12px] text-[#C8C8C2] uppercase tracking-[0.28em] font-medium" style={{ textShadow: '0 1px 12px rgba(0,0,0,0.6)' }}>
               Producer. Architect. Thinker
             </span>
           </div>
