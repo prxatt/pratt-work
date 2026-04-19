@@ -121,7 +121,7 @@ export function getVideoUrl(
 export function generateSrcSet(
   localPath: string,
   widths: number[] = [640, 750, 828, 1080, 1200, 1920],
-  options?: { quality?: 'auto' | number }
+  options?: { quality?: 'auto' | number; format?: 'auto' | 'webp' | 'avif' | 'jpg' }
 ): string {
   return widths
     .map(w => `${getImageUrl(localPath, w, options)} ${w}w`)

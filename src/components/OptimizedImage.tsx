@@ -26,8 +26,14 @@ export function OptimizedImage({
   priority = false,
   sizes = '(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 800px',
 }: OptimizedImageProps) {
-  const optimizedSrc = getImageUrl(src, width);
-  const srcSet = generateSrcSet(src, [640, 750, 828, 1080, 1200, 1920]);
+  const formatOpts =
+    /\.webp$/i.test(src)
+      ? ({ format: 'webp' as const })
+      : /\.(jpe?g)$/i.test(src)
+        ? ({ format: 'jpg' as const })
+        : undefined;
+  const optimizedSrc = getImageUrl(src, width, formatOpts);
+  const srcSet = generateSrcSet(src, [640, 750, 828, 1080, 1200, 1920], formatOpts);
 
   return (
     <Image

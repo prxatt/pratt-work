@@ -403,7 +403,7 @@ const ImageCard = ({
             {isWeights ? (
               <div className="absolute inset-0 w-full h-full flex items-center justify-center">
                 <img 
-                  src={getImageUrl('/work/weights-biases-card.webp', 1600)} 
+                  src={getImageUrl('/work/weights-biases-card.webp', 1600, { format: 'webp' })} 
                   alt={project.title}
                   className="w-full h-full object-cover"
                   loading={index === 0 ? "eager" : "lazy"}
@@ -417,7 +417,7 @@ const ImageCard = ({
             ) : isSurface ? (
               <div className="absolute inset-0 w-full h-full flex items-center justify-center">
                 <img 
-                  src={getImageUrl('/work/surface-tension-drip.webp', 1600)} 
+                  src={getImageUrl('/work/surface-tension-drip.webp', 1600, { format: 'webp' })} 
                   alt={project.title}
                   className="w-full h-full object-cover"
                   loading={index === 0 ? "eager" : "lazy"}

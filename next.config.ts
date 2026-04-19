@@ -4,8 +4,9 @@ const CLOUDINARY_CLOUD_NAME = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || "
 
 const nextConfig: NextConfig = {
   /* config options here */
+  // Align Turbopack root with the repo root on any machine (avoids hardcoded paths; matches Vercel cwd)
   turbopack: {
-    root: '/Users/prattmajmudar/Desktop/pratt.work',
+    root: process.cwd(),
   },
   images: {
     formats: ['image/avif', 'image/webp'],
