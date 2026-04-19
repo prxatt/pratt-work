@@ -11,9 +11,11 @@ interface VideoPlayerProps {
   accentColor: string;
   title?: string;
   subtitle?: string;
+  /** Optional small label in the top-left of the controls overlay (e.g. event / deck id). */
+  deckLabel?: string;
 }
 
-export function VideoPlayer({ webmSrc, mp4Src, poster, accentColor, title, subtitle }: VideoPlayerProps) {
+export function VideoPlayer({ webmSrc, mp4Src, poster, accentColor, title, subtitle, deckLabel }: VideoPlayerProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -421,12 +423,14 @@ export function VideoPlayer({ webmSrc, mp4Src, poster, accentColor, title, subti
               )}
             </div>
 
-            {/* Top info bar — deck id only (section header carries clip index) */}
-            <div className="absolute top-0 left-0 right-0 px-3 sm:px-6 py-3 sm:py-4 flex items-center justify-start pointer-events-none">
-              <span className="font-mono text-[8px] sm:text-[9px] text-white/50 tracking-wider truncate">
-                FULLY_CONNECTED_2023
-              </span>
-            </div>
+            {/* Top info bar — optional deck / event id (section header can carry clip index) */}
+            {deckLabel ? (
+              <div className="absolute top-0 left-0 right-0 px-3 sm:px-6 py-3 sm:py-4 flex items-center justify-start pointer-events-none">
+                <span className="font-mono text-[8px] sm:text-[9px] text-white/50 tracking-wider truncate">
+                  {deckLabel}
+                </span>
+              </div>
+            ) : null}
           </motion.div>
         )}
       </AnimatePresence>
