@@ -33,6 +33,12 @@ export function getMediaUrl(
     crop?: 'fill' | 'fit' | 'scale' | 'limit';
   } = {}
 ): string {
+  const trimmed = localPath.trim();
+  // Already a remote URL — do not treat protocol/host as path segments (or double-wrap Cloudinary)
+  if (trimmed.startsWith('//') || /^https?:\/\//i.test(trimmed)) {
+    return localPath;
+  }
+
   const cloudName = getCloudName();
   if (!cloudName) return localPath;
 
