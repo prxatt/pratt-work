@@ -43,7 +43,7 @@ const awards: Award[] = [
     fullDescription: 'Negotiated a landmark 3-year exclusive licensing agreement with Shorts.TV, the world\'s largest short film broadcaster reaching 40M+ homes globally. Structured deal to include backend participation and international rights retention.',
     impact: ['40M+ households reached', '3-year exclusive term', 'International rights retained', 'Backend revenue participation'],
     icon: Film,
-    image: getImageUrl('/awards/alone-shorts.jpg', 400, { format: 'jpg' }),
+    image: getImageUrl('/recognition/alone-poster.jpg', 400, { format: 'jpg' }),
   },
   {
     id: '[3]',
@@ -55,7 +55,7 @@ const awards: Award[] = [
     fullDescription: 'Led production supervision and transportation coordination for the SXSW Official Selection "Women Is Losers," coordinating a 40+ person crew across 19 shooting days. Managed $1.2M budget, secured 8 location permits, and sourced vintage and historic vehicles for period accuracy to deliver on schedule.',
     impact: ['40+ person crew coordinated', '$1.2M budget managed', '19-day production schedule', '8 location permits + vintage vehicles', 'Zero production delays'],
     icon: Trophy,
-    image: getImageUrl('/awards/sxsw-2021.jpg', 400, { format: 'jpg' }),
+    image: getImageUrl('/recognition/women-is-losers-poster.jpg', 400, { format: 'jpg' }),
   },
   {
     id: '[4]',
@@ -67,7 +67,7 @@ const awards: Award[] = [
     fullDescription: 'Earned nomination in the Best Short Documentary category at Next Up Festival for "Synchronicity," a documentary exploring the musical journey of artist Christopher Willits. Competed against 200+ international entries with recognition specifically cited for innovative storytelling and seamless integration of visual and audio elements.',
     impact: ['Top 5 of 200+ entries', 'Best Short Documentary nomination', 'Musical journey storytelling', 'Visual-audio integration praised'],
     icon: Award,
-    image: getImageUrl('/awards/nextup-2021.jpg', 400, { format: 'jpg' }),
+    image: getImageUrl('/recognition/synchronicity-poster.jpg', 400, { format: 'jpg' }),
   },
 ];
 
