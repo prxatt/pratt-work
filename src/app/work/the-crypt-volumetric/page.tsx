@@ -1009,7 +1009,7 @@ export default function TheCryptPage() {
                 <CryptVolumetric3D
                   webmSrc={getVideoUrl('/work/crypt-demo.webm')}
                   mp4Src={getVideoUrl('/work/crypt-demo.mp4')}
-                  posterSrc={getImageUrl('/work/the-crypt.jpg', 1920, { format: 'jpg' })}
+                  posterSrc={getImageUrl('/work/the-crypt.jpg', 1920)}
                   depthIntensity={0.38}
                   height="70vh"
                 />

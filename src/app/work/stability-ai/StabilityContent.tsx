@@ -233,7 +233,7 @@ export default function StabilityContent({
             loop
             playsInline
             className="w-full h-full object-cover"
-            poster={getImageUrl('/work/stability-ai-thumb.webp', 800, { format: 'webp' })}
+            poster={getImageUrl('/work/stability-ai-thumb.webp', 800)}
           >
             <source src={getVideoUrl('/work/stability-vid.webm')} type="video/webm" />
             <source src={getVideoUrl('/work/stability-vid.mp4')} type="video/mp4" />

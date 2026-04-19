@@ -224,7 +224,7 @@ export default function BoubyanContent({ metadata, mainContent, approachSections
             muted
             playsInline
             className="w-full h-full object-cover opacity-60"
-            poster={getImageUrl('/work/boubyan-bank-thumb.webp', 800, { format: 'webp' })}
+            poster={getImageUrl('/work/boubyan-bank-thumb.webp', 800)}
           >
             <source src={getVideoUrl('/work/boubyan-bank-card.webm')} type="video/webm" />
             <source src={getVideoUrl('/work/boubyan-bank-card.mp4')} type="video/mp4" />

@@ -396,7 +396,7 @@ export const VenturesSection = () => {
                   {/* Teaser Image on Hover - Desktop only */}
                   <TeaserImageHover 
                     isVisible={soenHovered} 
-                    imageSrc={getImageUrl('/ventures/soen-teaser.jpg', 600, { format: 'jpg' })} 
+                    imageSrc={getImageUrl('/ventures/soen-teaser.jpg', 600)} 
                     alt="SOEN - AI for Humans"
                     position="left"
                     vertical="top"
@@ -446,7 +446,7 @@ export const VenturesSection = () => {
                   {/* Teaser Image on Hover - Desktop only */}
                   <TeaserImageHover 
                     isVisible={culturePulseHovered} 
-                    imageSrc={getImageUrl('/ventures/culturepulse-teaser.webp', 600, { format: 'webp' })} 
+                    imageSrc={getImageUrl('/ventures/culturepulse-teaser.webp', 600)} 
                     alt="CulturePulse - Enterprise Intelligence Platform"
                     position="left"
                     vertical="bottom"
@@ -497,7 +497,7 @@ export const VenturesSection = () => {
           <TeaserImageModal
             isOpen={soenModalOpen}
             onClose={() => setSoenModalOpen(false)}
-            imageSrc={getImageUrl('/ventures/soen-teaser.jpg', 800, { format: 'jpg' })}
+            imageSrc={getImageUrl('/ventures/soen-teaser.jpg', 800)}
             alt="SOEN - AI for Humans"
           />
         )}
@@ -509,8 +509,8 @@ export const VenturesSection = () => {
           <TeaserImageModal
             isOpen={culturePulseModalOpen}
             onClose={() => setCulturePulseModalOpen(false)}
-            imageSrc={getImageUrl('/ventures/culturepulse-teaser.webp', 800, { format: 'webp' })}
-            fallbackSrc={getImageUrl('/ventures/culturepulse-teaser.jpg', 800, { format: 'jpg' })}
+            imageSrc={getImageUrl('/ventures/culturepulse-teaser.webp', 800)}
+            fallbackSrc={getImageUrl('/ventures/culturepulse-teaser.jpg', 800)}
             alt="CulturePulse - Enterprise Intelligence Platform"
           />
         )}

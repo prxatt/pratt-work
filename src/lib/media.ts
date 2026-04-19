@@ -128,7 +128,9 @@ export function getMediaUrl(
 }
 
 /**
- * Get optimized image URL with responsive sizing
+ * Get optimized image URL with responsive sizing.
+ * Omit `format` (default `f_auto`) for plain `<img>` / `next/image` so Cloudinary can negotiate AVIF/WebP.
+ * Pass explicit `format` only for `<picture><source type="image/webp|jpeg">` legs so URLs match MIME.
  */
 export function getImageUrl(
   localPath: string,

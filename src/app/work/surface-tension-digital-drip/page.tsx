@@ -446,13 +446,13 @@ export default async function DigitalDripPage() {
       <OptimizedHorizontalGallery 
         phosphor={phosphor} 
         images={[
-          { webp: getImageUrl('/work/st-dd1.webp', 1920, { format: 'webp' }), jpg: getImageUrl('/work/st-dd1.jpg', 1920, { format: 'jpg' }), alt: 'Digital Drip Event - Photo 1' },
-          { webp: getImageUrl('/work/st-dd2.webp', 1920, { format: 'webp' }), jpg: getImageUrl('/work/st-dd2.jpg', 1920, { format: 'jpg' }), alt: 'Digital Drip Event - Photo 2' },
-          { webp: getImageUrl('/work/st-dd3.webp', 1920, { format: 'webp' }), jpg: getImageUrl('/work/st-dd3.jpg', 1920, { format: 'jpg' }), alt: 'Digital Drip Event - Photo 3' },
-          { webp: getImageUrl('/work/st-dd4.webp', 1920, { format: 'webp' }), jpg: getImageUrl('/work/st-dd4.jpg', 1920, { format: 'jpg' }), alt: 'Digital Drip Event - Photo 4' },
-          { webp: getImageUrl('/work/st-dd5.webp', 1920, { format: 'webp' }), jpg: getImageUrl('/work/st-dd5.jpg', 1920, { format: 'jpg' }), alt: 'Digital Drip Event - Photo 5' },
-          { webp: getImageUrl('/work/st-dd6.webp', 1920, { format: 'webp' }), jpg: getImageUrl('/work/st-dd6.jpg', 1920, { format: 'jpg' }), alt: 'Digital Drip Event - Photo 6' },
-          { webp: getImageUrl('/work/st-dd7.webp', 1920, { format: 'webp' }), jpg: getImageUrl('/work/st-dd7.jpg', 1920, { format: 'jpg' }), alt: 'Digital Drip Event - Photo 7' },
+          { webp: getImageUrl('/work/st-dd1.webp', 1920), jpg: getImageUrl('/work/st-dd1.jpg', 1920), alt: 'Digital Drip Event - Photo 1' },
+          { webp: getImageUrl('/work/st-dd2.webp', 1920), jpg: getImageUrl('/work/st-dd2.jpg', 1920), alt: 'Digital Drip Event - Photo 2' },
+          { webp: getImageUrl('/work/st-dd3.webp', 1920), jpg: getImageUrl('/work/st-dd3.jpg', 1920), alt: 'Digital Drip Event - Photo 3' },
+          { webp: getImageUrl('/work/st-dd4.webp', 1920), jpg: getImageUrl('/work/st-dd4.jpg', 1920), alt: 'Digital Drip Event - Photo 4' },
+          { webp: getImageUrl('/work/st-dd5.webp', 1920), jpg: getImageUrl('/work/st-dd5.jpg', 1920), alt: 'Digital Drip Event - Photo 5' },
+          { webp: getImageUrl('/work/st-dd6.webp', 1920), jpg: getImageUrl('/work/st-dd6.jpg', 1920), alt: 'Digital Drip Event - Photo 6' },
+          { webp: getImageUrl('/work/st-dd7.webp', 1920), jpg: getImageUrl('/work/st-dd7.jpg', 1920), alt: 'Digital Drip Event - Photo 7' },
         ]}
       />
 
