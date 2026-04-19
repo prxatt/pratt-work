@@ -24,25 +24,27 @@ const ABS_URL_RE = /^https?:\/\//i;
 
 type PathStyle = 'mirror' | 'nested' | 'nested_title';
 
-function getPathStyle(): PathStyle {
+/** Parsed once: `NEXT_PUBLIC_*` is static for the life of a Next.js build. */
+const PATH_STYLE: PathStyle = (() => {
   const raw = (process.env.NEXT_PUBLIC_CLOUDINARY_PATH_STYLE ?? 'nested_title').trim();
   const v = raw.toLowerCase().replace(/-/g, '_');
   if (v === 'mirror' || v === 'nested' || v === 'nested_title') return v;
   return 'nested_title';
-}
+})();
+
+const MEDIA_OFF = MEDIA_OFF_RE.test((process.env.NEXT_PUBLIC_CLOUDINARY_MEDIA || '').trim());
+const CLOUD_NAME = (process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || '').trim();
 
 function getCloudName(): string {
-  const raw = (process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || '').trim();
-  const mediaOff = MEDIA_OFF_RE.test((process.env.NEXT_PUBLIC_CLOUDINARY_MEDIA || '').trim());
-  if (mediaOff || !raw) {
-    if (!mediaOff && !raw && process.env.NODE_ENV === 'development') {
+  if (MEDIA_OFF || !CLOUD_NAME) {
+    if (!MEDIA_OFF && !CLOUD_NAME && process.env.NODE_ENV === 'development') {
       throw new Error(
         '[media.ts] NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME is not set. Add it to .env.local, or set NEXT_PUBLIC_CLOUDINARY_MEDIA=off to use local files.'
       );
     }
     return '';
   }
-  return raw;
+  return CLOUD_NAME;
 }
 
 function titleCaseSegment(segment: string): string {
@@ -125,8 +127,7 @@ export function getMediaUrl(
   const filename = normalizeFilenameExtension(rawFilename);
   const normSegments = [...segments.slice(0, -1), filename];
   const isVideo = VIDEO_EXT_RE.test(filename);
-  const pathStyle = getPathStyle();
-  const cloudPath = buildCloudinaryPublicId(normSegments, isVideo, pathStyle);
+  const cloudPath = buildCloudinaryPublicId(normSegments, isVideo, PATH_STYLE);
 
   const baseUrl = `https://res.cloudinary.com/${cloudName}/${isVideo ? 'video' : 'image'}/upload`;
 

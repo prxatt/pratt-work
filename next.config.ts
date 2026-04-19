@@ -8,9 +8,17 @@ const nextConfig: NextConfig = {
   },
   images: {
     formats: ['image/avif', 'image/webp'],
-    // Single permissive pattern: scoped `/${cloud}/**` breaks `next/image` if build-time env
-    // differs from runtime, casing mismatches, or Vercel env ordering. Src URLs still only come
-    // from our own getImageUrl (Cloudinary account in NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME).
+    // Next.js 16+: local `src` paths must match `localPatterns` or the optimizer returns 400.
+    // Needed when `getImageUrl` falls back to `/work/...` (no NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME on
+    // that build) and for any plain local `<Image src="/work/...">`.
+    localPatterns: [
+      { pathname: '/work/**' },
+      { pathname: '/recognition/**' },
+      { pathname: '/ventures/**' },
+      { pathname: '/logos/**' },
+      { pathname: '/images/**' },
+    ],
+    // Cloudinary (absolute URLs from getImageUrl when cloud name is set).
     remotePatterns: [
       {
         protocol: 'https',
