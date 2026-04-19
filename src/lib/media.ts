@@ -5,16 +5,16 @@
  * Throws in development if env var missing. Preserves directory structure.
  */
 
+const CLOUDINARY_CLOUD_NAME = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || '';
+
 function getCloudName(): string {
-  const name = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
-  if (!name) {
+  if (!CLOUDINARY_CLOUD_NAME) {
     if (process.env.NODE_ENV === 'development') {
       throw new Error('[media.ts] NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME is not set. Add it to .env.local');
     }
-    // In production, fall back gracefully rather than shipping broken URLs
     return '';
   }
-  return name;
+  return CLOUDINARY_CLOUD_NAME;
 }
 
 /**
