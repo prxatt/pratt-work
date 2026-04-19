@@ -149,15 +149,7 @@ export default async function WorkProjectPage({ params }: PageProps) {
                   <video src={getVideoUrl(metadata.heroMedia)} autoPlay muted loop playsInline className="w-full h-full object-cover" />
                 ) : (
                   <Image
-                    src={getImageUrl(
-                      metadata.heroMedia,
-                      1920,
-                      /\.webp$/i.test(metadata.heroMedia)
-                        ? { format: 'webp' }
-                        : /\.(jpe?g)$/i.test(metadata.heroMedia)
-                          ? { format: 'jpg' }
-                          : undefined
-                    )}
+                    src={getImageUrl(metadata.heroMedia, 1920)}
                     alt={metadata.title}
                     fill
                     className="object-cover"
