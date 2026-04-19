@@ -1,35 +1,42 @@
 /**
  * Cloudinary media URLs with safe fallbacks.
  *
+ * Layout this site expects (matches a typical Media Library):
+ * - Local: flat under `public/` — e.g. `public/work/hero.webp`, `public/recognition/…`, `public/videos/…`.
+ * - Cloudinary: nested type folders — `Work/Images/hero.webp`, `Work/Videos/hero.webm`,
+ *   `Recognition/Images/…`, `Ventures/Images/…`, top-level `Videos/…` for `/videos/…` in code.
+ *
  * Env:
  * - NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME — required for CDN (trimmed). If empty, URLs stay local (/work/…).
+ *   On Vercel, set it for every environment you deploy (Production and Preview); then redeploy so the
+ *   client bundle is rebuilt with the value inlined.
  * - NEXT_PUBLIC_CLOUDINARY_MEDIA=off — force local paths even if cloud name is set (emergency / debugging).
- * - NEXT_PUBLIC_CLOUDINARY_PATH_STYLE:
- *   - nested_title — default; /work/a.webp → Work/Images/a.webp (matches Media Library folders Work / Images).
- *   - nested — lowercase work/images/… (common for API uploads).
- *   - mirror — public_id = path under public/ (e.g. work/a.webp) when Cloudinary mirrors `public/` flat.
+ * - NEXT_PUBLIC_CLOUDINARY_PATH_STYLE (optional; default matches the folders above):
+ *   - nested_title — DEFAULT. `/work/a.webp` → `Work/Images/a.webp`, `/work/a.webm` → `Work/Videos/a.webm`.
+ *   - nested — same shape but lowercase folders (`work/images/…`). Use only if your CDN public_ids are lowercase.
+ *   - mirror — public_id is exactly the path under `public/` (e.g. `work/a.webp`) with NO extra Images/Videos
+ *     segment. Use ONLY if you uploaded flat; wrong for Work/Images layouts → 404.
  */
 
-const RAW_CLOUD_NAME = (process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || '').trim();
-const MEDIA_OFF =
-  /^off|0|false$/i.test((process.env.NEXT_PUBLIC_CLOUDINARY_MEDIA || '').trim());
-
 const PATH_STYLE = (() => {
-  const v = (process.env.NEXT_PUBLIC_CLOUDINARY_PATH_STYLE || 'nested_title').toLowerCase();
+  const raw = (process.env.NEXT_PUBLIC_CLOUDINARY_PATH_STYLE ?? 'nested_title').trim();
+  const v = raw.toLowerCase().replace(/-/g, '_');
   if (v === 'mirror' || v === 'nested' || v === 'nested_title') return v;
   return 'nested_title';
 })();
 
 function getCloudName(): string {
-  if (MEDIA_OFF || !RAW_CLOUD_NAME) {
-    if (!MEDIA_OFF && !RAW_CLOUD_NAME && process.env.NODE_ENV === 'development') {
+  const raw = (process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || '').trim();
+  const mediaOff = /^(off|0|false)$/i.test((process.env.NEXT_PUBLIC_CLOUDINARY_MEDIA || '').trim());
+  if (mediaOff || !raw) {
+    if (!mediaOff && !raw && process.env.NODE_ENV === 'development') {
       throw new Error(
         '[media.ts] NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME is not set. Add it to .env.local, or set NEXT_PUBLIC_CLOUDINARY_MEDIA=off to use local files.'
       );
     }
     return '';
   }
-  return RAW_CLOUD_NAME;
+  return raw;
 }
 
 function titleCaseSegment(segment: string): string {
@@ -40,6 +47,13 @@ function titleCaseSegment(segment: string): string {
 function isImagesOrVideosFolder(segment: string): boolean {
   const s = segment.toLowerCase();
   return s === 'images' || s === 'image' || s === 'videos' || s === 'video';
+}
+
+/** Lowercase only the file extension so `.MP4` / `.WEBP` match Cloudinary public_ids. */
+function normalizeFilenameExtension(filename: string): string {
+  const dot = filename.lastIndexOf('.');
+  if (dot < 0) return filename;
+  return filename.slice(0, dot) + filename.slice(dot).toLowerCase();
 }
 
 /**
@@ -101,9 +115,11 @@ export function getMediaUrl(
   const segments = localPath.split('/').filter(Boolean);
   if (segments.length === 0) return localPath;
 
-  const filename = segments[segments.length - 1]!;
+  const rawFilename = segments[segments.length - 1]!;
+  const filename = normalizeFilenameExtension(rawFilename);
+  const normSegments = [...segments.slice(0, -1), filename];
   const isVideo = /\.(mp4|webm|mov|m4v)$/i.test(filename);
-  const cloudPath = buildCloudinaryPublicId(segments, isVideo);
+  const cloudPath = buildCloudinaryPublicId(normSegments, isVideo);
 
   const baseUrl = `https://res.cloudinary.com/${cloudName}/${isVideo ? 'video' : 'image'}/upload`;
 

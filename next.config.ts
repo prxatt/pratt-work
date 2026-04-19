@@ -1,7 +1,5 @@
 import type { NextConfig } from "next";
 
-const CLOUDINARY_CLOUD_NAME = (process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || "").trim();
-
 const nextConfig: NextConfig = {
   /* config options here */
   // Align Turbopack root with the repo root on any machine (avoids hardcoded paths; matches Vercel cwd)
@@ -10,16 +8,16 @@ const nextConfig: NextConfig = {
   },
   images: {
     formats: ['image/avif', 'image/webp'],
-    // Allow any path under this cloud (image/upload/… and video/upload/… share /{cloud}/… prefix).
-    remotePatterns: CLOUDINARY_CLOUD_NAME
-      ? [
-          {
-            protocol: 'https',
-            hostname: 'res.cloudinary.com',
-            pathname: `/${CLOUDINARY_CLOUD_NAME}/**`,
-          },
-        ]
-      : [],
+    // Always allow Cloudinary for next/image. Do NOT gate this on env at build time: if the cloud
+    // name was missing during `next build`, remotePatterns would be [] and every <Image src=…>
+    // pointing at res.cloudinary.com would fail (blank cards) even though NEXT_PUBLIC_* is set at runtime.
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'res.cloudinary.com',
+        pathname: '/**',
+      },
+    ],
     deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
     minimumCacheTTL: 31536000, // 1 year cache
