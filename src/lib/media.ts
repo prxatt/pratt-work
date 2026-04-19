@@ -46,20 +46,11 @@ export function getMediaUrl(
   if (segments.length === 0) return localPath;
 
   const filename = segments[segments.length - 1]!;
-  const dirSegments = segments.slice(0, -1);
-  const dir = dirSegments.join('/');
-
   const isVideo = /\.(mp4|webm|mov)$/i.test(filename);
-  const mediaSubfolder = isVideo ? 'videos' : 'images';
 
-  // Smart path builder — avoids doubling up folder names (segment-based: works with or without a leading slash)
-  const lastDirSegment = dirSegments[dirSegments.length - 1];
-  const dirAlreadyHasSubfolder = lastDirSegment === mediaSubfolder;
-  const cloudPath = dirAlreadyHasSubfolder
-    ? `${dir}/${filename}`
-    : dir
-      ? `${dir}/${mediaSubfolder}/${filename}`
-      : `${mediaSubfolder}/${filename}`;
+  // Public ID mirrors paths under `public/` (e.g. `/work/foo.webp` → `work/foo.webp`).
+  // Do not inject `images/` or `videos/` — uploads must match the same folders as in the repo.
+  const cloudPath = segments.join('/');
 
   const baseUrl = `https://res.cloudinary.com/${cloudName}/${isVideo ? 'video' : 'image'}/upload`;
 
