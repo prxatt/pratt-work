@@ -1831,7 +1831,7 @@ const RecognitionCard = ({
       onMouseMove={handleMouseMove}
       onClick={onClick}
       whileHover={{ y: -3, scale: 1.005 }}
-      className="group relative bg-gradient-to-br from-[#1a1a1a] to-[#0f0f0f] rounded-xl border border-[#2a2a3a] p-6 cursor-none hover:border-[#f59e0b] hover:shadow-[0_0_40px_rgba(245,158,11,0.15)] transition-all duration-500 h-[280px] flex flex-col"
+      className="group relative bg-gradient-to-br from-[#1a1a1a] to-[#0f0f0f] rounded-xl border border-[#2a2a3a] p-6 cursor-none hover:border-[#f59e0b] hover:shadow-[0_0_40px_rgba(245,158,11,0.15)] transition-all duration-500 h-[260px] flex flex-col"
       style={{ width: '100%' }}
     >
       <div className="flex justify-between items-start mb-6">
@@ -1880,7 +1880,7 @@ const TimelineConnector = ({ position, index }: { position: 'left' | 'right'; in
       viewport={{ once: true }}
       transition={{ duration: 0.6, delay: index * 0.15 + 0.3, ease: [0.16, 1, 0.3, 1] }}
       className={`absolute top-1/2 -translate-y-1/2 h-[2px] ${gradientClass} ${positionClass}`}
-      style={{ transformOrigin: position === 'left' ? 'right' : 'left', width: 'calc(50% - 40px)' }}
+      style={{ transformOrigin: position === 'left' ? 'right' : 'left', width: 'calc(50% - 56px)' }}
     />
   );
 };
@@ -1955,7 +1955,7 @@ export const RecognitionSection = () => {
                         whileInView={{ scale: 1 }}
                         viewport={{ once: true }}
                         transition={{ duration: 0.4, delay: index * 0.2 + 0.5, type: 'spring', stiffness: 200 }}
-                        className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10"
+                        className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[1]"
                       >
                         <div className="absolute inset-0 w-4 h-4 rounded-full bg-[#f59e0b] blur-md opacity-50" />
                         <div className="relative w-4 h-4 rounded-full bg-[#0a0a0a] border-2 border-[#f59e0b] flex items-center justify-center">
@@ -1968,7 +1968,7 @@ export const RecognitionSection = () => {
 
                       {/* Card positioned */}
                       <div className={`w-full flex ${position === 'left' ? 'justify-start' : 'justify-end'}`}>
-                        <div className="max-w-[26rem]" style={{ width: 'calc(50% - 40px)' }}>
+                        <div className="relative z-20 max-w-[24rem]" style={{ width: 'calc(50% - 56px)' }}>
                           <RecognitionCard
                             award={award}
                             index={index}
@@ -1987,7 +1987,7 @@ export const RecognitionSection = () => {
                         whileInView={{ scale: 1, opacity: 1 }}
                         viewport={{ once: true }}
                         transition={{ duration: 0.35, delay: index * 0.15 + 0.35, type: 'spring', stiffness: 200 }}
-                        className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10 lg:hidden"
+                        className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[1] lg:hidden"
                       >
                         <div className="absolute inset-0 w-3 h-3 rounded-full bg-[#f59e0b] blur-md opacity-45" />
                         <div className="relative w-3 h-3 rounded-full bg-[#0a0a0a] border border-[#f59e0b]">
@@ -2002,7 +2002,7 @@ export const RecognitionSection = () => {
                         className={`absolute top-1/2 -translate-y-1/2 h-[1px] w-[18%] bg-gradient-to-r from-[#f59e0b] to-[#2a2a3a] ${position === 'left' ? 'left-[50%]' : 'right-[50%]'}`}
                         style={{ transformOrigin: position === 'left' ? 'left' : 'right' }}
                       />
-                      <div className="w-[92%] max-w-[26rem]">
+                      <div className="relative z-20 w-[92%] max-w-[24rem]">
                         <RecognitionCard
                           award={award}
                           index={index}
