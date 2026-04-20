@@ -85,7 +85,7 @@ const CinemaModeOverlay = ({
   video: { mp4: string; webm: string };
 }) => {
   const [volume, setVolume] = useState(0.8);
-  const [muted, setMuted] = useState(false);
+  const [muted, setMuted] = useState(true);
   const [isPlaying, setIsPlaying] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -163,6 +163,7 @@ const CinemaModeOverlay = ({
           ref={videoRef}
           autoPlay
           loop
+          muted
           playsInline
           poster={poster}
           className="absolute inset-0 w-full h-full object-contain pointer-events-auto"
