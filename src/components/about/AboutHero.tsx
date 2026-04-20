@@ -47,6 +47,16 @@ export const AboutHero = () => {
   const title = "MORE";
   const subtitle = "ABOUT";
   const third = "ME";
+  const particles = Array.from({ length: 26 }, (_, i) => ({
+    id: i,
+    left: `${(i * 137.5) % 100}%`,
+    top: `${(i * 89.7) % 100}%`,
+    size: 1 + (i % 4),
+    duration: 10 + (i % 6) * 1.7,
+    delay: (i % 8) * 0.23,
+    drift: (i % 2 === 0 ? 1 : -1) * (8 + (i % 5) * 2),
+    opacity: 0.08 + (i % 5) * 0.02,
+  }));
 
   return (
     <section ref={containerRef} className="min-h-screen bg-[#0D0D0D] relative overflow-hidden contain-layout gpu-accelerated">
@@ -108,6 +118,44 @@ export const AboutHero = () => {
           className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-[#0D0D0D] to-transparent z-[2] pointer-events-none"
           style={{ willChange: 'opacity' }}
         />
+      </div>
+
+      {/* Layer 8: Refined atmospheric particles — cohesive with homepage texture language */}
+      <div className="absolute inset-0 z-[8] pointer-events-none overflow-hidden">
+        {particles.map((p) => (
+          <motion.span
+            key={p.id}
+            className="absolute rounded-full"
+            style={{
+              left: p.left,
+              top: p.top,
+              width: `${p.size}px`,
+              height: `${p.size}px`,
+              background:
+                p.id % 3 === 0
+                  ? 'rgba(245, 245, 243, 0.7)'
+                  : p.id % 3 === 1
+                    ? 'rgba(184, 184, 179, 0.6)'
+                    : 'rgba(124, 132, 247, 0.55)',
+              opacity: p.opacity,
+              boxShadow:
+                p.id % 4 === 0
+                  ? '0 0 12px rgba(124,132,247,0.35)'
+                  : '0 0 8px rgba(245,245,243,0.2)',
+            }}
+            animate={{
+              y: [0, -p.drift, 0],
+              x: [0, p.drift * 0.35, 0],
+              opacity: [p.opacity * 0.7, p.opacity, p.opacity * 0.7],
+            }}
+            transition={{
+              duration: p.duration,
+              delay: p.delay,
+              repeat: Infinity,
+              ease: 'easeInOut',
+            }}
+          />
+        ))}
       </div>
 
       {/* Layer 20: Typography - always on top, full viewport */}
@@ -173,7 +221,7 @@ export const AboutHero = () => {
 
             {/* Second line - ABOUT - centered, full white default, premium hover effect */}
             <div 
-              className="overflow-hidden relative z-20 group"
+              className="overflow-hidden relative z-20"
               onClick={() => setIsResumeOpen(true)}
             >
               <motion.div
