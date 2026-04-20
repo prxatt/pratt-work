@@ -7,8 +7,9 @@
  *   `Recognition/Images/…`, `Ventures/Images/…`, top-level `Videos/…` for `/videos/…` in code.
  *
  * Env:
- * - NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME — required for CDN (trimmed). If empty, URLs stay local (/work/…).
- *   On Vercel, set it for every environment you deploy (Production and Preview); then redeploy so the
+ * - NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME — required for CDN (trimmed). Value is only the Cloud **name**
+ *   from the Cloudinary console (e.g. `dxxxx`), not the API Key, not the API Secret, not a full URL.
+ *   If empty, URLs stay local (/work/…). On Vercel, set for Production and Preview; redeploy so the
  *   client bundle is rebuilt with the value inlined.
  * - NEXT_PUBLIC_CLOUDINARY_MEDIA=off — force local paths even if cloud name is set (emergency / debugging).
  * - NEXT_PUBLIC_CLOUDINARY_PATH_STYLE (optional; default matches the folders above):
