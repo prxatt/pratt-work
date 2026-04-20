@@ -11,6 +11,14 @@ function toBlobUrl(localPath: string): string {
   return `${BLOB}${normalized}`;
 }
 
+function normalizeImagePath(localPath: string): string {
+  return localPath.replace(/\.(jpe?g|png|avif)$/i, '.webp');
+}
+
+function normalizeVideoPath(localPath: string): string {
+  return localPath.replace(/\.(webm|mov|m4v)$/i, '.mp4');
+}
+
 export function getImageUrl(
   localPath: string,
   _width?: number,
@@ -19,14 +27,14 @@ export function getImageUrl(
     format?: 'auto' | 'webp' | 'avif' | 'jpg';
   }
 ): string {
-  return toBlobUrl(localPath);
+  return toBlobUrl(normalizeImagePath(localPath));
 }
 
 export function getVideoUrl(
   localPath: string,
   _format: 'auto' | 'mp4' | 'webm' = 'auto'
 ): string {
-  return toBlobUrl(localPath);
+  return toBlobUrl(normalizeVideoPath(localPath));
 }
 
 export function getMediaUrl(
@@ -39,7 +47,10 @@ export function getMediaUrl(
     crop?: 'fill' | 'fit' | 'scale' | 'limit';
   } = {}
 ): string {
-  return toBlobUrl(localPath);
+  const isVideo = /\.(mp4|webm|mov|m4v)$/i.test(localPath);
+  return isVideo
+    ? toBlobUrl(normalizeVideoPath(localPath))
+    : toBlobUrl(normalizeImagePath(localPath));
 }
 
 export function generateSrcSet(
@@ -47,6 +58,6 @@ export function generateSrcSet(
   widths: number[] = [640, 828, 1080, 1920],
   _options?: { quality?: 'auto' | number; format?: 'auto' | 'webp' | 'avif' | 'jpg' }
 ): string {
-  const src = toBlobUrl(localPath);
+  const src = toBlobUrl(normalizeImagePath(localPath));
   return widths.map((w) => `${src} ${w}w`).join(', ');
 }
