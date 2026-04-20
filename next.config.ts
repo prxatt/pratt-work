@@ -137,17 +137,6 @@ const nextConfig: NextConfig = {
       },
     ];
   },
-  async redirects() {
-    return [
-      // Keep a single canonical host to reduce phishing confusion and duplicate indexing.
-      {
-        source: '/:path*',
-        has: [{ type: 'host', value: 'www.pratt.work' }],
-        destination: 'https://pratt.work/:path*',
-        permanent: true,
-      },
-    ];
-  },
 };
 
 export default nextConfig;
