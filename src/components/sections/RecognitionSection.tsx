@@ -3,9 +3,47 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCursor } from '@/context/CursorContext';
-import { X, Trophy, Film, Award, BarChart3, Play } from 'lucide-react';
 import Image from 'next/image';
 import { getImageUrl, getVideoUrl } from '@/lib/media';
+
+type IconComponent = React.ComponentType<{ className?: string }>;
+
+const iconProps = {
+  viewBox: '0 0 24 24',
+  fill: 'none',
+  stroke: 'currentColor',
+  strokeWidth: 2,
+  strokeLinecap: 'round' as const,
+  strokeLinejoin: 'round' as const,
+};
+
+const X: IconComponent = ({ className }) => (
+  <svg className={className} {...iconProps}><path d="M18 6 6 18M6 6l12 12" /></svg>
+);
+const Play: IconComponent = ({ className }) => (
+  <svg className={className} {...iconProps}><path d="m8 5 11 7-11 7z" /></svg>
+);
+const Pause: IconComponent = ({ className }) => (
+  <svg className={className} {...iconProps}><path d="M10 4v16M14 4v16" /></svg>
+);
+const Volume2: IconComponent = ({ className }) => (
+  <svg className={className} {...iconProps}><path d="M11 5 6 9H3v6h3l5 4zM15.5 8.5a5 5 0 0 1 0 7M18.5 6a9 9 0 0 1 0 12" /></svg>
+);
+const VolumeX: IconComponent = ({ className }) => (
+  <svg className={className} {...iconProps}><path d="M11 5 6 9H3v6h3l5 4zM22 9l-6 6M16 9l6 6" /></svg>
+);
+const Trophy: IconComponent = ({ className }) => (
+  <svg className={className} {...iconProps}><path d="M8 4h8v3a4 4 0 0 1-8 0zM6 7H4a2 2 0 0 0 2 2M18 7h2a2 2 0 0 1-2 2M12 11v4M9 19h6" /></svg>
+);
+const Film: IconComponent = ({ className }) => (
+  <svg className={className} {...iconProps}><rect x="3" y="3" width="18" height="18" rx="2" /><path d="M7 3v18M17 3v18M3 7h18M3 17h18" /></svg>
+);
+const Award: IconComponent = ({ className }) => (
+  <svg className={className} {...iconProps}><circle cx="12" cy="8" r="4" /><path d="m8 14 1.5 6L12 18l2.5 2 1.5-6" /></svg>
+);
+const BarChart3: IconComponent = ({ className }) => (
+  <svg className={className} {...iconProps}><path d="M3 3v18h18" /><path d="M8 14v4M12 10v8M16 6v12" /></svg>
+);
 
 interface Award {
   id: string;
@@ -16,7 +54,7 @@ interface Award {
   details: string;
   fullDescription: string;
   impact: string[];
-  icon: typeof Trophy;
+  icon: IconComponent;
   image: string;
 }
 
@@ -50,7 +88,7 @@ const awards: Award[] = [
     year: '2021',
     organization: 'SXSW',
     project: 'WOMEN IS LOSERS',
-    role: 'OFFICIAL SELECTION (PRODUCTION SUPERVISOR + TRANSPORTATION COORDINATOR)',
+    role: 'OFFICIAL SELECTION | UNIT PRODUCTION SUPERVISOR',
     details: 'Managed complex production logistics for a high-profile independent film premiere.',
     fullDescription: 'Led production supervision and transportation coordination for the SXSW Official Selection "Women Is Losers," coordinating a 40+ person crew across 19 shooting days. Managed $1.2M budget, secured 8 location permits, and sourced vintage and historic vehicles for period accuracy to deliver on schedule.',
     impact: ['40+ person crew coordinated', '$1.2M budget managed', '19-day production schedule', '8 location permits + vintage vehicles', 'Zero production delays'],
@@ -71,15 +109,263 @@ const awards: Award[] = [
   },
 ];
 
-// Cinematic Modal for ALONE Film
-const AloneModal = ({ onClose }: { onClose: () => void }) => {
-  React.useEffect(() => {
+const CinemaModeOverlay = ({
+  isOpen,
+  onClose,
+  title,
+  poster,
+  video,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  title: string;
+  poster: string;
+  video: { mp4: string; webm: string };
+}) => {
+  const [volume, setVolume] = useState(0.4);
+  const [muted, setMuted] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(true);
+  const [duration, setDuration] = useState(0);
+  const [currentTime, setCurrentTime] = useState(0);
+  const isScrubbingRef = useRef(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isOpen]);
+
+  useEffect(() => {
+    const node = videoRef.current;
+    if (!node) return;
+    node.volume = muted ? 0 : volume;
+    node.muted = muted;
+  }, [muted, volume]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setCurrentTime(0);
+      setDuration(0);
+      setMuted(false);
+      setVolume(0.4);
+      setIsPlaying(true);
+      return;
+    }
+    const node = videoRef.current;
+    if (!node) return;
+    const handleLoadedMetadata = () => {
+      setDuration(Number.isFinite(node.duration) ? node.duration : 0);
+    };
+    const handleTimeUpdate = () => {
+      if (isScrubbingRef.current) return;
+      setCurrentTime(node.currentTime);
+    };
+    node.addEventListener('loadedmetadata', handleLoadedMetadata);
+    node.addEventListener('timeupdate', handleTimeUpdate);
+    return () => {
+      node.removeEventListener('loadedmetadata', handleLoadedMetadata);
+      node.removeEventListener('timeupdate', handleTimeUpdate);
+    };
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
     const handleEsc = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
     };
     window.addEventListener('keydown', handleEsc);
-    return () => window.removeEventListener('keydown', handleEsc);
+    return () => {
+      window.removeEventListener('keydown', handleEsc);
+    };
   }, [onClose]);
+
+  useEffect(() => {
+    if (!isOpen || !containerRef.current) return;
+    const node = containerRef.current;
+    void node.requestFullscreen?.();
+    const video = videoRef.current;
+    if (!video) return;
+    video.muted = false;
+    video.volume = 0.4;
+    void video.play().catch(() => {});
+    return () => {
+      if (document.fullscreenElement) {
+        void document.exitFullscreen?.();
+      }
+    };
+  }, [isOpen]);
+
+  const togglePlayback = () => {
+    const node = videoRef.current;
+    if (!node) return;
+    if (node.paused) {
+      void node.play();
+      setIsPlaying(true);
+    } else {
+      node.pause();
+      setIsPlaying(false);
+    }
+  };
+
+  const handleTimelineChange = (nextTime: number) => {
+    const node = videoRef.current;
+    if (!node) return;
+    node.currentTime = nextTime;
+    setCurrentTime(nextTime);
+  };
+
+  const formatTime = (seconds: number) => {
+    if (!Number.isFinite(seconds) || seconds <= 0) return '0:00';
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${String(secs).padStart(2, '0')}`;
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.24 }}
+      className="fixed inset-0 z-[400] bg-black/95"
+      onClick={onClose}
+    >
+      <div className="absolute inset-0 pointer-events-auto" onClick={onClose} />
+      <div
+        ref={containerRef}
+        className="relative w-full h-full flex items-center justify-center p-4 sm:p-6"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="relative w-full max-w-[min(94vw,1200px)] h-[min(72vh,760px)]">
+        <video
+          ref={videoRef}
+          autoPlay
+          loop
+          muted={muted}
+          preload="metadata"
+          playsInline
+          poster={poster}
+          className="absolute inset-0 w-full h-full object-contain pointer-events-auto"
+          onPlay={() => setIsPlaying(true)}
+          onPause={() => setIsPlaying(false)}
+          onClick={togglePlayback}
+        >
+          <source src={video.mp4} type="video/mp4" />
+          <source src={video.webm} type="video/webm" />
+        </video>
+        <div className="absolute inset-0 pointer-events-none bg-gradient-to-t from-black/45 via-black/10 to-black/30 rounded-lg" />
+
+        <div className="absolute top-3 left-3 right-3 sm:top-4 sm:left-4 sm:right-4 flex items-center justify-between gap-3 z-10 pointer-events-auto">
+          <span className="font-mono text-[10px] sm:text-xs tracking-[0.2em] uppercase text-[#c7c7c2]">
+            Cinema Mode — {title}
+          </span>
+          <button
+            onClick={onClose}
+            className="w-10 h-10 rounded-full border border-white/25 bg-black/35 flex items-center justify-center hover:border-white/45 transition-colors"
+            aria-label="Close cinema mode"
+          >
+            <X className="w-5 h-5 text-white/80" />
+          </button>
+        </div>
+
+        <div className="absolute bottom-3 left-3 right-3 sm:bottom-4 sm:left-4 sm:right-4 z-10 rounded-xl border border-white/15 bg-black/55 p-3 pointer-events-auto">
+          <div className="mb-2 flex items-center gap-3">
+            <span className="font-mono text-[10px] text-white/60 tabular-nums min-w-[2.25rem]">
+              {formatTime(currentTime)}
+            </span>
+            <input
+              type="range"
+              min={0}
+              max={duration || 0}
+              step={0.1}
+              value={Math.min(currentTime, duration || 0)}
+              onPointerDown={() => {
+                isScrubbingRef.current = true;
+              }}
+              onPointerUp={(e) => {
+                const next = Number((e.target as HTMLInputElement).value);
+                handleTimelineChange(next);
+                isScrubbingRef.current = false;
+              }}
+              onChange={(e) => {
+                const next = Number(e.target.value);
+                handleTimelineChange(next);
+              }}
+              className="flex-1 accent-[#f59e0b]"
+              aria-label="Timeline"
+            />
+            <span className="font-mono text-[10px] text-white/60 tabular-nums min-w-[2.25rem] text-right">
+              {formatTime(duration)}
+            </span>
+          </div>
+          <div className="flex items-center justify-between gap-3">
+          <button
+            onClick={togglePlayback}
+            className="w-9 h-9 rounded-full border border-white/20 flex items-center justify-center hover:border-[#f59e0b]/70 transition-colors"
+            aria-label={isPlaying ? 'Pause video' : 'Play video'}
+          >
+            {isPlaying ? <Pause className="w-4 h-4 text-white/80" /> : <Play className="w-4 h-4 text-white/80" />}
+          </button>
+          <button
+            onClick={() => setMuted((prev) => !prev)}
+            className="w-9 h-9 rounded-full border border-white/20 flex items-center justify-center hover:border-[#f59e0b]/70 transition-colors"
+            aria-label={muted ? 'Unmute video' : 'Mute video'}
+          >
+            {muted ? <VolumeX className="w-4 h-4 text-white/80" /> : <Volume2 className="w-4 h-4 text-white/80" />}
+          </button>
+          <input
+            type="range"
+            min={0}
+            max={1}
+            step={0.05}
+            value={volume}
+            onChange={(e) => {
+              const next = Number(e.target.value);
+              setVolume(next);
+              if (next > 0 && muted) setMuted(false);
+            }}
+            className="w-20 sm:w-28 accent-[#f59e0b]"
+            aria-label="Volume"
+          />
+          </div>
+        </div>
+      </div>
+      </div>
+    </motion.div>
+  );
+};
+
+// Cinematic Modal for ALONE Film
+const AloneModal = ({ onClose }: { onClose: () => void }) => {
+  const [cinemaOpen, setCinemaOpen] = React.useState(false);
+  const trailerRef = useRef<HTMLVideoElement>(null);
+
+  React.useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      if (cinemaOpen) {
+        setCinemaOpen(false);
+        return;
+      }
+      onClose();
+    };
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, [cinemaOpen, onClose]);
+
+  React.useEffect(() => {
+    const node = trailerRef.current;
+    if (!node) return;
+    if (cinemaOpen) node.pause();
+    else void node.play().catch(() => {});
+  }, [cinemaOpen]);
 
   return (
     <motion.div
@@ -111,6 +397,7 @@ const AloneModal = ({ onClose }: { onClose: () => void }) => {
           {/* Video trailer background - autoplaying, looping, muted */}
           <div className="absolute inset-0 z-0">
             <video
+              ref={trailerRef}
               autoPlay
               muted
               loop
@@ -212,6 +499,13 @@ const AloneModal = ({ onClose }: { onClose: () => void }) => {
                 >
                   Written & Directed by Pratt Majmudar
                 </motion.p>
+                <button
+                  onClick={() => setCinemaOpen(true)}
+                  className="mt-4 inline-flex items-center gap-2 rounded-full border border-[#f59e0b]/45 bg-black/35 px-4 py-2 font-mono text-[10px] uppercase tracking-[0.18em] text-[#f2f2f0] hover:border-[#f59e0b] hover:bg-black/55 transition-colors"
+                >
+                  <Play className="w-3.5 h-3.5" />
+                  Enter Cinema Mode
+                </button>
               </div>
 
               {/* Distribution Badges */}
@@ -350,6 +644,21 @@ const AloneModal = ({ onClose }: { onClose: () => void }) => {
             RETURN TO RECOGNITION
           </button>
         </div>
+
+        <AnimatePresence>
+          {cinemaOpen && (
+            <CinemaModeOverlay
+              isOpen={cinemaOpen}
+              onClose={() => setCinemaOpen(false)}
+              title="ALONE"
+              poster={getImageUrl('/recognition/alone-poster.jpg', 1920)}
+              video={{
+                mp4: getVideoUrl('/recognition/alone-trailer.mp4'),
+                webm: getVideoUrl('/recognition/alone-trailer.webm'),
+              }}
+            />
+          )}
+        </AnimatePresence>
       </motion.div>
     </motion.div>
   );
@@ -357,13 +666,28 @@ const AloneModal = ({ onClose }: { onClose: () => void }) => {
 
 // Cinematic Modal for WOMEN IS LOSERS — SXSW Festival Premiere
 const WomenIsLosersModal = ({ onClose }: { onClose: () => void }) => {
+  const [cinemaOpen, setCinemaOpen] = React.useState(false);
+  const trailerRef = useRef<HTMLVideoElement>(null);
+
   React.useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key !== 'Escape') return;
+      if (cinemaOpen) {
+        setCinemaOpen(false);
+        return;
+      }
+      onClose();
     };
     window.addEventListener('keydown', handleEsc);
     return () => window.removeEventListener('keydown', handleEsc);
-  }, [onClose]);
+  }, [cinemaOpen, onClose]);
+
+  React.useEffect(() => {
+    const node = trailerRef.current;
+    if (!node) return;
+    if (cinemaOpen) node.pause();
+    else void node.play().catch(() => {});
+  }, [cinemaOpen]);
 
   return (
     <motion.div
@@ -395,6 +719,7 @@ const WomenIsLosersModal = ({ onClose }: { onClose: () => void }) => {
           {/* Video trailer background - autoplaying, looping, muted */}
           <div className="absolute inset-0 z-0">
             <video
+              ref={trailerRef}
               autoPlay
               muted
               loop
@@ -494,8 +819,15 @@ const WomenIsLosersModal = ({ onClose }: { onClose: () => void }) => {
                   transition={{ delay: 0.5, duration: 0.5 }}
                   className="font-mono text-sm text-[#8A8A85] mt-4 uppercase tracking-wider"
                 >
-                  Production Supervisor & Transportation Coordinator: Pratt Majmudar
+                  Unit Production Supervisor: Pratt Majmudar
                 </motion.p>
+                <button
+                  onClick={() => setCinemaOpen(true)}
+                  className="mt-4 inline-flex items-center gap-2 rounded-full border border-[#f59e0b]/45 bg-black/35 px-4 py-2 font-mono text-[10px] uppercase tracking-[0.18em] text-[#f2f2f0] hover:border-[#f59e0b] hover:bg-black/55 transition-colors"
+                >
+                  <Play className="w-3.5 h-3.5" />
+                  Enter Cinema Mode
+                </button>
               </div>
 
               {/* Distribution Badges */}
@@ -577,8 +909,7 @@ const WomenIsLosersModal = ({ onClose }: { onClose: () => void }) => {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-8">
               <div className="border-l border-[#2a2a3a] pl-4">
                 <p className="font-mono text-[10px] text-[#6b7280] uppercase tracking-wider mb-1">Role</p>
-                <p className="font-mono text-sm text-[#f59e0b] uppercase">Production Supervisor</p>
-                <p className="font-mono text-xs text-[#6b7280] mt-0.5">+ Transportation Coordinator</p>
+                <p className="font-mono text-sm text-[#f59e0b] uppercase">Unit Production Supervisor</p>
               </div>
               <div className="border-l border-[#2a2a3a] pl-4">
                 <p className="font-mono text-[10px] text-[#6b7280] uppercase tracking-wider mb-1">Crew Size</p>
@@ -637,6 +968,21 @@ const WomenIsLosersModal = ({ onClose }: { onClose: () => void }) => {
             RETURN TO RECOGNITION
           </button>
         </div>
+
+        <AnimatePresence>
+          {cinemaOpen && (
+            <CinemaModeOverlay
+              isOpen={cinemaOpen}
+              onClose={() => setCinemaOpen(false)}
+              title="WOMEN IS LOSERS"
+              poster={getImageUrl('/recognition/women-is-losers-poster.jpg', 1920)}
+              video={{
+                mp4: getVideoUrl('/recognition/women-is-losers-trailer.mp4'),
+                webm: getVideoUrl('/recognition/women-is-losers-trailer.webm'),
+              }}
+            />
+          )}
+        </AnimatePresence>
       </motion.div>
     </motion.div>
   );
@@ -1068,13 +1414,28 @@ const RecognitionModal = ({ award, onClose }: { award: Award; onClose: () => voi
 
 // Documentary Modal for SYNCHRONICITY — Musical Journey
 const SynchronicityDocumentaryModal = ({ onClose }: { onClose: () => void }) => {
+  const [cinemaOpen, setCinemaOpen] = React.useState(false);
+  const trailerRef = useRef<HTMLVideoElement>(null);
+
   React.useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key !== 'Escape') return;
+      if (cinemaOpen) {
+        setCinemaOpen(false);
+        return;
+      }
+      onClose();
     };
     window.addEventListener('keydown', handleEsc);
     return () => window.removeEventListener('keydown', handleEsc);
-  }, [onClose]);
+  }, [cinemaOpen, onClose]);
+
+  React.useEffect(() => {
+    const node = trailerRef.current;
+    if (!node) return;
+    if (cinemaOpen) node.pause();
+    else void node.play().catch(() => {});
+  }, [cinemaOpen]);
 
   return (
     <motion.div
@@ -1106,6 +1467,7 @@ const SynchronicityDocumentaryModal = ({ onClose }: { onClose: () => void }) => 
           {/* Video trailer background - autoplaying, looping, muted */}
           <div className="absolute inset-0 z-0">
             <video
+              ref={trailerRef}
               autoPlay
               muted
               loop
@@ -1210,6 +1572,13 @@ const SynchronicityDocumentaryModal = ({ onClose }: { onClose: () => void }) => 
                 >
                   Next Up Festival Nominee — Best Short Documentary
                 </motion.p>
+                <button
+                  onClick={() => setCinemaOpen(true)}
+                  className="mt-4 inline-flex items-center gap-2 rounded-full border border-[#6366f1]/45 bg-black/35 px-4 py-2 font-mono text-[10px] uppercase tracking-[0.18em] text-[#f2f2f0] hover:border-[#6366f1] hover:bg-black/55 transition-colors"
+                >
+                  <Play className="w-3.5 h-3.5" />
+                  Enter Cinema Mode
+                </button>
               </div>
 
               {/* Festival Badge */}
@@ -1353,6 +1722,21 @@ const SynchronicityDocumentaryModal = ({ onClose }: { onClose: () => void }) => 
             RETURN TO RECOGNITION
           </button>
         </div>
+
+        <AnimatePresence>
+          {cinemaOpen && (
+            <CinemaModeOverlay
+              isOpen={cinemaOpen}
+              onClose={() => setCinemaOpen(false)}
+              title="SYNCHRONICITY"
+              poster={getImageUrl('/recognition/synchronicity-poster.jpg', 1920)}
+              video={{
+                mp4: getVideoUrl('/recognition/synchronicity-trailer.mp4'),
+                webm: getVideoUrl('/recognition/synchronicity-trailer.webm'),
+              }}
+            />
+          )}
+        </AnimatePresence>
       </motion.div>
     </motion.div>
   );
@@ -1374,6 +1758,7 @@ const RecognitionCard = ({
   const Icon = award.icon;
   const previewRafRef = useRef<number | null>(null);
   const pendingFocusRef = useRef<{ focusX: number; focusY: number } | null>(null);
+  const lastFocusRef = useRef<{ focusX: number; focusY: number } | null>(null);
 
   useEffect(() => {
     return () => {
@@ -1393,6 +1778,8 @@ const RecognitionCard = ({
   const handleMouseLeave = () => {
     setCursorState('default');
     setPreviewData({});
+    pendingFocusRef.current = null;
+    lastFocusRef.current = null;
   };
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -1410,14 +1797,28 @@ const RecognitionCard = ({
         previewRafRef.current = null;
         return;
       }
+      const lastFocus = lastFocusRef.current;
+      if (
+        lastFocus &&
+        Math.abs(lastFocus.focusX - pendingFocusRef.current.focusX) < 1 &&
+        Math.abs(lastFocus.focusY - pendingFocusRef.current.focusY) < 1
+      ) {
+        previewRafRef.current = null;
+        return;
+      }
       setPreviewData({
         src: award.image,
         focusX: pendingFocusRef.current.focusX,
         focusY: pendingFocusRef.current.focusY,
       });
+      lastFocusRef.current = pendingFocusRef.current;
       previewRafRef.current = null;
     });
   };
+
+  const [projectLine, roleLine] = award.role.includes('|')
+    ? award.role.split('|').map((part) => part.trim())
+    : [award.project, award.role];
 
   return (
     <motion.div
@@ -1429,6 +1830,7 @@ const RecognitionCard = ({
       onMouseLeave={handleMouseLeave}
       onMouseMove={handleMouseMove}
       onClick={onClick}
+      whileHover={{ y: -3, scale: 1.005 }}
       className="group relative bg-gradient-to-br from-[#1a1a1a] to-[#0f0f0f] rounded-xl border border-[#2a2a3a] p-6 cursor-none hover:border-[#f59e0b] hover:shadow-[0_0_40px_rgba(245,158,11,0.15)] transition-all duration-500 h-[280px] flex flex-col"
       style={{ width: '100%' }}
     >
@@ -1445,7 +1847,10 @@ const RecognitionCard = ({
           {award.organization}
         </h3>
         <p className="font-mono text-[10px] text-[#8A8A85] uppercase tracking-wider leading-relaxed">
-          {award.project} — {award.role}
+          {award.project}
+        </p>
+        <p className="font-mono text-[10px] text-[#8A8A85] uppercase tracking-wider leading-relaxed">
+          {roleLine ?? projectLine}
         </p>
       </div>
 
@@ -1474,8 +1879,8 @@ const TimelineConnector = ({ position, index }: { position: 'left' | 'right'; in
       whileInView={{ scaleX: 1 }}
       viewport={{ once: true }}
       transition={{ duration: 0.6, delay: index * 0.15 + 0.3, ease: [0.16, 1, 0.3, 1] }}
-      className={`absolute top-1/2 -translate-y-1/2 h-[2px] w-[calc(50%-40px)] ${gradientClass} ${positionClass}`}
-      style={{ transformOrigin: position === 'left' ? 'right' : 'left' }}
+      className={`absolute top-1/2 -translate-y-1/2 h-[2px] ${gradientClass} ${positionClass}`}
+      style={{ transformOrigin: position === 'left' ? 'right' : 'left', width: 'calc(50% - 40px)' }}
     />
   );
 };
@@ -1483,6 +1888,13 @@ const TimelineConnector = ({ position, index }: { position: 'left' | 'right'; in
 // Main Section
 export const RecognitionSection = () => {
   const [selectedAward, setSelectedAward] = useState<Award | null>(null);
+  const { setCursorState, setPreviewData } = useCursor();
+
+  useEffect(() => {
+    if (!selectedAward) return;
+    setCursorState('default');
+    setPreviewData({});
+  }, [selectedAward, setCursorState, setPreviewData]);
 
   return (
     <>
@@ -1516,8 +1928,8 @@ export const RecognitionSection = () => {
           {/* Alternating Branch Timeline */}
           <div className="relative">
             {/* Central spine */}
-            <div className="absolute left-1/2 top-0 bottom-0 w-px lg:w-[2px] -translate-x-1/2">
-              <div className="absolute inset-0 bg-[#2a2a3a]" />
+            <div className="absolute left-1/2 top-0 bottom-0 w-[2px] -translate-x-1/2 z-[1]">
+              <div className="absolute inset-0 bg-[#3a3a46]" />
               <motion.div
                 initial={{ scaleY: 0 }}
                 whileInView={{ scaleY: 1 }}
@@ -1525,11 +1937,11 @@ export const RecognitionSection = () => {
                 transition={{ duration: 2.5, ease: [0.16, 1, 0.3, 1] }}
                 className="absolute inset-0 bg-gradient-to-b from-[#f59e0b] via-[#f59e0b] to-[#f59e0b]/30 origin-top"
               />
-              <div className="absolute inset-0 bg-[#f59e0b] blur-[2px] opacity-40" />
+              <div className="absolute inset-0 bg-[#f59e0b] blur-[2px] opacity-50" />
             </div>
 
             {/* Cards */}
-            <div className="space-y-8 lg:space-y-0">
+            <div className="relative z-[2] space-y-8 lg:space-y-0">
               {awards.map((award, index) => {
                 const position = index % 2 === 0 ? 'left' : 'right';
                 
@@ -1556,7 +1968,7 @@ export const RecognitionSection = () => {
 
                       {/* Card positioned */}
                       <div className={`w-full flex ${position === 'left' ? 'justify-start' : 'justify-end'}`}>
-                        <div className="w-[calc(50%-40px)]">
+                        <div className="max-w-[26rem]" style={{ width: 'calc(50% - 40px)' }}>
                           <RecognitionCard
                             award={award}
                             index={index}
@@ -1590,7 +2002,7 @@ export const RecognitionSection = () => {
                         className={`absolute top-1/2 -translate-y-1/2 h-[1px] w-[18%] bg-gradient-to-r from-[#f59e0b] to-[#2a2a3a] ${position === 'left' ? 'left-[50%]' : 'right-[50%]'}`}
                         style={{ transformOrigin: position === 'left' ? 'left' : 'right' }}
                       />
-                      <div className="w-[92%]">
+                      <div className="w-[92%] max-w-[26rem]">
                         <RecognitionCard
                           award={award}
                           index={index}

@@ -66,17 +66,6 @@ const nextConfig: NextConfig = {
     optimizePackageImports: ['framer-motion', 'lucide-react', '@react-three/fiber', '@react-three/drei'],
     webVitalsAttribution: ['CLS', 'LCP', 'FCP', 'FID', 'TTFB', 'INP'],
   },
-  async redirects() {
-    return [
-      // Keep a single canonical host to reduce phishing confusion and duplicate indexing.
-      {
-        source: '/:path*',
-        has: [{ type: 'host', value: 'www.pratt.work' }],
-        destination: 'https://pratt.work/:path*',
-        permanent: true,
-      },
-    ];
-  },
   async headers() {
     return [
       {

@@ -286,7 +286,7 @@ const CardContent = ({
         <div className="overflow-hidden">
           <LetterReveal
             text={project.title}
-            className={`font-display text-primary leading-[1.15] whitespace-normal break-words max-w-full ${featured ? 'text-lg sm:text-xl md:text-2xl lg:text-3xl' : 'text-xl sm:text-2xl md:text-3xl'}`}
+            className={`font-display text-primary leading-[1.15] whitespace-normal break-normal [word-break:normal] [overflow-wrap:normal] max-w-full ${featured ? 'text-lg sm:text-xl md:text-2xl lg:text-3xl' : 'text-xl sm:text-2xl md:text-3xl'}`}
             delay={0.3 + index * 0.15}
             lite={titleLite}
           />
