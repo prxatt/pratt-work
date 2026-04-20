@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useState } from 'react';
 import { getVideoUrl } from '@/lib/media';
 
 // ---------------------------------------------------------------------------
@@ -106,8 +106,32 @@ export default function CryptVolumetric3D({
   height = '70vh',
 }: CryptVolumetric3DProps) {
   const mountRef = useRef<HTMLDivElement>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
   // We store a cleanup fn returned from the effect
   const cleanupRef = useRef<(() => void) | null>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  const toggleFullscreen = useCallback(async () => {
+    const root = rootRef.current;
+    if (!root) return;
+    const doc = document as Document & {
+      webkitFullscreenElement?: Element | null;
+      webkitExitFullscreen?: () => Promise<void> | void;
+    };
+    const el = root as HTMLElement & {
+      webkitRequestFullscreen?: () => Promise<void> | void;
+    };
+
+    const fullscreenElement = doc.fullscreenElement ?? doc.webkitFullscreenElement ?? null;
+    if (fullscreenElement) {
+      if (document.exitFullscreen) await document.exitFullscreen();
+      else if (doc.webkitExitFullscreen) await doc.webkitExitFullscreen();
+      return;
+    }
+
+    if (el.requestFullscreen) await el.requestFullscreen();
+    else if (el.webkitRequestFullscreen) await el.webkitRequestFullscreen();
+  }, []);
 
   // Stable callback — avoids linter warnings while keeping empty dep array
   const initScene = useCallback(() => {
@@ -400,8 +424,25 @@ export default function CryptVolumetric3D({
     return cleanup;
   }, [initScene]);
 
+  useEffect(() => {
+    const handleChange = () => {
+      const doc = document as Document & { webkitFullscreenElement?: Element | null };
+      const fullscreenElement = doc.fullscreenElement ?? doc.webkitFullscreenElement ?? null;
+      setIsFullscreen(Boolean(fullscreenElement));
+    };
+    document.addEventListener('fullscreenchange', handleChange);
+    document.addEventListener('webkitfullscreenchange', handleChange as EventListener);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleChange);
+      document.removeEventListener('webkitfullscreenchange', handleChange as EventListener);
+    };
+  }, []);
+
   return (
-    <div className="relative w-full overflow-hidden rounded-xl bg-black group"
+    <div
+         ref={rootRef}
+         onDoubleClick={toggleFullscreen}
+         className="relative w-full overflow-hidden rounded-xl bg-black group"
          style={{ height }}>
 
       {/* Three.js canvas mounts here */}
@@ -442,6 +483,18 @@ export default function CryptVolumetric3D({
         </svg>
         drag to orbit · scroll to zoom
       </div>
+
+      {/* Fullscreen toggle */}
+      <button
+        type="button"
+        onClick={toggleFullscreen}
+        className="absolute top-3 right-3 z-10 px-3 py-1.5 rounded-full border border-white/20 bg-black/45 backdrop-blur-sm text-white/80 hover:text-white hover:border-white/40 transition-colors"
+        aria-label={isFullscreen ? 'Exit fullscreen volumetric viewer' : 'Enter fullscreen volumetric viewer'}
+      >
+        <span className="font-mono text-[10px] tracking-[0.14em] uppercase">
+          {isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
+        </span>
+      </button>
     </div>
   );
 }
