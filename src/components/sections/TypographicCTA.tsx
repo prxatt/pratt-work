@@ -48,12 +48,12 @@ export const TypographicCTA = () => {
         transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
         className="flex flex-col items-center text-center gap-10"
       >
-        <span className="font-mono text-[10px] tracking-[0.4em] text-tertiary uppercase">
+        <span className="font-mono text-[10px] tracking-[0.28em] sm:tracking-[0.4em] text-tertiary uppercase">
           PROJECT INQUIRIES
         </span>
         
         <h2 
-          className="text-section-header text-primary uppercase relative"
+          className="text-[clamp(2.4rem,14vw,4.9rem)] sm:text-section-header text-primary uppercase relative leading-[0.92]"
           onMouseEnter={() => setCursorState('hover')}
           onMouseLeave={() => setCursorState('default')}
         >
@@ -77,7 +77,7 @@ export const TypographicCTA = () => {
               whileInView="visible"
               viewport={{ once: true }}
               variants={wordVariants}
-              className="inline-block text-[#F2F2F0] mr-4"
+              className="inline-block text-[#F2F2F0] mr-0 sm:mr-4"
             >
               SOMETHING
             </motion.span>
@@ -87,7 +87,7 @@ export const TypographicCTA = () => {
               whileInView="visible"
               viewport={{ once: true }}
               variants={wordVariants}
-              className="relative inline-block cursor-pointer text-[#6366f1]"
+              className="relative block sm:inline-block cursor-pointer text-[#6366f1] mt-1 sm:mt-0"
               onMouseEnter={() => setIsHovered(true)}
               onMouseLeave={() => setIsHovered(false)}
             >
@@ -145,7 +145,7 @@ export const TypographicCTA = () => {
           </motion.a>
           
           {/* Subtle hint text */}
-          <span className="mt-4 font-mono text-[10px] tracking-[0.2em] text-tertiary uppercase">
+          <span className="mt-4 font-mono text-[9px] sm:text-[10px] tracking-[0.16em] sm:tracking-[0.2em] text-tertiary uppercase text-center px-2">
             Available for select projects
           </span>
         </div>

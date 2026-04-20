@@ -1,16 +1,19 @@
 'use client';
 
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { motion, useScroll, useTransform } from 'framer-motion';
-import { LineWaves } from './LineWaves';
-import { VideoFrame } from './VideoFrame';
+import FaultyTerminal from '@/components/ui/FaultyTerminal';
 import { ResumeModal } from './ResumeModal';
 import { useReducedMotion } from 'framer-motion';
+import { useDeviceCapabilities } from '@/hooks/useReducedMotion';
 
 export const AboutHero = () => {
   const containerRef = useRef<HTMLElement>(null);
   const [isResumeOpen, setIsResumeOpen] = useState(false);
   const prefersReducedMotion = useReducedMotion();
+  const { isTouch, isLowEnd } = useDeviceCapabilities();
+  const [shaderDpr, setShaderDpr] = useState(1);
+  const [capabilitiesInView, setCapabilitiesInView] = useState(false);
   const { scrollYProgress } = useScroll({
     target: containerRef,
     offset: ["start start", "end start"]
@@ -47,19 +50,32 @@ export const AboutHero = () => {
   const title = "MORE";
   const subtitle = "ABOUT";
   const third = "ME";
-  const particles = Array.from({ length: 26 }, (_, i) => ({
-    id: i,
-    left: `${(i * 137.5) % 100}%`,
-    top: `${(i * 89.7) % 100}%`,
-    size: 1 + (i % 4),
-    duration: 10 + (i % 6) * 1.7,
-    delay: (i % 8) * 0.23,
-    drift: (i % 2 === 0 ? 1 : -1) * (8 + (i % 5) * 2),
-    opacity: 0.08 + (i % 5) * 0.02,
-  }));
+  useEffect(() => {
+    const raw = window.devicePixelRatio || 1;
+    if (prefersReducedMotion) {
+      setShaderDpr(1);
+    } else if (isTouch) {
+      setShaderDpr(Math.min(raw, 1.2));
+    } else {
+      setShaderDpr(Math.min(raw, isLowEnd ? 1 : 1.25));
+    }
+  }, [isLowEnd, isTouch, prefersReducedMotion]);
+
+  useEffect(() => {
+    const cap = document.getElementById('capabilities');
+    if (!cap) return;
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        setCapabilitiesInView(entry.isIntersecting && entry.intersectionRatio > 0);
+      },
+      { threshold: [0, 0.02, 0.08], rootMargin: '0px 0px -8% 0px' }
+    );
+    io.observe(cap);
+    return () => io.disconnect();
+  }, []);
 
   return (
-    <section ref={containerRef} className="min-h-screen bg-[#0D0D0D] relative overflow-hidden contain-layout gpu-accelerated">
+    <section ref={containerRef} className="min-h-[100dvh] bg-[#0D0D0D] relative overflow-hidden contain-layout gpu-accelerated">
       {/* Layer 0: Base dark background - GPU optimized */}
       <motion.div 
         className="absolute inset-0 z-0 gpu-accelerated"
@@ -95,71 +111,36 @@ export const AboutHero = () => {
         />
       </motion.div>
 
-      {/* Layer 5: LineWaves - Full viewport coverage, subtle fade only at very bottom */}
-      <div className="absolute inset-0 z-[1] opacity-66">
-        <LineWaves 
-          speed={0.12}
-          innerLineCount={26}
-          outerLineCount={30}
-          warpIntensity={0.7}
-          rotation={-32}
-          edgeFadeWidth={0.2}
-          colorCycleSpeed={0.22}
-          brightness={0.2}
-          color1="#F5F5F3"
-          color2="#B8B8B3"
-          color3="#7C84F7"
-          enableMouseInteraction={false}
-          mouseInfluence={0}
-          reducedMotion={prefersReducedMotion || false}
+      {/* Layer 8: Homepage shader field — single continuous motion (no ribbon/wave layer swap) */}
+      <div
+        className="absolute inset-0 z-[8] min-h-[100dvh] pointer-events-none overflow-hidden transition-opacity duration-700 ease-out"
+        style={{ opacity: capabilitiesInView ? 0 : 1 }}
+      >
+        <FaultyTerminal
+          scale={isTouch ? 1.26 : 1.42}
+          gridMul={isTouch ? [2.28, 1.58] : [2.62, 1.74]}
+          digitSize={1.0}
+          timeScale={prefersReducedMotion ? 0.028 : isTouch ? 0.092 : 0.102}
+          scanlineIntensity={0.028}
+          glitchAmount={0.055}
+          flickerAmount={0.02}
+          noiseAmp={0.52}
+          curvature={0.065}
+          chromaticAberration={isTouch ? 0.0017 : 0.0022}
+          dither={0.35}
+          tint="#F5F5F3"
+          mouseReact={false}
+          mouseStrength={0}
+          pageLoadAnimation={false}
+          brightness={0.72}
+          dpr={shaderDpr}
         />
-        {/* Minimal bottom gradient - just enough to blend, not cut off */}
-        <div 
-          className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-[#0D0D0D] to-transparent z-[2] pointer-events-none"
-          style={{ willChange: 'opacity' }}
-        />
-      </div>
-
-      {/* Layer 8: Refined atmospheric particles — cohesive with homepage texture language */}
-      <div className="absolute inset-0 z-[8] pointer-events-none overflow-hidden">
-        {particles.map((p) => (
-          <motion.span
-            key={p.id}
-            className="absolute rounded-full"
-            style={{
-              left: p.left,
-              top: p.top,
-              width: `${p.size}px`,
-              height: `${p.size}px`,
-              background:
-                p.id % 3 === 0
-                  ? 'rgba(245, 245, 243, 0.7)'
-                  : p.id % 3 === 1
-                    ? 'rgba(184, 184, 179, 0.6)'
-                    : 'rgba(124, 132, 247, 0.55)',
-              opacity: p.opacity,
-              boxShadow:
-                p.id % 4 === 0
-                  ? '0 0 12px rgba(124,132,247,0.35)'
-                  : '0 0 8px rgba(245,245,243,0.2)',
-            }}
-            animate={{
-              y: [0, -p.drift, 0],
-              x: [0, p.drift * 0.35, 0],
-              opacity: [p.opacity * 0.7, p.opacity, p.opacity * 0.7],
-            }}
-            transition={{
-              duration: p.duration,
-              delay: p.delay,
-              repeat: Infinity,
-              ease: 'easeInOut',
-            }}
-          />
-        ))}
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_38%,rgba(13,13,13,0.38)_100%)]" />
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-[#0d0d0d]/40" />
       </div>
 
       {/* Layer 20: Typography - always on top, full viewport */}
-      <motion.div style={{ opacity, scale }} className="sticky top-0 h-screen min-h-screen flex flex-col justify-center items-center w-full z-20">
+      <motion.div style={{ opacity, scale }} className="sticky top-0 h-[100dvh] min-h-[100dvh] flex flex-col justify-center items-center w-full z-20">
         {/* Oversized typography composition - full viewport width */}
         <div className="relative w-full h-full px-6 md:px-12 lg:px-20 flex flex-col justify-center">
           {/* CI0 - positioned at bottom right */}
@@ -175,10 +156,10 @@ export const AboutHero = () => {
           </motion.div>
 
           {/* Text stack container - equal vertical spacing with offset positioning */}
-          <div className="relative flex flex-col items-center gap-[2vh] md:gap-[3vh]">
-            {/* First line - MORE - positioned left of center with parallax scroll */}
+          <div className="relative flex w-full max-w-[100%] flex-col items-stretch gap-[2vh] md:gap-[3vh]">
+            {/* First line - MORE — anchored left; avoids parent items-center “centering” */}
             <motion.div 
-              className="overflow-hidden relative z-30 self-start ml-[2vw] md:ml-[12vw]"
+              className="relative z-30 w-max max-w-[92vw] self-start overflow-hidden pl-[max(0px,env(safe-area-inset-left))] ml-[clamp(0.25rem,7vw,6.5rem)] md:ml-[clamp(1.25rem,12vw,9rem)] lg:ml-[clamp(2rem,14vw,11rem)]"
               style={{ 
                 x: moreX,
                 willChange: 'transform',
@@ -219,9 +200,9 @@ export const AboutHero = () => {
               </motion.div>
             </motion.div>
 
-            {/* Second line - ABOUT - centered, full white default, premium hover effect */}
+            {/* Second line - ABOUT - centered */}
             <div 
-              className="overflow-hidden relative z-20"
+              className="relative z-20 self-center overflow-hidden"
               onClick={() => setIsResumeOpen(true)}
             >
               <motion.div
@@ -313,18 +294,46 @@ export const AboutHero = () => {
           </div>
         </div>
 
-        {/* Descriptor line - visible and positioned */}
+        {/* Descriptor + resume — one calm row: legible left, premium CTA right */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.8, duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-          className="absolute bottom-[10vh] left-6 md:left-12 lg:left-20"
+          className="absolute bottom-[10vh] left-0 right-0 z-[25] px-6 md:px-12 lg:px-20 pointer-events-none"
         >
-          <div className="flex items-center gap-4">
-            <div className="w-16 h-[2px] bg-gradient-to-r from-[#F2F2F0] to-transparent" />
-            <span className="font-mono text-[11px] sm:text-[12px] text-[#C8C8C2] uppercase tracking-[0.28em] font-medium" style={{ textShadow: '0 1px 12px rgba(0,0,0,0.6)' }}>
-              Producer. Architect. Thinker
-            </span>
+          <div className="flex flex-row flex-wrap items-center justify-between gap-x-8 gap-y-3 sm:flex-nowrap pointer-events-auto">
+            <div className="flex min-w-0 max-w-[min(100%,32rem)] items-center gap-3 sm:gap-4">
+              <div className="h-[2px] w-12 shrink-0 bg-gradient-to-r from-[#f59e0b] via-[#F2F2F0] to-transparent sm:w-20" aria-hidden />
+              <span
+                className="font-mono text-[10px] font-medium uppercase tracking-[0.2em] text-[#F2F2F0] sm:text-[11px] sm:tracking-[0.24em]"
+                style={{
+                  textShadow:
+                    '0 1px 2px rgba(0,0,0,0.95), 0 0 28px rgba(10,10,10,0.92), 0 0 1px rgba(245,245,243,0.4)',
+                }}
+              >
+                Producer. Architect. Thinker
+              </span>
+            </div>
+
+            <a
+              href="/resume/Pratt_Majmudar_Resume.pdf"
+              download="Pratt_Majmudar_Resume.pdf"
+              className="group inline-flex shrink-0 items-center gap-2 transition-colors duration-300"
+            >
+              <span className="font-mono text-[10px] uppercase tracking-[0.22em] text-[#F2F2F0] underline decoration-[#f59e0b]/55 underline-offset-[6px] transition-colors duration-300 group-hover:text-white group-hover:decoration-[#f59e0b] sm:text-[11px] sm:tracking-[0.26em]">
+                Download resume
+              </span>
+              <svg
+                className="h-3.5 w-3.5 shrink-0 text-[#f59e0b] transition-transform duration-300 group-hover:translate-y-0.5"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.75"
+                aria-hidden
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v12m0 0l-4-4m4 4l4-4M5 20h14" />
+              </svg>
+            </a>
           </div>
         </motion.div>
 
