@@ -1,79 +1,27 @@
 /**
- * Cloudinary media URLs with safe fallbacks.
+ * ARCHITECTURE: Cloudinary builds delivery URLs with transforms in the path.
+ * Public IDs use lowercase folders: `/work/foo.webp` → `work/images/foo.webp`,
+ * `/videos/bar.mp4` → `videos/bar.mp4` (no double `videos`).
  *
- * Layout this site expects (matches a typical Media Library):
- * - Local: flat under `public/` — e.g. `public/work/hero.webp`, `public/recognition/…`, `public/videos/…`.
- * - Cloudinary: nested type folders — `Work/Images/hero.webp`, `Work/Videos/hero.webm`,
- *   `Recognition/Images/…`, `Ventures/Images/…`, top-level `Videos/…` for `/videos/…` in code.
- *
- * Env:
- * - NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME — required for CDN (trimmed). Value is only the Cloud **name**
- *   from the Cloudinary console (e.g. `dxxxx`), not the API Key, not the API Secret, not a full URL.
- *   If empty, URLs stay local (/work/…). On Vercel, set for Production and Preview; redeploy so the
- *   client bundle is rebuilt with the value inlined.
- * - NEXT_PUBLIC_CLOUDINARY_MEDIA=off — force local paths even if cloud name is set (emergency / debugging).
- * - NEXT_PUBLIC_CLOUDINARY_PATH_STYLE (optional; default matches the folders above):
- *   - nested_title — DEFAULT. `/work/a.webp` → `Work/Images/a.webp`, `/work/a.webm` → `Work/Videos/a.webm`.
- *   - nested — same shape but lowercase folders (`work/images/…`). Use only if your CDN public_ids are lowercase.
- *   - mirror — public_id is exactly the path under `public/` (e.g. `work/a.webp`) with NO extra Images/Videos
- *     segment. Use ONLY if you uploaded flat; wrong for Work/Images layouts → 404.
+ * Default cloud name is the public account id (not a secret). Override with
+ * `NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME` if needed. `NEXT_PUBLIC_CLOUDINARY_MEDIA=off`
+ * returns local `/public/...` paths unchanged.
  */
 
 const MEDIA_OFF_RE = /^(off|0|false)$/i;
 const VIDEO_EXT_RE = /\.(mp4|webm|mov|m4v)$/i;
 const ABS_URL_RE = /^https?:\/\//i;
 
-type PathStyle = 'mirror' | 'nested' | 'nested_title';
-
-/** Parsed once: `NEXT_PUBLIC_*` is static for the life of a Next.js build. */
-const PATH_STYLE: PathStyle = (() => {
-  const raw = (process.env.NEXT_PUBLIC_CLOUDINARY_PATH_STYLE ?? 'nested_title').trim();
-  const v = raw.toLowerCase().replace(/-/g, '_');
-  if (v === 'mirror' || v === 'nested' || v === 'nested_title') return v;
-  return 'nested_title';
-})();
-
 const MEDIA_OFF = MEDIA_OFF_RE.test((process.env.NEXT_PUBLIC_CLOUDINARY_MEDIA || '').trim());
-const CLOUD_NAME = (process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || '').trim();
 
-/**
- * Resolves the Cloudinary cloud name when a media URL is built.
- * Throws in development only when this runs (same as legacy `getCloudName()`), not at module import.
- */
-function resolveFinalCloudName(): string {
-  if (MEDIA_OFF) return '';
-  if (CLOUD_NAME) return CLOUD_NAME;
-  if (process.env.NODE_ENV === 'development') {
-    throw new Error(
-      '[media.ts] NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME is not set. Add it to .env.local, or set NEXT_PUBLIC_CLOUDINARY_MEDIA=off to use local files.'
-    );
-  }
-  return '';
-}
+/** Public delivery id; env overrides for different deploy targets. */
+const CLOUD =
+  (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME?.trim()) ||
+  'dj0n7b4ma';
 
-// Surfaces misconfiguration in Vercel build logs (server chunks only).
-if (
-  typeof window === 'undefined' &&
-  process.env.VERCEL === '1' &&
-  !CLOUD_NAME &&
-  !MEDIA_OFF
-) {
-  console.warn(
-    '[media] NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME was empty at build for this environment — <Image> will use local /work/… URLs. Fix: attach the var to this deployment target (e.g. Preview) and redeploy with a cleared build cache.'
-  );
-}
+const baseImg = () => `https://res.cloudinary.com/${CLOUD}/image/upload`;
+const baseVid = () => `https://res.cloudinary.com/${CLOUD}/video/upload`;
 
-function titleCaseSegment(segment: string): string {
-  if (!segment) return segment;
-  return segment.charAt(0).toUpperCase() + segment.slice(1).toLowerCase();
-}
-
-function isImagesOrVideosFolder(segment: string): boolean {
-  const s = segment.toLowerCase();
-  return s === 'images' || s === 'image' || s === 'videos' || s === 'video';
-}
-
-/** Lowercase only the file extension so `.MP4` / `.WEBP` match Cloudinary public_ids. */
 function normalizeFilenameExtension(filename: string): string {
   const dot = filename.lastIndexOf('.');
   if (dot < 0) return filename;
@@ -81,42 +29,29 @@ function normalizeFilenameExtension(filename: string): string {
 }
 
 /**
- * Build Cloudinary public_id (folder + filename, slashes, no leading slash).
+ * Maps local path → Cloudinary public_id (no leading slash).
+ * @example /work/boubyan-bank-thumb.webp → work/images/boubyan-bank-thumb.webp
+ * @example /videos/capability.mp4 → videos/capability.mp4
  */
-function buildCloudinaryPublicId(segments: string[], isVideo: boolean, pathStyle: PathStyle): string {
-  const filename = segments[segments.length - 1]!;
-  const dirSegments = segments.slice(0, -1);
+function toCloudinaryPath(localPath: string, isVideo: boolean): string {
+  const parts = localPath.split('/').filter(Boolean);
+  const filename = normalizeFilenameExtension(parts[parts.length - 1]!);
+  const dir = parts.slice(0, -1);
+  const subfolder = isVideo ? 'videos' : 'images';
 
-  if (pathStyle === 'mirror') {
-    return segments.join('/');
+  if (dir.length > 0 && dir[dir.length - 1] === subfolder) {
+    return [...dir, filename].join('/');
   }
+  return [...dir, subfolder, filename].join('/');
+}
 
-  if (dirSegments.length === 0) {
-    return filename;
-  }
-
-  const useTitle = pathStyle === 'nested_title';
-  const normDir = (s: string) => (useTitle ? titleCaseSegment(s) : s.toLowerCase());
-  const titledDirs = dirSegments.map(normDir);
-  const lastRaw = dirSegments[dirSegments.length - 1]!;
-  const mediaSubfolder = isVideo
-    ? useTitle
-      ? 'Videos'
-      : 'videos'
-    : useTitle
-      ? 'Images'
-      : 'images';
-  const alreadyTyped = isImagesOrVideosFolder(lastRaw);
-  return alreadyTyped
-    ? [...titledDirs, filename].join('/')
-    : [...titledDirs, mediaSubfolder, filename].join('/');
+function useLocal(localPath: string): boolean {
+  const t = localPath.trim();
+  return MEDIA_OFF || t.startsWith('//') || ABS_URL_RE.test(t);
 }
 
 /**
- * Get optimized media URL
- * @param localPath - Original path like '/work/video.mp4'
- * @param options - Cloudinary transformation options
- * @returns CDN URL or local fallback
+ * Full transform control (images and videos).
  */
 export function getMediaUrl(
   localPath: string,
@@ -129,48 +64,45 @@ export function getMediaUrl(
   } = {}
 ): string {
   const trimmed = localPath.trim();
-  if (trimmed.startsWith('//') || ABS_URL_RE.test(trimmed)) {
-    return localPath;
-  }
+  if (useLocal(trimmed)) return localPath;
 
-  const finalCloudName = resolveFinalCloudName();
-  if (!finalCloudName) return localPath;
-
-  const segments = localPath.split('/').filter(Boolean);
-  if (segments.length === 0) return localPath;
-
-  const rawFilename = segments[segments.length - 1]!;
-  const filename = normalizeFilenameExtension(rawFilename);
-  const normSegments = [...segments.slice(0, -1), filename];
+  const filename = normalizeFilenameExtension(trimmed.split('/').filter(Boolean).pop() || '');
   const isVideo = VIDEO_EXT_RE.test(filename);
-  const cloudPath = buildCloudinaryPublicId(normSegments, isVideo, PATH_STYLE);
 
-  const baseUrl = `https://res.cloudinary.com/${finalCloudName}/${isVideo ? 'video' : 'image'}/upload`;
+  if (isVideo) {
+    const path = toCloudinaryPath(trimmed, true);
+    const transforms: string[] = [];
+    if (options.quality === 'auto' || options.quality === undefined) transforms.push('q_auto');
+    else if (typeof options.quality === 'number') transforms.push(`q_${options.quality}`);
+    let f: 'mp4' | 'webm' =
+      options.format === 'webm' || options.format === 'mp4'
+        ? options.format
+        : /\.webm$/i.test(trimmed)
+          ? 'webm'
+          : 'mp4';
+    transforms.push(`f_${f}`);
+    if (options.width) transforms.push(`w_${options.width}`);
+    if (options.height) transforms.push(`h_${options.height}`);
+    if (options.crop) transforms.push(`c_${options.crop}`);
+    return `${baseVid()}/${transforms.join(',')}/${path}`;
+  }
 
-  const transformations: string[] = [];
-  if (options.width) transformations.push(`w_${options.width}`);
-  if (options.height) transformations.push(`h_${options.height}`);
-  if (options.crop) transformations.push(`c_${options.crop}`);
-  if (options.quality === 'auto') transformations.push('q_auto');
-  if (options.quality && typeof options.quality === 'number') {
-    transformations.push(`q_${options.quality}`);
-  }
-  if (options.format === 'auto') transformations.push('f_auto');
-  if (options.format && options.format !== 'auto') {
-    transformations.push(`f_${options.format}`);
-  }
-  if (!isVideo && transformations.length === 0) {
-    transformations.push('q_auto', 'f_auto');
-  }
-
-  const transformString = transformations.join(',');
-  return `${baseUrl}/${transformString ? transformString + '/' : ''}${cloudPath}`;
+  const path = toCloudinaryPath(trimmed, false);
+  const transforms: string[] = [];
+  const q = options.quality ?? 'auto';
+  if (q === 'auto') transforms.push('q_auto');
+  else transforms.push(`q_${q}`);
+  const fmt = options.format ?? 'auto';
+  if (fmt === 'auto') transforms.push('f_auto');
+  else transforms.push(`f_${fmt}`);
+  if (options.width) transforms.push(`w_${options.width}`, 'c_limit');
+  if (options.height) transforms.push(`h_${options.height}`);
+  if (options.crop && !options.width) transforms.push(`c_${options.crop}`);
+  return `${baseImg()}/${transforms.join(',')}/${path}`;
 }
 
 /**
- * Get optimized image URL with responsive sizing.
- * Omit `format` (default `f_auto`) for plain `<img>` / `next/image` so Cloudinary can negotiate AVIF/WebP.
- * Pass explicit `format` only for `<picture><source type="image/webp|jpeg">` legs so URLs match MIME.
+ * Image URL. Use explicit `format` for `<picture>` `<source>` legs.
  */
 export function getImageUrl(
   localPath: string,
@@ -189,34 +121,26 @@ export function getImageUrl(
 }
 
 /**
- * Get video URL with format optimization
+ * Video URL; keeps `.webm` vs `.mp4` in the public_id and sets `f_webm` / `f_mp4` for delivery.
  */
 export function getVideoUrl(
   localPath: string,
   format: 'auto' | 'mp4' | 'webm' = 'auto'
 ): string {
-  const detectedFormat =
-    format === 'auto'
-      ? localPath.toLowerCase().split('?')[0].endsWith('.webm')
-        ? 'webm'
-        : 'mp4'
-      : format;
+  const trimmed = localPath.trim();
+  if (useLocal(trimmed)) return localPath;
 
-  return getMediaUrl(localPath, {
-    format: detectedFormat,
-    quality: 'auto',
-  });
+  const f: 'mp4' | 'webm' =
+    format === 'auto' ? (/\.webm$/i.test(trimmed) ? 'webm' : 'mp4') : format;
+
+  const path = toCloudinaryPath(trimmed, true);
+  return `${baseVid()}/q_auto,f_${f}/${path}`;
 }
 
-/**
- * Generate responsive srcSet for images
- */
 export function generateSrcSet(
   localPath: string,
   widths: number[] = [640, 750, 828, 1080, 1200, 1920],
   options?: { quality?: 'auto' | number; format?: 'auto' | 'webp' | 'avif' | 'jpg' }
 ): string {
-  return widths
-    .map((w) => `${getImageUrl(localPath, w, options)} ${w}w`)
-    .join(', ');
+  return widths.map((w) => `${getImageUrl(localPath, w, options)} ${w}w`).join(', ');
 }
