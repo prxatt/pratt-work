@@ -19,7 +19,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const blogPosts = await getAllFilesMetadata("blog");
   const playgroundPosts = await getAllFilesMetadata("playground");
 
-  const modified = (iso?: string) => (iso ? new Date(iso) : new Date());
+  const modified = (iso?: string) => { const d = iso ? new Date(iso) : new Date(); return isNaN(d.getTime()) ? new Date() : d; };
 
   return [
     ...staticPaths.map((path) => ({
