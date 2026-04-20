@@ -6,7 +6,6 @@ export function GET() {
     'Allow: /',
     'Disallow: /api/',
     'Disallow: /private/',
-    'Disallow: /_next/',
     '',
     // Content Signals draft preference declaration.
     'Content-Signal: ai-train=no, search=yes, ai-input=no',

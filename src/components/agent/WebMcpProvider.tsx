@@ -1,12 +1,15 @@
 'use client';
 
 import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 
 type UnknownModelContext = {
   provideContext?: (context: unknown) => Promise<unknown> | unknown;
 };
 
 export function WebMcpProvider() {
+  const router = useRouter();
+
   useEffect(() => {
     const nav = navigator as Navigator & { modelContext?: UnknownModelContext };
     if (!nav.modelContext?.provideContext) return;
@@ -21,7 +24,7 @@ export function WebMcpProvider() {
           properties: {},
         },
         execute: async () => {
-          window.location.href = '/work';
+          router.push('/work');
           return { ok: true };
         },
       },
@@ -34,7 +37,7 @@ export function WebMcpProvider() {
           properties: {},
         },
         execute: async () => {
-          window.location.href = '/contact';
+          router.push('/contact');
           return { ok: true };
         },
       },
@@ -43,7 +46,7 @@ export function WebMcpProvider() {
     void nav.modelContext.provideContext({
       tools,
     });
-  }, []);
+  }, [router]);
 
   return null;
 }

@@ -9,12 +9,27 @@ const LINK_HEADER = [
 
 function prefersMarkdown(accept: string): boolean {
   const normalized = accept.toLowerCase();
-  if (!normalized.includes('text/markdown')) return false;
+  const parts = normalized
+    .split(',')
+    .map((part) => part.trim())
+    .filter(Boolean);
 
-  const markdownIndex = normalized.indexOf('text/markdown');
-  const htmlIndex = normalized.indexOf('text/html');
-  if (htmlIndex === -1) return true;
-  return markdownIndex < htmlIndex;
+  let markdownQ = -1;
+  let htmlQ = -1;
+
+  for (const part of parts) {
+    const [mime, ...params] = part.split(';').map((p) => p.trim());
+    const qParam = params.find((p) => p.startsWith('q='));
+    const q = qParam ? Number.parseFloat(qParam.slice(2)) : 1;
+    const quality = Number.isFinite(q) ? q : 1;
+
+    if (mime === 'text/markdown') markdownQ = Math.max(markdownQ, quality);
+    if (mime === 'text/html') htmlQ = Math.max(htmlQ, quality);
+  }
+
+  if (markdownQ < 0) return false;
+  if (htmlQ < 0) return true;
+  return markdownQ >= htmlQ;
 }
 
 function homepageMarkdown(origin: string): string {

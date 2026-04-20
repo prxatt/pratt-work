@@ -8,9 +8,9 @@ const csp = [
   "object-src 'none'",
   "script-src 'self' 'unsafe-inline'",
   "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob: https:",
+  "img-src 'self' data: blob: https://*.public.blob.vercel-storage.com",
   "font-src 'self' data:",
-  "media-src 'self' blob: https:",
+  "media-src 'self' blob: https://*.public.blob.vercel-storage.com",
   "connect-src 'self' https://vitals.vercel-insights.com https://*.vercel-insights.com",
   "worker-src 'self' blob:",
   "upgrade-insecure-requests",
@@ -36,13 +36,8 @@ const nextConfig: NextConfig = {
       { pathname: '/images/**' },
       { pathname: '/playground/**' },
     ],
-    // Absolute CDN assets (Cloudinary + Vercel Blob).
+    // Absolute CDN assets (Vercel Blob).
     remotePatterns: [
-      {
-        protocol: 'https',
-        hostname: 'res.cloudinary.com',
-        pathname: '/**',
-      },
       {
         protocol: 'https',
         hostname: '**.public.blob.vercel-storage.com',

@@ -97,6 +97,7 @@ export const Hero = () => {
   const { isTouch, isLowEnd, prefersReducedMotion } = useDeviceCapabilities();
   const [terminalDpr, setTerminalDpr] = useState(1);
   const [showTerminal, setShowTerminal] = useState(false);
+  const [contentReady, setContentReady] = useState(false);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -113,10 +114,17 @@ export const Hero = () => {
   }, [isLowEnd, isTouch, prefersReducedMotion]);
 
   useEffect(() => {
-    const delay = prefersReducedMotion ? 1200 : isTouch ? 800 : 600;
-    const timer = window.setTimeout(() => setShowTerminal(true), delay);
-    return () => window.clearTimeout(timer);
+    const bgDelay = prefersReducedMotion ? 1150 : isTouch ? 900 : 700;
+    const terminalTimer = window.setTimeout(() => setShowTerminal(true), bgDelay);
+    return () => window.clearTimeout(terminalTimer);
   }, [isTouch, prefersReducedMotion]);
+
+  useEffect(() => {
+    if (!showTerminal) return;
+    // Start text shortly after background animation is alive.
+    const contentTimer = window.setTimeout(() => setContentReady(true), 160);
+    return () => window.clearTimeout(contentTimer);
+  }, [showTerminal]);
 
   // Entry animation sequence - background loads first, then content
   const containerVariants = {
@@ -124,21 +132,21 @@ export const Hero = () => {
     visible: {
       opacity: 1,
       transition: {
-        duration: 0.45,
+        duration: 0.5,
         ease: [0.16, 1, 0.3, 1] as const,
-        staggerChildren: 0.12,
-        delayChildren: 0.08,
+        staggerChildren: 0.1,
+        delayChildren: 0.06,
       },
     },
   };
   
   const itemVariants = {
-    hidden: { opacity: 0, y: 18 },
+    // Keep headings stable on first paint; vertical tween caused subtle "jump" on load.
+    hidden: { opacity: 0 },
     visible: {
       opacity: 1,
-      y: 0,
       transition: {
-        duration: 0.55,
+        duration: 0.6,
         ease: [0.16, 1, 0.3, 1] as const,
       },
     },
@@ -216,7 +224,7 @@ export const Hero = () => {
         data-cursor="hover"
         variants={containerVariants}
         initial="hidden"
-        animate="visible"
+        animate={contentReady ? "visible" : "hidden"}
       >
 
         {/* Hero Name - Centered */}
@@ -289,8 +297,8 @@ export const Hero = () => {
       <motion.div 
         className="w-full px-6 md:px-12 lg:px-20 py-6 md:py-8 flex flex-row flex-nowrap justify-between items-center gap-3 z-10 relative"
         initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, delay: 0.55, ease: [0.16, 1, 0.3, 1] }}
+        animate={contentReady ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
+        transition={{ duration: 0.6, delay: 0.5, ease: [0.16, 1, 0.3, 1] }}
       >
         <motion.span 
           initial={{ opacity: 0 }}
