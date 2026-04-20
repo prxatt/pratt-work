@@ -88,6 +88,9 @@ const CinemaModeOverlay = ({
   const [muted, setMuted] = useState(true);
   const [isPlaying, setIsPlaying] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [duration, setDuration] = useState(0);
+  const [currentTime, setCurrentTime] = useState(0);
+  const isScrubbingRef = useRef(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
 
@@ -106,6 +109,31 @@ const CinemaModeOverlay = ({
     node.volume = muted ? 0 : volume;
     node.muted = muted;
   }, [muted, volume]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setCurrentTime(0);
+      setDuration(0);
+      setMuted(true);
+      setIsPlaying(true);
+      return;
+    }
+    const node = videoRef.current;
+    if (!node) return;
+    const handleLoadedMetadata = () => {
+      setDuration(Number.isFinite(node.duration) ? node.duration : 0);
+    };
+    const handleTimeUpdate = () => {
+      if (isScrubbingRef.current) return;
+      setCurrentTime(node.currentTime);
+    };
+    node.addEventListener('loadedmetadata', handleLoadedMetadata);
+    node.addEventListener('timeupdate', handleTimeUpdate);
+    return () => {
+      node.removeEventListener('loadedmetadata', handleLoadedMetadata);
+      node.removeEventListener('timeupdate', handleTimeUpdate);
+    };
+  }, [isOpen]);
 
   useEffect(() => {
     const handleFullscreenChange = () => {
@@ -143,6 +171,20 @@ const CinemaModeOverlay = ({
     }
   };
 
+  const handleTimelineChange = (nextTime: number) => {
+    const node = videoRef.current;
+    if (!node) return;
+    node.currentTime = nextTime;
+    setCurrentTime(nextTime);
+  };
+
+  const formatTime = (seconds: number) => {
+    if (!Number.isFinite(seconds) || seconds <= 0) return '0:00';
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${String(secs).padStart(2, '0')}`;
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -151,7 +193,7 @@ const CinemaModeOverlay = ({
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.24 }}
-      className="fixed inset-0 z-[400] bg-black/95 backdrop-blur-sm"
+      className="fixed inset-0 z-[400] bg-black/95"
       onClick={onClose}
     >
       <div
@@ -163,7 +205,8 @@ const CinemaModeOverlay = ({
           ref={videoRef}
           autoPlay
           loop
-          muted
+          muted={muted}
+          preload="metadata"
           playsInline
           poster={poster}
           className="absolute inset-0 w-full h-full object-contain pointer-events-auto"
@@ -174,7 +217,7 @@ const CinemaModeOverlay = ({
           <source src={video.mp4} type="video/mp4" />
           <source src={video.webm} type="video/webm" />
         </video>
-        <div className="absolute inset-0 pointer-events-none bg-gradient-to-t from-black/55 via-black/10 to-black/35" />
+        <div className="absolute inset-0 pointer-events-none bg-gradient-to-t from-black/45 via-black/10 to-black/30" />
 
         <div className="absolute top-4 left-4 right-4 flex items-center justify-between gap-3 z-10 pointer-events-auto" onClick={(e) => e.stopPropagation()}>
           <span className="font-mono text-[10px] sm:text-xs tracking-[0.2em] uppercase text-[#c7c7c2]">
@@ -189,7 +232,37 @@ const CinemaModeOverlay = ({
           </button>
         </div>
 
-        <div className="absolute bottom-4 left-4 right-4 z-10 flex items-center justify-between gap-3 rounded-xl border border-white/15 bg-black/55 backdrop-blur-sm p-3 pointer-events-auto" onClick={(e) => e.stopPropagation()}>
+        <div className="absolute bottom-4 left-4 right-4 z-10 rounded-xl border border-white/15 bg-black/55 p-3 pointer-events-auto" onClick={(e) => e.stopPropagation()}>
+          <div className="mb-2 flex items-center gap-3">
+            <span className="font-mono text-[10px] text-white/60 tabular-nums min-w-[2.25rem]">
+              {formatTime(currentTime)}
+            </span>
+            <input
+              type="range"
+              min={0}
+              max={duration || 0}
+              step={0.1}
+              value={Math.min(currentTime, duration || 0)}
+              onPointerDown={() => {
+                isScrubbingRef.current = true;
+              }}
+              onPointerUp={(e) => {
+                const next = Number((e.target as HTMLInputElement).value);
+                handleTimelineChange(next);
+                isScrubbingRef.current = false;
+              }}
+              onChange={(e) => {
+                const next = Number(e.target.value);
+                handleTimelineChange(next);
+              }}
+              className="flex-1 accent-[#f59e0b]"
+              aria-label="Timeline"
+            />
+            <span className="font-mono text-[10px] text-white/60 tabular-nums min-w-[2.25rem] text-right">
+              {formatTime(duration)}
+            </span>
+          </div>
+          <div className="flex items-center justify-between gap-3">
           <button
             onClick={togglePlayback}
             className="w-9 h-9 rounded-full border border-white/20 flex items-center justify-center hover:border-[#f59e0b]/70 transition-colors"
@@ -225,6 +298,7 @@ const CinemaModeOverlay = ({
           >
             {isFullscreen ? <Minimize2 className="w-4 h-4 text-white/80" /> : <Maximize2 className="w-4 h-4 text-white/80" />}
           </button>
+          </div>
         </div>
       </div>
     </motion.div>
@@ -1621,6 +1695,7 @@ const RecognitionCard = ({
   const Icon = award.icon;
   const previewRafRef = useRef<number | null>(null);
   const pendingFocusRef = useRef<{ focusX: number; focusY: number } | null>(null);
+  const lastFocusRef = useRef<{ focusX: number; focusY: number } | null>(null);
 
   useEffect(() => {
     return () => {
@@ -1640,6 +1715,8 @@ const RecognitionCard = ({
   const handleMouseLeave = () => {
     setCursorState('default');
     setPreviewData({});
+    pendingFocusRef.current = null;
+    lastFocusRef.current = null;
   };
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -1657,11 +1734,21 @@ const RecognitionCard = ({
         previewRafRef.current = null;
         return;
       }
+      const lastFocus = lastFocusRef.current;
+      if (
+        lastFocus &&
+        Math.abs(lastFocus.focusX - pendingFocusRef.current.focusX) < 1 &&
+        Math.abs(lastFocus.focusY - pendingFocusRef.current.focusY) < 1
+      ) {
+        previewRafRef.current = null;
+        return;
+      }
       setPreviewData({
         src: award.image,
         focusX: pendingFocusRef.current.focusX,
         focusY: pendingFocusRef.current.focusY,
       });
+      lastFocusRef.current = pendingFocusRef.current;
       previewRafRef.current = null;
     });
   };
