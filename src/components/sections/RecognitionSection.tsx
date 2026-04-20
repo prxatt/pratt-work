@@ -3,7 +3,7 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCursor } from '@/context/CursorContext';
-import { X, Trophy, Film, Award, BarChart3, Play, Volume2, VolumeX, Maximize2 } from 'lucide-react';
+import { X, Trophy, Film, Award, BarChart3, Play, Pause, Volume2, VolumeX, Maximize2, Minimize2 } from 'lucide-react';
 import Image from 'next/image';
 import { getImageUrl, getVideoUrl } from '@/lib/media';
 
@@ -86,6 +86,8 @@ const CinemaModeOverlay = ({
 }) => {
   const [volume, setVolume] = useState(0.8);
   const [muted, setMuted] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(true);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
 
@@ -105,10 +107,40 @@ const CinemaModeOverlay = ({
     node.muted = muted;
   }, [muted, volume]);
 
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(Boolean(document.fullscreenElement));
+    };
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    window.addEventListener('keydown', handleEsc);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      window.removeEventListener('keydown', handleEsc);
+    };
+  }, [onClose]);
+
   const requestFullscreen = () => {
     if (!containerRef.current) return;
-    if (document.fullscreenElement) return;
-    void containerRef.current.requestFullscreen?.();
+    if (!document.fullscreenElement) {
+      void containerRef.current.requestFullscreen?.();
+    } else {
+      void document.exitFullscreen?.();
+    }
+  };
+
+  const togglePlayback = () => {
+    const node = videoRef.current;
+    if (!node) return;
+    if (node.paused) {
+      void node.play();
+      setIsPlaying(true);
+    } else {
+      node.pause();
+      setIsPlaying(false);
+    }
   };
 
   if (!isOpen) return null;
@@ -124,23 +156,26 @@ const CinemaModeOverlay = ({
     >
       <div
         ref={containerRef}
-        className="relative w-full h-full flex items-center justify-center"
-        onClick={(e) => e.stopPropagation()}
+        className="relative w-full h-full flex items-center justify-center pointer-events-none"
       >
+        <div className="absolute inset-0 pointer-events-auto" onClick={onClose} />
         <video
           ref={videoRef}
           autoPlay
           loop
           playsInline
           poster={poster}
-          className="absolute inset-0 w-full h-full object-contain"
+          className="absolute inset-0 w-full h-full object-contain pointer-events-auto"
+          onPlay={() => setIsPlaying(true)}
+          onPause={() => setIsPlaying(false)}
+          onClick={(e) => e.stopPropagation()}
         >
           <source src={video.mp4} type="video/mp4" />
           <source src={video.webm} type="video/webm" />
         </video>
         <div className="absolute inset-0 pointer-events-none bg-gradient-to-t from-black/55 via-black/10 to-black/35" />
 
-        <div className="absolute top-4 left-4 right-4 flex items-center justify-between gap-3 z-10">
+        <div className="absolute top-4 left-4 right-4 flex items-center justify-between gap-3 z-10 pointer-events-auto" onClick={(e) => e.stopPropagation()}>
           <span className="font-mono text-[10px] sm:text-xs tracking-[0.2em] uppercase text-[#c7c7c2]">
             Cinema Mode — {title}
           </span>
@@ -153,7 +188,14 @@ const CinemaModeOverlay = ({
           </button>
         </div>
 
-        <div className="absolute bottom-4 left-4 right-4 z-10 flex items-center justify-between gap-3 rounded-xl border border-white/15 bg-black/55 backdrop-blur-sm p-3">
+        <div className="absolute bottom-4 left-4 right-4 z-10 flex items-center justify-between gap-3 rounded-xl border border-white/15 bg-black/55 backdrop-blur-sm p-3 pointer-events-auto" onClick={(e) => e.stopPropagation()}>
+          <button
+            onClick={togglePlayback}
+            className="w-9 h-9 rounded-full border border-white/20 flex items-center justify-center hover:border-[#f59e0b]/70 transition-colors"
+            aria-label={isPlaying ? 'Pause video' : 'Play video'}
+          >
+            {isPlaying ? <Pause className="w-4 h-4 text-white/80" /> : <Play className="w-4 h-4 text-white/80" />}
+          </button>
           <button
             onClick={() => setMuted((prev) => !prev)}
             className="w-9 h-9 rounded-full border border-white/20 flex items-center justify-center hover:border-[#f59e0b]/70 transition-colors"
@@ -178,9 +220,9 @@ const CinemaModeOverlay = ({
           <button
             onClick={requestFullscreen}
             className="w-9 h-9 rounded-full border border-white/20 flex items-center justify-center hover:border-[#f59e0b]/70 transition-colors"
-            aria-label="Enter browser fullscreen"
+            aria-label={isFullscreen ? 'Exit browser fullscreen' : 'Enter browser fullscreen'}
           >
-            <Maximize2 className="w-4 h-4 text-white/80" />
+            {isFullscreen ? <Minimize2 className="w-4 h-4 text-white/80" /> : <Maximize2 className="w-4 h-4 text-white/80" />}
           </button>
         </div>
       </div>
@@ -194,11 +236,16 @@ const AloneModal = ({ onClose }: { onClose: () => void }) => {
 
   React.useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key !== 'Escape') return;
+      if (cinemaOpen) {
+        setCinemaOpen(false);
+        return;
+      }
+      onClose();
     };
     window.addEventListener('keydown', handleEsc);
     return () => window.removeEventListener('keydown', handleEsc);
-  }, [onClose]);
+  }, [cinemaOpen, onClose]);
 
   return (
     <motion.div
@@ -502,11 +549,16 @@ const WomenIsLosersModal = ({ onClose }: { onClose: () => void }) => {
 
   React.useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key !== 'Escape') return;
+      if (cinemaOpen) {
+        setCinemaOpen(false);
+        return;
+      }
+      onClose();
     };
     window.addEventListener('keydown', handleEsc);
     return () => window.removeEventListener('keydown', handleEsc);
-  }, [onClose]);
+  }, [cinemaOpen, onClose]);
 
   return (
     <motion.div
@@ -1237,11 +1289,16 @@ const SynchronicityDocumentaryModal = ({ onClose }: { onClose: () => void }) => 
 
   React.useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key !== 'Escape') return;
+      if (cinemaOpen) {
+        setCinemaOpen(false);
+        return;
+      }
+      onClose();
     };
     window.addEventListener('keydown', handleEsc);
     return () => window.removeEventListener('keydown', handleEsc);
-  }, [onClose]);
+  }, [cinemaOpen, onClose]);
 
   return (
     <motion.div
