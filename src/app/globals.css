@@ -701,6 +701,31 @@ img {
   100% { transform: scale(1); box-shadow: 0 0 0 0 transparent; }
 }
 
+/* Homepage Trusted By — touch / narrow: always-run marquee (avoids IO + flex-width issues) */
+@keyframes logo-marquee-trusted-by {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+  100% {
+    transform: translate3d(-33.333%, 0, 0);
+  }
+}
+
+@media (max-width: 767px) {
+  .trusted-by-marquee .trusted-by-marquee-track {
+    animation: logo-marquee-trusted-by 42s linear infinite !important;
+    -webkit-animation: logo-marquee-trusted-by 42s linear infinite !important;
+    will-change: transform;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .trusted-by-marquee .trusted-by-marquee-track {
+      animation-duration: 80s !important;
+      -webkit-animation-duration: 80s !important;
+    }
+  }
+}
+
 /* Magnetic hover smoothing */
 @media (hover: hover) and (pointer: fine) {
   .magnetic-hover {

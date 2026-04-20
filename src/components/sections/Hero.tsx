@@ -98,8 +98,18 @@ export const Hero = () => {
   const [terminalDpr, setTerminalDpr] = useState(1);
 
   useEffect(() => {
-    setTerminalDpr(Math.min(typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1, isLowEnd ? 1 : 1.2));
-  }, [isLowEnd]);
+    if (typeof window === 'undefined') return;
+    const raw = window.devicePixelRatio || 1;
+    if (prefersReducedMotion) {
+      setTerminalDpr(1);
+      return;
+    }
+    if (isTouch) {
+      setTerminalDpr(Math.min(raw, 1.35));
+    } else {
+      setTerminalDpr(Math.min(raw, isLowEnd ? 1 : 1.2));
+    }
+  }, [isLowEnd, isTouch, prefersReducedMotion]);
 
   // Entry animation sequence - background loads first, then content
   const containerVariants = {
@@ -136,28 +146,34 @@ export const Hero = () => {
       {/* Faulty Terminal WebGL Background - Optimized for performance */}
       <div className="absolute inset-0 z-[1] will-change-transform" style={{ contain: 'strict' }}>
         <FaultyTerminal
-          scale={isTouch ? 1.65 : 1.8}
+          scale={isTouch ? 1.52 : 1.8}
           gridMul={[3, 2]}
           digitSize={1.0}
-          timeScale={prefersReducedMotion ? 0.05 : isTouch ? 0.13 : 0.12}
+          timeScale={prefersReducedMotion ? 0.05 : isTouch ? 0.11 : 0.12}
           scanlineIntensity={0.04}
           glitchAmount={0.08}
           flickerAmount={0.02}
           noiseAmp={0.5}
           curvature={0.08}
-          chromaticAberration={isTouch && !prefersReducedMotion ? 0.002 : 0}
+          chromaticAberration={isTouch && !prefersReducedMotion ? 0.0022 : 0}
           tint="#F5F5F3"
-          mouseReact={true}
-          mouseStrength={isTouch ? 1.45 : 1.2}
+          mouseReact={!isTouch}
+          mouseStrength={1.2}
           pageLoadAnimation={true}
-          brightness={0.95}
+          brightness={isTouch ? 0.98 : 0.95}
           dpr={terminalDpr}
         />
       </div>
 
-      {/* Organic Vignette - Lighter for visibility */}
+      {/* Organic Vignette — mobile: centered lift for name legibility; desktop: asymmetric */}
       <div 
-        className="absolute inset-0 z-[1] pointer-events-none"
+        className="absolute inset-0 z-[1] pointer-events-none md:hidden"
+        style={{
+          background: 'radial-gradient(ellipse 96% 62% at 50% 38%, transparent 44%, rgba(0,0,0,0.11) 72%, rgba(0,0,0,0.2) 100%)'
+        }}
+      />
+      <div 
+        className="absolute inset-0 z-[1] pointer-events-none hidden md:block"
         style={{
           background: 'radial-gradient(ellipse 80% 60% at 30% 40%, transparent 50%, rgba(0,0,0,0.12) 100%)'
         }}
@@ -259,35 +275,43 @@ export const Hero = () => {
         </div>
       </motion.div>
 
-      {/* Bottom bar - appears after main content sequence */}
+      {/* Bottom bar — one row, vertically centered (items-end skewed text vs icon on mobile) */}
       <motion.div 
-        className="w-full px-6 md:px-12 lg:px-20 py-8 flex justify-between items-end z-10 relative"
+        className="w-full px-6 md:px-12 lg:px-20 py-6 md:py-8 flex flex-row flex-nowrap justify-between items-center gap-3 z-10 relative"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 1.0, delay: 2.5, ease: [0.16, 1, 0.3, 1] }}
       >
-        <motion.div 
+        <motion.span 
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.8, delay: 2.7 }}
+          className="font-mono text-[10px] sm:text-[11px] tracking-[0.18em] sm:tracking-[0.2em] uppercase whitespace-nowrap text-[#B5B5B0] shrink-0 min-w-0"
+          style={{
+            textShadow: '0 1px 3px rgba(0,0,0,0.9), 0 0 20px rgba(10,10,10,0.5)',
+          }}
         >
-          <span className="font-mono text-[10px] tracking-[0.2em] text-[#5A5A55] uppercase">
-            BASED IN SAN FRANCISCO
-          </span>
-        </motion.div>
+          BASED IN SAN FRANCISCO
+        </motion.span>
         
         <motion.div 
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.8, delay: 2.9 }}
+          className="shrink-0"
         >
           <Link 
             href="/work" 
-            className="flex items-center gap-3 text-[#6A6A65] hover:text-[#F2F2F0] transition-colors duration-500 group"
+            className="flex flex-row items-center gap-2 sm:gap-3 text-[#B5B5B0] hover:text-[#F5F5F3] transition-colors duration-500 group py-1 -my-1"
+            style={{
+              textShadow: '0 1px 3px rgba(0,0,0,0.9), 0 0 20px rgba(10,10,10,0.5)',
+            }}
           >
-            <span className="font-mono text-[10px] tracking-[0.15em] uppercase">Latest Work</span>
-            <div className="w-8 h-8 rounded-full border border-[#5A5A55] flex items-center justify-center group-hover:border-[#8A8A85] group-hover:scale-110 transition-all duration-500">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <span className="font-mono text-[10px] sm:text-[11px] tracking-[0.14em] sm:tracking-[0.15em] uppercase whitespace-nowrap">
+              Latest Work
+            </span>
+            <div className="w-8 h-8 shrink-0 rounded-full border border-[#7A7A75]/80 bg-[#0a0a0a]/35 flex items-center justify-center group-hover:border-[#A8A8A3] group-hover:bg-[#0a0a0a]/55 group-hover:scale-110 transition-all duration-500">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="opacity-95">
                 <path d="M7 17L17 7M17 7H7M17 7V17" />
               </svg>
             </div>

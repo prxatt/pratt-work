@@ -32,7 +32,7 @@ const LogoItem = ({
 
   return (
     <div
-      className="relative mx-8 md:mx-16 flex items-center justify-center group"
+      className="relative mx-8 md:mx-16 flex shrink-0 items-center justify-center group"
       onMouseEnter={() => onHover(logo.name)}
       onMouseLeave={() => onHover(null)}
       data-cursor="none"
@@ -67,8 +67,19 @@ export const LogoMarquee = () => {
   const trackRef = useRef<HTMLDivElement>(null);
   const sectionRef = useRef<HTMLElement>(null);
   const [isVisible, setIsVisible] = useState(false);
+  /** Desktop fine pointer: gate animation on visibility. Touch / coarse uses CSS in globals. */
+  const [desktopFinePointer, setDesktopFinePointer] = useState(false);
 
   useEffect(() => {
+    const mq = window.matchMedia('(min-width: 768px) and (pointer: fine)');
+    const sync = () => setDesktopFinePointer(mq.matches);
+    sync();
+    mq.addEventListener('change', sync);
+    return () => mq.removeEventListener('change', sync);
+  }, []);
+
+  useEffect(() => {
+    if (!desktopFinePointer) return;
     const root = sectionRef.current;
     if (!root) return;
 
@@ -81,13 +92,17 @@ export const LogoMarquee = () => {
 
     observer.observe(root);
     return () => observer.disconnect();
-  }, []);
+  }, [desktopFinePointer]);
 
   // Triple the logos for seamless infinite scroll
   const allLogos = [...logos, ...logos, ...logos];
 
   return (
-    <section className="py-20 overflow-hidden bg-[#0a0a0a]" style={{ contain: 'layout paint' }}>
+    <section
+      ref={sectionRef}
+      className="trusted-by-marquee py-20 overflow-hidden bg-[#0a0a0a]"
+      style={{ contain: 'layout paint' }}
+    >
       <div className="flex flex-col gap-8">
         {/* Section header */}
         <motion.span 
@@ -109,12 +124,16 @@ export const LogoMarquee = () => {
           {/* Scrolling track - CSS animation for smooth performance */}
           <div 
             ref={trackRef}
-            className="flex py-8 items-center"
-            style={{
-              animation: isVisible ? 'marquee 50s linear infinite' : 'none',
-              WebkitAnimation: isVisible ? 'marquee 50s linear infinite' : 'none',
-              willChange: 'transform',
-            }}
+            className="trusted-by-marquee-track flex w-max py-8 items-center"
+            style={
+              desktopFinePointer
+                ? {
+                    animation: isVisible ? 'marquee 50s linear infinite' : 'none',
+                    WebkitAnimation: isVisible ? 'marquee 50s linear infinite' : 'none',
+                    willChange: 'transform',
+                  }
+                : undefined
+            }
           >
             {allLogos.map((logo, index) => (
               <LogoItem
