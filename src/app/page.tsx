@@ -2,11 +2,12 @@ import type { Metadata } from "next";
 import dynamic from 'next/dynamic';
 import { Hero } from "@/components/sections/Hero";
 
+import { AboutSection } from "@/components/sections/AboutSection";
+import { LogoMarquee } from "@/components/sections/LogoMarquee";
+
 export const metadata: Metadata = {
   alternates: { canonical: "/" },
 };
-import { AboutSection } from "@/components/sections/AboutSection";
-import { LogoMarquee } from "@/components/sections/LogoMarquee";
 
 // Dynamically import below-the-fold sections for better performance
 const FeaturedWork = dynamic(() => import("@/components/sections/FeaturedWork").then(mod => ({ default: mod.FeaturedWork })), {
