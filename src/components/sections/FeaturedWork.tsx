@@ -111,14 +111,13 @@ const MagneticWrapper = ({
 // ─────────────────────────────────────────────────────────────────────────────
 
 const LazyVideo = ({
-  src, poster, caps,
+  src, poster, caps, eagerRootMargin = '100px 0px 100px 0px',
 }: {
-  src: { webm: string; mp4: string }; poster?: string; caps: DeviceCaps;
+  src: { webm: string; mp4: string }; poster?: string; caps: DeviceCaps; eagerRootMargin?: string;
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [load, setLoad] = useState(false);
   const [vis,  setVis]  = useState(false);
-  const [posterLoaded, setPosterLoaded] = useState(false);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -129,11 +128,11 @@ const LazyVideo = ({
         setVis(in_);
         if (in_) setLoad(true);
       },
-      { threshold: 0.12, rootMargin: '100px 0px 100px 0px' }
+      { threshold: 0.08, rootMargin: eagerRootMargin }
     );
     obs.observe(video);
     return () => obs.disconnect();
-  }, []);
+  }, [eagerRootMargin]);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -170,7 +169,7 @@ const LazyVideo = ({
         loop 
         playsInline 
         preload="metadata"
-        className="absolute inset-0 w-full h-full object-cover will-change-transform opacity-0 transition-opacity duration-700"
+        className="absolute inset-0 w-full h-full object-cover opacity-0 transition-opacity duration-500"
         style={{ opacity: vis ? 1 : 0 }}
       >
         {load && (
@@ -252,7 +251,7 @@ const LetterReveal = ({
   text, className, delay = 0, lite = false,
 }: { text: string; className: string; delay?: number; lite?: boolean }) => {
   const ref = useRef<HTMLHeadingElement>(null);
-  const isInView = useInView(ref, { once: true, margin: '-100px' });
+  const isInView = useInView(ref, { once: true, margin: '0px 0px 80px 0px' });
   return (
     <motion.h3 
       ref={ref} 
@@ -328,7 +327,7 @@ const BoubyanCard = ({
 }) => {
   const { setCursorState } = useCursor();
   const ref      = useRef<HTMLDivElement>(null);
-  const isInView = useInView(ref, { once: true, margin: '-50px' });
+  const isInView = useInView(ref, { once: true, margin: '0px 0px 120px 0px' });
   const aspectClass = featured ? 'aspect-[16/9] sm:aspect-[21/9] md:aspect-[21/8]' : 'aspect-[16/10]';
 
   return (
@@ -353,6 +352,7 @@ const BoubyanCard = ({
                 src={{ webm: '/work/boubyan-bank-card.webm', mp4: '/work/boubyan-bank-card.mp4' }}
                 poster="/work/boubyan-bank-thumb.webp"
                 caps={caps}
+                eagerRootMargin="200px"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/35 via-black/5 to-transparent" />
               <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_40%,rgba(0,0,0,0.15)_100%)]" />
@@ -379,7 +379,7 @@ const ImageCard = ({
 }) => {
   const { setCursorState } = useCursor();
   const ref      = useRef<HTMLDivElement>(null);
-  const isInView = useInView(ref, { once: true, margin: '-50px' });
+  const isInView = useInView(ref, { once: true, margin: '0px 0px 120px 0px' });
   const aspectClass = featured ? 'aspect-[16/9] sm:aspect-[21/9] md:aspect-[21/8]' : 'aspect-[16/10]';
 
   const isWeights = project.slug === 'weights-and-biases-fully-connected';
@@ -392,7 +392,7 @@ const ImageCard = ({
       ref={ref}
       initial={{ opacity: 0 }} animate={isInView ? { opacity: 1 } : {}}
       transition={{ duration: 0.5, delay: index * 0.15, ease: [0.16, 1, 0.3, 1] }}
-      className="relative group content-visibility-auto contain-layout"
+      className="relative group contain-layout"
     >
       <Link href={`/work/${project.slug}`} className="block w-full h-full"
         onMouseEnter={() => setCursorState('hover')} onMouseLeave={() => setCursorState('default')}>
@@ -477,7 +477,7 @@ const ImageCard = ({
 
 const AnimatedHeader = ({ isMobile }: { isMobile: boolean }) => {
   const ref      = useRef<HTMLDivElement>(null);
-  const isInView = useInView(ref, { once: true, margin: '-100px' });
+  const isInView = useInView(ref, { once: true, margin: '0px 0px 100px 0px' });
   if (isMobile) {
     return (
       <div ref={ref} className="flex flex-col gap-4 sm:gap-6">
@@ -545,7 +545,7 @@ export const FeaturedWork = () => {
         <AnimatedHeader isMobile={caps.isMobile} />
         <motion.div
           initial={{ opacity: 0, x: 40 }} whileInView={{ opacity: 1, x: 0 }}
-          viewport={{ once: true }} transition={{ duration: 0.8, delay: 0.5, ease: [0.16, 1, 0.3, 1] }}
+          viewport={{ once: true, margin: '0px 0px 100px 0px' }} transition={{ duration: 0.55, delay: 0.25, ease: [0.16, 1, 0.3, 1] }}
         >
           <Link href="/work"
             className="group flex items-center gap-3 sm:gap-4 text-tertiary hover:text-primary transition-colors duration-500 min-h-[44px]"

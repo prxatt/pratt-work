@@ -18,7 +18,10 @@ export const ScrollProgress = () => {
   const rafRef = useRef<number | null>(null);
   const lastScrollY = useRef(0);
   const lastUpdateTime = useRef(0);
-  const segmentCount = 40;
+  const lastSegmentSig = useRef('');
+  const lastProgressPct = useRef(-1);
+  const lastDocHeight = useRef(0);
+  const segmentCount = 28;
 
   // Calculate segment states based on viewport position
   const calculateSegments = useCallback((scrollY: number, viewportHeight: number, docHeight: number): Segment[] => {
@@ -56,13 +59,12 @@ export const ScrollProgress = () => {
     }
     
     return newSegments;
-  }, []);
+  }, [segmentCount]);
 
   useEffect(() => {
     const handleScroll = () => {
-      // Throttle to ~30fps max
       const now = Date.now();
-      if (now - lastUpdateTime.current < 33) return;
+      if (now - lastUpdateTime.current < 48) return;
       lastUpdateTime.current = now;
 
       if (rafRef.current !== null) return;
@@ -71,39 +73,52 @@ export const ScrollProgress = () => {
         const scrollY = window.scrollY;
         const viewportHeight = window.innerHeight;
         const docHeight = document.documentElement.scrollHeight;
-        
-        // Only update if scroll changed significantly (>3px)
-        if (Math.abs(scrollY - lastScrollY.current) > 3 || segments.length === 0) {
-          lastScrollY.current = scrollY;
-          
-          const newSegments = calculateSegments(scrollY, viewportHeight, docHeight);
-          setSegments(newSegments);
-          
-          // Overall progress for percentage display
-          const maxScroll = docHeight - viewportHeight;
-          const progress = maxScroll > 0 ? scrollY / maxScroll : 0;
-          setScrollProgress(progress);
-          
-          // Visibility toggle
-          setIsVisible(scrollY > 100);
+        const docChanged = docHeight !== lastDocHeight.current;
+        lastDocHeight.current = docHeight;
+
+        if (
+          Math.abs(scrollY - lastScrollY.current) <= 4 &&
+          lastSegmentSig.current !== '' &&
+          !docChanged
+        ) {
+          rafRef.current = null;
+          return;
         }
-        
+        lastScrollY.current = scrollY;
+
+        const newSegments = calculateSegments(scrollY, viewportHeight, docHeight);
+        const sig = newSegments.map((s) => `${s.state}:${Math.round(s.progress * 20)}`).join('|');
+        if (sig !== lastSegmentSig.current) {
+          lastSegmentSig.current = sig;
+          setSegments(newSegments);
+        }
+
+        const maxScroll = docHeight - viewportHeight;
+        const progress = maxScroll > 0 ? scrollY / maxScroll : 0;
+        const pct = Math.round(progress * 100);
+        if (pct !== lastProgressPct.current) {
+          lastProgressPct.current = pct;
+          setScrollProgress(progress);
+        }
+
+        setIsVisible(scrollY > 100);
+
         rafRef.current = null;
       });
     };
 
     window.addEventListener('scroll', handleScroll, { passive: true });
-    
-    // Initial calculation
+    window.addEventListener('resize', handleScroll, { passive: true });
     handleScroll();
 
     return () => {
       window.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('resize', handleScroll);
       if (rafRef.current !== null) {
         cancelAnimationFrame(rafRef.current);
       }
     };
-  }, [calculateSegments, segments.length]);
+  }, [calculateSegments]);
 
   // Mobile detection
   if (typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches) {
@@ -129,16 +144,13 @@ export const ScrollProgress = () => {
         };
       
       case 'active':
-        // Active segments pulse and glow
-        const brightness = 0.7 + (segment.progress * 0.3); // 0.7 to 1.0 based on visibility
+        const brightness = 0.7 + (segment.progress * 0.3);
         return {
           ...baseStyle,
           backgroundColor: '#F5F5F3',
           opacity: brightness,
           transform: 'scaleX(1.8)',
           boxShadow: `0 0 ${4 + segment.progress * 4}px rgba(245, 245, 243, ${0.4 + segment.progress * 0.4})`,
-          animation: 'segmentPulse 2s ease-in-out infinite',
-          animationDelay: `${segment.index * 0.05}s`,
         };
       
       case 'upcoming':
@@ -156,20 +168,6 @@ export const ScrollProgress = () => {
 
   return (
     <>
-      {/* CSS Keyframes for pulse animation */}
-      <style>{`
-        @keyframes segmentPulse {
-          0%, 100% {
-            opacity: 0.8;
-            box-shadow: 0 0 4px rgba(245, 245, 243, 0.4);
-          }
-          50% {
-            opacity: 1;
-            box-shadow: 0 0 8px rgba(245, 245, 243, 0.6);
-          }
-        }
-      `}</style>
-      
       <div
         className="fixed right-0 top-0 bottom-0 w-6 z-[100] flex flex-col items-center py-4 transition-all duration-500 pointer-events-auto"
         style={{ 

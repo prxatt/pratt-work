@@ -1,8 +1,14 @@
+/** Production site origin (no trailing slash). Used for canonical URLs, OG tags, and sitemaps. */
+export const siteUrl =
+  (process.env.NEXT_PUBLIC_SITE_URL || "https://pratt.work").replace(/\/+$/, "");
+
 export const siteConfig = {
   name: "Pratt Majmudar",
   role: "Creative Technologist + Executive Producer",
   location: "San Francisco",
   email: "hello@pratt.work",
+  /** Canonical public URL for this site — https://pratt.work */
+  url: siteUrl,
   socials: {
     instagram: "https://instagram.com/prxatt",
     linkedin: "https://linkedin.com/in/prxatt",
