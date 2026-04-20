@@ -69,7 +69,7 @@ const TeaserImageHover = ({
           animate={{ opacity: 1, scale: 1, x: 0, y: offset }}
           exit={{ opacity: 0, scale: 0.9, x: position === 'right' ? -20 : 20, y: offset }}
           transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-          className={`absolute ${position === 'right' ? 'left-full ml-8' : 'right-0 lg:right-full lg:mr-8'} ${getVerticalClass()} z-50 pointer-events-none`}
+          className={`absolute ${position === 'right' ? 'left-full ml-8' : 'left-1/2 -translate-x-1/2 lg:left-auto lg:translate-x-0 lg:right-full lg:mr-8'} ${getVerticalClass()} z-50 pointer-events-none`}
           style={{ willChange: 'transform, opacity' }}
         >
           <div className="relative w-[min(85vw,320px)] h-auto rounded-lg overflow-hidden shadow-2xl border border-white/10">

@@ -50,7 +50,7 @@ const awards: Award[] = [
     year: '2021',
     organization: 'SXSW',
     project: 'WOMEN IS LOSERS',
-    role: 'OFFICIAL SELECTION (PRODUCTION SUPERVISOR + TRANSPORTATION COORDINATOR)',
+    role: 'OFFICIAL SELECTION | UNIT PRODUCTION SUPERVISOR',
     details: 'Managed complex production logistics for a high-profile independent film premiere.',
     fullDescription: 'Led production supervision and transportation coordination for the SXSW Official Selection "Women Is Losers," coordinating a 40+ person crew across 19 shooting days. Managed $1.2M budget, secured 8 location permits, and sourced vintage and historic vehicles for period accuracy to deliver on schedule.',
     impact: ['40+ person crew coordinated', '$1.2M budget managed', '19-day production schedule', '8 location permits + vintage vehicles', 'Zero production delays'],
@@ -764,7 +764,7 @@ const WomenIsLosersModal = ({ onClose }: { onClose: () => void }) => {
                   transition={{ delay: 0.5, duration: 0.5 }}
                   className="font-mono text-sm text-[#8A8A85] mt-4 uppercase tracking-wider"
                 >
-                  Production Supervisor & Transportation Coordinator: Pratt Majmudar
+                  Unit Production Supervisor: Pratt Majmudar
                 </motion.p>
                 <button
                   onClick={() => setCinemaOpen(true)}
@@ -854,8 +854,7 @@ const WomenIsLosersModal = ({ onClose }: { onClose: () => void }) => {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-8">
               <div className="border-l border-[#2a2a3a] pl-4">
                 <p className="font-mono text-[10px] text-[#6b7280] uppercase tracking-wider mb-1">Role</p>
-                <p className="font-mono text-sm text-[#f59e0b] uppercase">Production Supervisor</p>
-                <p className="font-mono text-xs text-[#6b7280] mt-0.5">+ Transportation Coordinator</p>
+                <p className="font-mono text-sm text-[#f59e0b] uppercase">Unit Production Supervisor</p>
               </div>
               <div className="border-l border-[#2a2a3a] pl-4">
                 <p className="font-mono text-[10px] text-[#6b7280] uppercase tracking-wider mb-1">Crew Size</p>
@@ -1753,6 +1752,10 @@ const RecognitionCard = ({
     });
   };
 
+  const [projectLine, roleLine] = award.role.includes('|')
+    ? award.role.split('|').map((part) => part.trim())
+    : [award.project, award.role];
+
   return (
     <motion.div
       initial={{ opacity: 0, x: position === 'left' ? -60 : 60 }}
@@ -1763,7 +1766,8 @@ const RecognitionCard = ({
       onMouseLeave={handleMouseLeave}
       onMouseMove={handleMouseMove}
       onClick={onClick}
-      className="group relative bg-gradient-to-br from-[#1a1a1a] to-[#0f0f0f] rounded-xl border border-[#2a2a3a] p-6 cursor-none hover:border-[#f59e0b] hover:shadow-[0_0_40px_rgba(245,158,11,0.15)] transition-all duration-500 h-[280px] lg:h-[320px] flex flex-col"
+      whileHover={{ y: -3, scale: 1.005 }}
+      className="group relative bg-gradient-to-br from-[#1a1a1a] to-[#0f0f0f] rounded-xl border border-[#2a2a3a] p-6 cursor-none hover:border-[#f59e0b] hover:shadow-[0_0_40px_rgba(245,158,11,0.15)] transition-all duration-500 h-[280px] flex flex-col"
       style={{ width: '100%' }}
     >
       <div className="flex justify-between items-start mb-6">
@@ -1779,7 +1783,10 @@ const RecognitionCard = ({
           {award.organization}
         </h3>
         <p className="font-mono text-[10px] text-[#8A8A85] uppercase tracking-wider leading-relaxed">
-          {award.project} — {award.role}
+          {award.project}
+        </p>
+        <p className="font-mono text-[10px] text-[#8A8A85] uppercase tracking-wider leading-relaxed">
+          {roleLine ?? projectLine}
         </p>
       </div>
 
@@ -1808,8 +1815,8 @@ const TimelineConnector = ({ position, index }: { position: 'left' | 'right'; in
       whileInView={{ scaleX: 1 }}
       viewport={{ once: true }}
       transition={{ duration: 0.6, delay: index * 0.15 + 0.3, ease: [0.16, 1, 0.3, 1] }}
-      className={`absolute top-1/2 -translate-y-1/2 h-[2px] w-[calc(50%-40px)] ${gradientClass} ${positionClass}`}
-      style={{ transformOrigin: position === 'left' ? 'right' : 'left' }}
+      className={`absolute top-1/2 -translate-y-1/2 h-[2px] ${gradientClass} ${positionClass}`}
+      style={{ transformOrigin: position === 'left' ? 'right' : 'left', width: 'calc(50% - 40px)' }}
     />
   );
 };
@@ -1924,7 +1931,7 @@ export const RecognitionSection = () => {
                         className={`absolute top-1/2 -translate-y-1/2 h-[1px] w-[18%] bg-gradient-to-r from-[#f59e0b] to-[#2a2a3a] ${position === 'left' ? 'left-[50%]' : 'right-[50%]'}`}
                         style={{ transformOrigin: position === 'left' ? 'left' : 'right' }}
                       />
-                      <div className="w-[92%]">
+                      <div className="w-[92%] max-w-[26rem]">
                         <RecognitionCard
                           award={award}
                           index={index}
