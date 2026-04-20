@@ -193,12 +193,13 @@ export const LineWaves = ({
   }, []);
 
   useEffect(() => {
-    // Skip WebGL for reduced motion, mobile, or when not visible
-    if (reducedMotion || isMobile || !isVisible || !containerRef.current) {
+    // Skip WebGL for reduced motion or when not visible (mobile still runs; mouse warp disabled below).
+    if (reducedMotion || !isVisible || !containerRef.current) {
       setIsWebGLSupported(false);
       return;
     }
 
+    setIsWebGLSupported(true);
     const container = containerRef.current;
     
     // Check WebGL support
@@ -217,8 +218,9 @@ export const LineWaves = ({
     let isActive = true;
 
     try {
+      const maxDpr = isMobile ? 1.25 : 1.5;
       renderer = new Renderer({
-        dpr: Math.min(window.devicePixelRatio, 1.5), // Cap DPR for performance
+        dpr: Math.min(window.devicePixelRatio || 1, maxDpr),
       });
       
       const gl = renderer.gl;
@@ -226,6 +228,7 @@ export const LineWaves = ({
       gl.canvas.style.display = 'block';
       gl.canvas.style.width = '100%';
       gl.canvas.style.height = '100%';
+      gl.canvas.style.pointerEvents = 'none';
 
       // Disable mouse interaction on mobile/touch or when reduced motion
       const effectiveMouseInteraction = enableMouseInteraction && !isMobile && !reducedMotion;

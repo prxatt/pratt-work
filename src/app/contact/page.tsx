@@ -166,9 +166,9 @@ export default function ContactPage() {
             scanDuration={isMobile ? 4 : 3}
             scanDelay={2}
             noiseIntensity={isMobile ? 0.005 : 0.008}
-            enablePost={!isMobile}
-            bloomIntensity={isMobile ? 0 : 0.15}
-            chromaticAberration={isMobile ? 0 : 0.001}
+            enablePost
+            bloomIntensity={isMobile ? 0.12 : 0.15}
+            chromaticAberration={isMobile ? 0.00085 : 0.001}
             className="opacity-35 md:opacity-40"
           />
           {/* Gradient overlay for depth */}

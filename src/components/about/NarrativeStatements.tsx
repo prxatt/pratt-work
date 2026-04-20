@@ -2,27 +2,25 @@
 
 import React, { useRef, useState, useEffect } from 'react';
 import { motion, useScroll, useTransform, useInView } from 'framer-motion';
-import { getVideoUrl } from '@/lib/media';
+import { useVideoSourceFallback } from '@/hooks/useVideoSourceFallback';
 
 // Large Video Frame Component for Building Connection section - 50% viewport
 interface LargeVideoFrameProps {
-  mp4Src?: string;
-  webmSrc?: string;
+  videoStem: string;
 }
 
-const LargeVideoFrame = ({ mp4Src, webmSrc }: LargeVideoFrameProps) => {
+const LargeVideoFrame = ({ videoStem }: LargeVideoFrameProps) => {
   const [isHovered, setIsHovered] = useState(false);
   const [canPlay, setCanPlay] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const ref = useRef<HTMLDivElement>(null);
-  const isInView = useInView(ref, { once: true, margin: '-100px' });
-  
-  // Fast video startup - preload and play immediately
+  const { activeSrc, onError } = useVideoSourceFallback(videoStem);
+
   React.useEffect(() => {
     const video = videoRef.current;
-    if (!video || !mp4Src) return;
+    if (!video) return;
 
-    // Start loading immediately
+    setCanPlay(false);
     video.load();
 
     const handleCanPlay = () => {
@@ -33,15 +31,13 @@ const LargeVideoFrame = ({ mp4Src, webmSrc }: LargeVideoFrameProps) => {
     };
 
     video.addEventListener('canplaythrough', handleCanPlay);
-    
-    // Fallback: show video after 300ms
-    const fallbackTimer = setTimeout(() => setCanPlay(true), 300);
+    const fallbackTimer = setTimeout(() => setCanPlay(true), 500);
 
     return () => {
       video.removeEventListener('canplaythrough', handleCanPlay);
       clearTimeout(fallbackTimer);
     };
-  }, [mp4Src]);
+  }, [activeSrc]);
   
   return (
     <motion.div 
@@ -57,32 +53,28 @@ const LargeVideoFrame = ({ mp4Src, webmSrc }: LargeVideoFrameProps) => {
       viewport={{ once: true }}
       transition={{ duration: 0.8, delay: 0.3, ease: [0.16, 1, 0.3, 1] }}
     >
-      {/* Video - fits viewport on fixed frame - optimized for fast load */}
-      {mp4Src && (
-        <video
-          ref={videoRef}
-          autoPlay
-          muted
-          loop
-          playsInline
-          preload="auto"
-          className="absolute inset-0 w-full h-full object-cover"
-          style={{
-            opacity: canPlay ? 1 : 0,
-            transition: 'opacity 0.3s ease',
-            willChange: 'transform',
-            transform: 'translateZ(0)',
-          }}
-        >
-          {webmSrc && <source src={webmSrc} type="video/webm" />}
-          <source src={mp4Src} type="video/mp4" />
-        </video>
-      )}
+      <video
+        ref={videoRef}
+        src={activeSrc}
+        onError={onError}
+        autoPlay
+        muted
+        loop
+        playsInline
+        preload="auto"
+        className="absolute inset-0 w-full h-full object-cover"
+        style={{
+          opacity: canPlay ? 1 : 0,
+          transition: 'opacity 0.3s ease',
+          willChange: 'transform',
+          transform: 'translateZ(0)',
+        }}
+      />
 
       {/* Label overlay - shows when loading */}
       <div 
         className="absolute inset-0 flex items-center justify-center"
-        style={{ opacity: mp4Src && canPlay ? 0 : 1 }}
+        style={{ opacity: canPlay ? 0 : 1 }}
       >
         <motion.span 
           className="font-mono text-[12px] text-[#4A4A47] uppercase tracking-[0.2em]"
@@ -125,23 +117,22 @@ const LargeVideoFrame = ({ mp4Src, webmSrc }: LargeVideoFrameProps) => {
 interface VideoFrameProps {
   label: string;
   index: number;
-  mp4Src?: string;
-  webmSrc?: string;
+  videoStem: string;
 }
 
-const VideoFrame = ({ label, index, mp4Src, webmSrc }: VideoFrameProps) => {
+const VideoFrame = ({ label, index, videoStem }: VideoFrameProps) => {
   const ref = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const isInView = useInView(ref, { once: true, margin: '-100px' });
   const [isHovered, setIsHovered] = useState(false);
   const [canPlay, setCanPlay] = useState(false);
+  const { activeSrc, onError } = useVideoSourceFallback(videoStem);
 
-  // Fast video startup - preload and play immediately when ready
   React.useEffect(() => {
     const video = videoRef.current;
-    if (!video || !mp4Src) return;
+    if (!video) return;
 
-    // Start loading immediately
+    setCanPlay(false);
     video.load();
 
     const handleCanPlay = () => {
@@ -152,15 +143,13 @@ const VideoFrame = ({ label, index, mp4Src, webmSrc }: VideoFrameProps) => {
     };
 
     video.addEventListener('canplaythrough', handleCanPlay);
-    
-    // Fallback: show video after 300ms even if not fully buffered
-    const fallbackTimer = setTimeout(() => setCanPlay(true), 300);
+    const fallbackTimer = setTimeout(() => setCanPlay(true), 500);
 
     return () => {
       video.removeEventListener('canplaythrough', handleCanPlay);
       clearTimeout(fallbackTimer);
     };
-  }, [mp4Src]);
+  }, [activeSrc]);
 
   return (
     <motion.div
@@ -182,33 +171,29 @@ const VideoFrame = ({ label, index, mp4Src, webmSrc }: VideoFrameProps) => {
           minHeight: '280px',
         }}
       >
-        {/* Video - fits viewport on fixed frame, exact same size - optimized for fast load */}
-        {mp4Src && (
-          <video
-            ref={videoRef}
-            autoPlay
-            muted
-            loop
-            playsInline
-            preload="auto"
-            className="absolute inset-0 w-full h-full object-cover"
-            style={{
-              opacity: canPlay ? 1 : 0,
-              transition: 'opacity 0.3s ease',
-              willChange: 'transform',
-              transform: 'translateZ(0)',
-            }}
-          >
-            {webmSrc && <source src={webmSrc} type="video/webm" />}
-            <source src={mp4Src} type="video/mp4" />
-          </video>
-        )}
+        <video
+          ref={videoRef}
+          src={activeSrc}
+          onError={onError}
+          autoPlay
+          muted
+          loop
+          playsInline
+          preload="auto"
+          className="absolute inset-0 w-full h-full object-cover"
+          style={{
+            opacity: canPlay ? 1 : 0,
+            transition: 'opacity 0.3s ease',
+            willChange: 'transform',
+            transform: 'translateZ(0)',
+          }}
+        />
 
         {/* Label overlay - shows when loading */}
         <motion.span 
           className="font-mono text-[10px] text-[#4A4A47] uppercase tracking-[0.2em] transition-colors duration-300 relative z-10"
           animate={{ color: isHovered ? '#6366f1' : '#4A4A47' }}
-          style={{ opacity: mp4Src && canPlay ? 0 : 1 }}
+          style={{ opacity: canPlay ? 0 : 1 }}
         >
           [ {label} ]
         </motion.span>
@@ -424,9 +409,9 @@ export const NarrativeStatements = () => {
             transition={{ duration: 0.8, delay: 0.5, ease: [0.16, 1, 0.3, 1] }}
             className="mt-16 flex flex-col sm:flex-row gap-4 sm:gap-5 w-full justify-center px-2 sm:px-[5vw]"
           >
-            <VideoFrame label="Experiential" index={0} mp4Src={getVideoUrl('/videos/the-crypt-space.mp4')} webmSrc={getVideoUrl('/videos/the-crypt-space.webm')} />
-            <VideoFrame label="Production" index={1} mp4Src={getVideoUrl('/videos/st-dd-prod.mp4')} webmSrc={getVideoUrl('/videos/st-dd-prod.webm')} />
-            <VideoFrame label="Strategy" index={2} mp4Src={getVideoUrl('/videos/the-crypt-run.mp4')} webmSrc={getVideoUrl('/videos/the-crypt-run.webm')} />
+            <VideoFrame label="Experiential" index={0} videoStem="/videos/the-crypt-space" />
+            <VideoFrame label="Production" index={1} videoStem="/videos/st-dd-prod" />
+            <VideoFrame label="Strategy" index={2} videoStem="/videos/the-crypt-run" />
           </motion.div>
         </motion.div>
       </div>
@@ -595,7 +580,7 @@ export const NarrativeStatements = () => {
                 transition={{ duration: 0.6, delay: 0.4 }}
                 className="mt-8 lg:mt-16 w-full flex justify-end"
               >
-                <LargeVideoFrame mp4Src={getVideoUrl('/videos/pr8-lv.mp4')} webmSrc={getVideoUrl('/videos/pr8-lv.webm')} />
+                <LargeVideoFrame videoStem="/videos/pr8-lv" />
               </motion.div>
             </div>
           </div>
