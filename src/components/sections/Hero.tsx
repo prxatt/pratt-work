@@ -303,7 +303,7 @@ export const Hero = () => {
         <motion.span 
           initial={{ opacity: 0, y: 6 }}
           animate={contentReady ? { opacity: 1, y: 0 } : { opacity: 0, y: 6 }}
-          transition={{ duration: 0.38, delay: 0.08, ease: [0.16, 1, 0.3, 1] }}
+          transition={{ duration: 0.38, delay: 0.58, ease: [0.16, 1, 0.3, 1] }}
           className="font-mono text-[10px] sm:text-[11px] tracking-[0.18em] sm:tracking-[0.2em] uppercase whitespace-nowrap text-[#B5B5B0] shrink-0 min-w-0"
           style={{
             textShadow: '0 1px 3px rgba(0,0,0,0.9), 0 0 20px rgba(10,10,10,0.5)',
