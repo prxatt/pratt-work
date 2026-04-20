@@ -63,8 +63,8 @@ export const AICredentials = () => {
         {/* Radial gradient vignette */}
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_0%,rgba(13,13,13,0.8)_70%,#0D0D0D_100%)]" />
         {/* Subtle animated glow spots */}
-        <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-[#6366f1]/5 rounded-full blur-[100px] animate-pulse" />
-        <div className="absolute bottom-1/4 right-1/4 w-48 h-48 bg-[#8B5CF6]/5 rounded-full blur-[80px] animate-pulse" style={{ animationDelay: '1s' }} />
+        <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-[#6366f1]/5 rounded-full blur-[100px] md:animate-pulse" />
+        <div className="absolute bottom-1/4 right-1/4 w-48 h-48 bg-[#8B5CF6]/5 rounded-full blur-[80px] md:animate-pulse" style={{ animationDelay: '1s' }} />
       </div>
 
       <div className="relative z-10 px-6 md:px-12 lg:px-20 flex flex-col gap-16">

@@ -1,7 +1,7 @@
 'use client';
 
 import { Renderer, Program, Mesh, Color, Triangle } from 'ogl';
-import { useEffect, useRef, useMemo, useCallback } from 'react';
+import { useEffect, useRef, useMemo, useCallback, useState } from 'react';
 import './FaultyTerminal.css';
 
 const vertexShader = `
@@ -323,6 +323,9 @@ export default function FaultyTerminal({
   const rafRef = useRef(0);
   const loadAnimationStartRef = useRef(0);
   const timeOffsetRef = useRef(Math.random() * 100);
+  const lastTouchRef = useRef(0);
+  const coarsePointerRef = useRef(false);
+  const [webglReady, setWebglReady] = useState(true);
 
   const tintVec = useMemo(() => hexToRgb(tint), [tint]);
 
@@ -340,6 +343,7 @@ export default function FaultyTerminal({
   const handleTouchMove = useCallback((e: TouchEvent) => {
     const ctn = containerRef.current;
     if (!ctn || e.touches.length === 0) return;
+    lastTouchRef.current = performance.now();
     const rect = ctn.getBoundingClientRect();
     const touch = e.touches[0];
     const x = (touch.clientX - rect.left) / rect.width;
@@ -350,6 +354,7 @@ export default function FaultyTerminal({
   const handleTouchStart = useCallback((e: TouchEvent) => {
     const ctn = containerRef.current;
     if (!ctn || e.touches.length === 0) return;
+    lastTouchRef.current = performance.now();
     const rect = ctn.getBoundingClientRect();
     const touch = e.touches[0];
     const x = (touch.clientX - rect.left) / rect.width;
@@ -361,43 +366,59 @@ export default function FaultyTerminal({
     const ctn = containerRef.current;
     if (!ctn) return;
 
-    const renderer = new Renderer({ dpr });
-    rendererRef.current = renderer;
+    coarsePointerRef.current =
+      typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches;
+
+    let renderer: Renderer;
+    let program: Program;
+    try {
+      renderer = new Renderer({ dpr });
+      rendererRef.current = renderer;
+    } catch {
+      setWebglReady(false);
+      return;
+    }
     const gl = renderer.gl;
     gl.clearColor(0, 0, 0, 1);
 
     const geometry = new Triangle(gl);
 
-    const program = new Program(gl, {
-      vertex: vertexShader,
-      fragment: fragmentShader,
-      uniforms: {
-        iTime: { value: 0 },
-        iResolution: {
-          value: new Color(gl.canvas.width, gl.canvas.height, gl.canvas.width / gl.canvas.height)
-        },
-        uScale: { value: scale },
+    try {
+      program = new Program(gl, {
+        vertex: vertexShader,
+        fragment: fragmentShader,
+        uniforms: {
+          iTime: { value: 0 },
+          iResolution: {
+            value: new Color(gl.canvas.width, gl.canvas.height, gl.canvas.width / gl.canvas.height)
+          },
+          uScale: { value: scale },
 
-        uGridMul: { value: new Float32Array(gridMul) },
-        uDigitSize: { value: digitSize },
-        uScanlineIntensity: { value: scanlineIntensity },
-        uGlitchAmount: { value: glitchAmount },
-        uFlickerAmount: { value: flickerAmount },
-        uNoiseAmp: { value: noiseAmp },
-        uChromaticAberration: { value: chromaticAberration },
-        uDither: { value: ditherValue },
-        uCurvature: { value: curvature },
-        uTint: { value: new Color(tintVec[0], tintVec[1], tintVec[2]) },
-        uMouse: {
-          value: new Float32Array([smoothMouseRef.current.x, smoothMouseRef.current.y])
-        },
-        uMouseStrength: { value: mouseStrength },
-        uUseMouse: { value: mouseReact ? 1 : 0 },
-        uPageLoadProgress: { value: pageLoadAnimation ? 0 : 1 },
-        uUsePageLoadAnimation: { value: pageLoadAnimation ? 1 : 0 },
-        uBrightness: { value: brightness }
-      }
-    });
+          uGridMul: { value: new Float32Array(gridMul) },
+          uDigitSize: { value: digitSize },
+          uScanlineIntensity: { value: scanlineIntensity },
+          uGlitchAmount: { value: glitchAmount },
+          uFlickerAmount: { value: flickerAmount },
+          uNoiseAmp: { value: noiseAmp },
+          uChromaticAberration: { value: chromaticAberration },
+          uDither: { value: ditherValue },
+          uCurvature: { value: curvature },
+          uTint: { value: new Color(tintVec[0], tintVec[1], tintVec[2]) },
+          uMouse: {
+            value: new Float32Array([smoothMouseRef.current.x, smoothMouseRef.current.y])
+          },
+          uMouseStrength: { value: mouseStrength },
+          uUseMouse: { value: mouseReact ? 1 : 0 },
+          uPageLoadProgress: { value: pageLoadAnimation ? 0 : 1 },
+          uUsePageLoadAnimation: { value: pageLoadAnimation ? 1 : 0 },
+          uBrightness: { value: brightness }
+        }
+      });
+    } catch {
+      gl.getExtension('WEBGL_lose_context')?.loseContext();
+      setWebglReady(false);
+      return;
+    }
     programRef.current = program;
 
     const mesh = new Mesh(gl, { geometry, program });
@@ -439,7 +460,14 @@ export default function FaultyTerminal({
       }
 
       if (mouseReact) {
-        const dampingFactor = 0.08;
+        const now = performance.now();
+        if (coarsePointerRef.current && now - lastTouchRef.current > 2200) {
+          const tt = now * 0.00022;
+          mouseRef.current.x = 0.5 + Math.sin(tt) * 0.14;
+          mouseRef.current.y = 0.5 + Math.cos(tt * 0.83) * 0.11;
+        }
+
+        const dampingFactor = coarsePointerRef.current ? 0.12 : 0.08;
         const smoothMouse = smoothMouseRef.current;
         const mouse = mouseRef.current;
         smoothMouse.x += (mouse.x - smoothMouse.x) * dampingFactor;
@@ -498,5 +526,20 @@ export default function FaultyTerminal({
     handleTouchStart
   ]);
 
-  return <div ref={containerRef} className={`faulty-terminal-container ${className || ''}`} style={style} {...rest} />;
+  return (
+    <div
+      ref={containerRef}
+      className={`faulty-terminal-container ${className || ''}`}
+      style={{
+        ...style,
+        ...(!webglReady
+          ? {
+              background:
+                'radial-gradient(ellipse 85% 70% at 50% 40%, rgba(245,245,243,0.07) 0%, rgba(10,10,10,1) 55%, #0a0a0a 100%)',
+            }
+          : null),
+      }}
+      {...rest}
+    />
+  );
 }

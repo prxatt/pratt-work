@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useCursor } from '@/context/CursorContext';
 import { X, Lock } from 'lucide-react';
 import Image from 'next/image';
 import { getImageUrl } from '@/lib/media';
@@ -170,8 +169,6 @@ const TeaserImageModal = ({
 
 // Main Ventures Section (Step 2 Optimized)
 export const VenturesSection = () => {
-  const { setCursorState, setPreviewData } = useCursor();
-  const [showModal, setShowModal] = useState(false);
   const [soenHovered, setSoenHovered] = useState(false);
   const [culturePulseHovered, setCulturePulseHovered] = useState(false);
   const [soenModalOpen, setSoenModalOpen] = useState(false);
@@ -202,7 +199,7 @@ export const VenturesSection = () => {
 
   return (
     <>
-      <section id="ventures" className="relative py-16 md:py-20 bg-[#0a0a0a] min-h-screen flex flex-col justify-center overflow-hidden">
+      <section id="ventures" className="relative py-16 md:py-20 bg-[#0a0a0a] min-h-screen flex flex-col justify-center overflow-x-hidden">
         <div className="px-6 md:px-12 lg:px-20 w-full">
           {/* Section Header */}
           <motion.div
@@ -316,7 +313,7 @@ export const VenturesSection = () => {
                     filter="url(#glow)"
                     initial={{ pathLength: 0, opacity: 0 }}
                     whileInView={{ pathLength: 1, opacity: 1 }}
-                    viewport={{ once: false, amount: 0.3 }}
+                    viewport={{ once: true, amount: 0.2 }}
                     transition={{ duration: 0.6, delay: 0.8, ease: [0.16, 1, 0.3, 1] }}
                   />
                   
@@ -328,7 +325,7 @@ export const VenturesSection = () => {
                     filter="url(#glow)"
                     initial={{ pathLength: 0, opacity: 0 }}
                     whileInView={{ pathLength: 1, opacity: 1 }}
-                    viewport={{ once: false, amount: 0.3 }}
+                    viewport={{ once: true, amount: 0.2 }}
                     transition={{ duration: 0.6, delay: 1.0, ease: [0.16, 1, 0.3, 1] }}
                   />
                   
@@ -341,7 +338,7 @@ export const VenturesSection = () => {
                     opacity="0.2"
                     initial={{ scale: 0 }}
                     whileInView={{ scale: 1 }}
-                    viewport={{ once: false, amount: 0.3 }}
+                    viewport={{ once: true, amount: 0.2 }}
                     transition={{ duration: 0.3, delay: 1.3, type: 'spring', stiffness: 200 }}
                   />
                   
@@ -353,7 +350,7 @@ export const VenturesSection = () => {
                     fill="#06b6d4"
                     initial={{ scale: 0 }}
                     whileInView={{ scale: 1 }}
-                    viewport={{ once: false, amount: 0.3 }}
+                    viewport={{ once: true, amount: 0.2 }}
                     transition={{ duration: 0.3, delay: 1.3, type: 'spring', stiffness: 300 }}
                   >
                     <animate attributeName="r" values="4;5;4" dur="2s" repeatCount="indefinite" />
@@ -369,7 +366,7 @@ export const VenturesSection = () => {
                     opacity="0.2"
                     initial={{ scale: 0 }}
                     whileInView={{ scale: 1 }}
-                    viewport={{ once: false, amount: 0.3 }}
+                    viewport={{ once: true, amount: 0.2 }}
                     transition={{ duration: 0.3, delay: 1.5, type: 'spring', stiffness: 200 }}
                   />
                   
@@ -381,7 +378,7 @@ export const VenturesSection = () => {
                     fill="#6366f1"
                     initial={{ scale: 0 }}
                     whileInView={{ scale: 1 }}
-                    viewport={{ once: false, amount: 0.3 }}
+                    viewport={{ once: true, amount: 0.2 }}
                     transition={{ duration: 0.3, delay: 1.5, type: 'spring', stiffness: 300 }}
                   >
                     <animate attributeName="r" values="4;5;4" dur="2.5s" repeatCount="indefinite" begin="0.5s" />

@@ -129,7 +129,7 @@ const LazyVideo = ({
         setVis(in_);
         if (in_) setLoad(true);
       },
-      { threshold: 0.05, rootMargin: '50px' }
+      { threshold: 0.12, rootMargin: '100px 0px 100px 0px' }
     );
     obs.observe(video);
     return () => obs.disconnect();
@@ -248,16 +248,18 @@ const CardOverlays = ({ index, isInView, category }: { index: number; isInView: 
 
 // Steve Jobs level: Simplified text reveal - no per-character lag
 // Per-character animation removed - now uses clean blur-to-clear for performance
-const LetterReveal = ({ text, className, delay = 0 }: { text: string; className: string; delay?: number }) => {
+const LetterReveal = ({
+  text, className, delay = 0, lite = false,
+}: { text: string; className: string; delay?: number; lite?: boolean }) => {
   const ref = useRef<HTMLHeadingElement>(null);
   const isInView = useInView(ref, { once: true, margin: '-100px' });
   return (
     <motion.h3 
       ref={ref} 
       className={`${className} whitespace-nowrap`}
-      initial={{ opacity: 0, y: 20, filter: 'blur(8px)' }}
-      animate={isInView ? { opacity: 1, y: 0, filter: 'blur(0px)' } : {}}
-      transition={{ duration: 0.8, delay, ease: [0.16, 1, 0.3, 1] }}
+      initial={lite ? { opacity: 0, y: 10 } : { opacity: 0, y: 20, filter: 'blur(8px)' }}
+      animate={isInView ? (lite ? { opacity: 1, y: 0 } : { opacity: 1, y: 0, filter: 'blur(0px)' }) : {}}
+      transition={{ duration: lite ? 0.45 : 0.8, delay, ease: [0.16, 1, 0.3, 1] }}
     >
       {text}
     </motion.h3>
@@ -270,6 +272,7 @@ const CardContent = ({
   project: Project; index: number; isInView: boolean; featured?: boolean; caps: DeviceCaps;
 }) => {
   const color = getCategoryColor(project.category);
+  const titleLite = caps.isMobile || caps.prefersReducedMotion;
   return (
     <div className="mt-4 sm:mt-6 flex flex-col sm:flex-row justify-between items-start gap-4">
       <div className="flex flex-col gap-1 sm:gap-2">
@@ -286,6 +289,7 @@ const CardContent = ({
             text={project.title}
             className={`font-display text-primary leading-[1.15] ${featured ? 'text-lg sm:text-xl md:text-2xl lg:text-3xl' : 'text-xl sm:text-2xl md:text-3xl'}`}
             delay={0.3 + index * 0.15}
+            lite={titleLite}
           />
         </div>
         <motion.span
@@ -388,11 +392,11 @@ const ImageCard = ({
       ref={ref}
       initial={{ opacity: 0 }} animate={isInView ? { opacity: 1 } : {}}
       transition={{ duration: 0.5, delay: index * 0.15, ease: [0.16, 1, 0.3, 1] }}
-      className="relative group"
+      className="relative group content-visibility-auto contain-layout"
     >
       <Link href={`/work/${project.slug}`} className="block w-full h-full"
         onMouseEnter={() => setCursorState('hover')} onMouseLeave={() => setCursorState('default')}>
-        <div className={`relative ${aspectClass} rounded-sm overflow-hidden`} style={{ willChange: 'transform' }}>
+        <div className={`relative ${aspectClass} rounded-sm overflow-hidden`}>
           {/* Entry animation + hardware accelerated image */}
           <motion.div
             className="absolute inset-0 overflow-hidden"
@@ -408,10 +412,7 @@ const ImageCard = ({
                   className="w-full h-full object-cover"
                   loading={index === 0 ? "eager" : "lazy"}
                   decoding="async"
-                  style={{ 
-                    willChange: 'transform',
-                    objectPosition: 'center center',
-                  }}
+                  style={{ objectPosition: 'center center' }}
                 />
               </div>
             ) : isSurface ? (
@@ -422,10 +423,7 @@ const ImageCard = ({
                   className="w-full h-full object-cover"
                   loading={index === 0 ? "eager" : "lazy"}
                   decoding="async"
-                  style={{ 
-                    willChange: 'transform',
-                    objectPosition: 'center center',
-                  }}
+                  style={{ objectPosition: 'center center' }}
                 />
               </div>
             ) : (
@@ -477,9 +475,32 @@ const ImageCard = ({
   );
 };
 
-const AnimatedHeader = () => {
+const AnimatedHeader = ({ isMobile }: { isMobile: boolean }) => {
   const ref      = useRef<HTMLDivElement>(null);
   const isInView = useInView(ref, { once: true, margin: '-100px' });
+  if (isMobile) {
+    return (
+      <div ref={ref} className="flex flex-col gap-4 sm:gap-6">
+        <motion.span
+          className="font-mono text-[9px] sm:text-[11px] tracking-[0.2em] sm:tracking-[0.4em] text-tertiary uppercase"
+          initial={{ opacity: 0 }}
+          animate={isInView ? { opacity: 1 } : {}}
+          transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+        >
+          SELECTED PROJECTS
+        </motion.span>
+        <motion.h2
+          className="text-section-header text-primary uppercase text-balance max-w-full"
+          initial={{ opacity: 0, y: 16 }}
+          animate={isInView ? { opacity: 1, y: 0 } : {}}
+          transition={{ duration: 0.55, delay: 0.08, ease: [0.16, 1, 0.3, 1] }}
+        >
+          <span className="block">FEATURED</span>
+          <span className="block">WORK</span>
+        </motion.h2>
+      </div>
+    );
+  }
   return (
     <div ref={ref} className="flex flex-col gap-4 sm:gap-6">
       <motion.span
@@ -521,7 +542,7 @@ export const FeaturedWork = () => {
   return (
     <section className="py-16 sm:py-24 md:py-40 px-4 sm:px-6 md:px-12 lg:px-20">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-16 sm:mb-24 gap-6 sm:gap-8">
-        <AnimatedHeader />
+        <AnimatedHeader isMobile={caps.isMobile} />
         <motion.div
           initial={{ opacity: 0, x: 40 }} whileInView={{ opacity: 1, x: 0 }}
           viewport={{ once: true }} transition={{ duration: 0.8, delay: 0.5, ease: [0.16, 1, 0.3, 1] }}

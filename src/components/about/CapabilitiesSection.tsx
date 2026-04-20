@@ -10,8 +10,6 @@ interface Capability {
   title: string;
   description: string;
   secondaryText: string;
-  /** Path without extension, e.g. `/videos/tcy-immersive` — used for public fallbacks when CDN misses a file */
-  videoStem: string;
   mp4Src: string;
   webmSrc: string;
 }
@@ -23,7 +21,6 @@ const capabilities: Capability[] = [
     title: 'Experiential Strategy',
     description: 'Translating brand objectives into immersive experiences that create cultural connections.',
     secondaryText: 'Strategic concepting, vendor orchestration, and production leadership for multi-dimensional activations.',
-    videoStem: '/videos/stability-exp',
     mp4Src: getVideoUrl('/videos/stability-exp.mp4'),
     webmSrc: getVideoUrl('/videos/stability-exp.webm'),
   },
@@ -33,7 +30,6 @@ const capabilities: Capability[] = [
     title: 'Live Production',
     description: 'Large-scale activations for 500+ attendees with streaming infrastructure reaching 10K+ concurrent viewers.',
     secondaryText: 'Managing cross-functional teams and $1M budgets from concept through execution.',
-    videoStem: '/videos/wb-prod',
     mp4Src: getVideoUrl('/videos/wb-prod.mp4'),
     webmSrc: getVideoUrl('/videos/wb-prod.webm'),
   },
@@ -43,7 +39,6 @@ const capabilities: Capability[] = [
     title: 'Immersive Content',
     description: 'VR/AR experiences and 360° video for enterprise training and brand storytelling.',
     secondaryText: 'Complete production oversight from creative concepts to platform optimization.',
-    videoStem: '/videos/tcy-immersive',
     mp4Src: getVideoUrl('/videos/tcy-immersive.mp4'),
     webmSrc: getVideoUrl('/videos/tcy-immersive.webm'),
   },
@@ -53,7 +48,6 @@ const capabilities: Capability[] = [
     title: 'AI Workflow Design',
     description: 'Building tools and systems that remove friction from creative processes.',
     secondaryText: 'Productivity platforms to automation frameworks that accelerate ideation.',
-    videoStem: '/videos/st-ai',
     mp4Src: getVideoUrl('/videos/st-ai.mp4'),
     webmSrc: getVideoUrl('/videos/st-ai.webm'),
   },
@@ -63,32 +57,21 @@ const capabilities: Capability[] = [
 interface VideoFrameProps {
   mp4Src: string;
   webmSrc: string;
-  /** Same-origin paths when CDN URLs 404 (see Capability.videoStem) */
-  publicWebm: string;
-  publicMp4: string;
   label: string;
   cropTopBottom?: boolean;
 }
 
 const VideoFrame = React.memo(
-  ({ mp4Src, webmSrc, publicWebm, publicMp4, label, cropTopBottom }: VideoFrameProps) => {
+  ({ mp4Src, webmSrc, label, cropTopBottom }: VideoFrameProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [canPlay, setCanPlay] = useState(false);
-  const fallbackChain = React.useMemo(
-    () => [webmSrc, mp4Src, publicWebm, publicMp4],
-    [webmSrc, mp4Src, publicWebm, publicMp4]
-  );
-  const [srcIndex, setSrcIndex] = useState(0);
-  const activeSrc = fallbackChain[srcIndex] ?? publicMp4;
 
-  useEffect(() => {
-    setSrcIndex(0);
-  }, [webmSrc, mp4Src, publicWebm, publicMp4]);
-
-  // Fast video startup - play as soon as possible
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
+
+    setCanPlay(false);
+    video.load();
 
     const startPlayback = () => {
       video.play().catch(() => {
@@ -109,7 +92,7 @@ const VideoFrame = React.memo(
       clearTimeout(fallbackTimer);
       video.removeEventListener('canplaythrough', onReady);
     };
-  }, [activeSrc]);
+  }, [mp4Src, webmSrc]);
 
   return (
     <div 
@@ -132,7 +115,6 @@ const VideoFrame = React.memo(
       {/* Video - visible immediately, plays when ready */}
       <video
         ref={videoRef}
-        src={activeSrc}
         autoPlay
         muted
         loop
@@ -140,10 +122,10 @@ const VideoFrame = React.memo(
         preload="metadata"
         className={`absolute inset-0 w-full h-full object-cover ${cropTopBottom ? 'object-[center_28%]' : ''}`}
         style={{ willChange: 'transform', transform: 'translateZ(0)' }}
-        onError={() =>
-          setSrcIndex((i) => (i + 1 < fallbackChain.length ? i + 1 : i))
-        }
-      />
+      >
+        <source src={webmSrc} type="video/webm" />
+        <source src={mp4Src} type="video/mp4" />
+      </video>
       
       {/* Subtle overlay */}
       <div className="absolute inset-0 bg-gradient-to-br from-[#6366f1]/5 via-transparent to-[#8B5CF6]/5 pointer-events-none" />
@@ -244,8 +226,6 @@ const CapabilityItem = ({ cap, index }: { cap: Capability; index: number }) => {
             <VideoFrame 
               mp4Src={cap.mp4Src} 
               webmSrc={cap.webmSrc} 
-              publicWebm={`${cap.videoStem}.webm`}
-              publicMp4={`${cap.videoStem}.mp4`}
               label={cap.title.split(' ')[0]}
               cropTopBottom={cap.id === 'immersive'}
             />
