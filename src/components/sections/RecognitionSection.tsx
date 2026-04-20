@@ -1385,6 +1385,18 @@ const RecognitionCard = ({
     setPreviewData({});
   };
 
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!award.image) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const focusX = ((e.clientX - rect.left) / rect.width) * 100;
+    const focusY = ((e.clientY - rect.top) / rect.height) * 100;
+    setPreviewData({
+      src: award.image,
+      focusX: Math.max(0, Math.min(100, focusX)),
+      focusY: Math.max(0, Math.min(100, focusY)),
+    });
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, x: position === 'left' ? -60 : 60 }}
@@ -1393,9 +1405,10 @@ const RecognitionCard = ({
       transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1], delay: index * 0.15 }}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
+      onMouseMove={handleMouseMove}
       onClick={onClick}
       className="group relative bg-gradient-to-br from-[#1a1a1a] to-[#0f0f0f] rounded-xl border border-[#2a2a3a] p-6 cursor-none hover:border-[#f59e0b] hover:shadow-[0_0_40px_rgba(245,158,11,0.15)] transition-all duration-500 h-[280px] flex flex-col"
-      style={{ width: '100%', maxWidth: 'calc(50% - 40px)' }}
+      style={{ width: '100%' }}
     >
       <div className="flex justify-between items-start mb-6">
         <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-[#1a1a2e] to-[#0f0f1a] border border-[#2a2a3a] flex items-center justify-center group-hover:border-[#f59e0b]/50 transition-colors">
@@ -1481,7 +1494,7 @@ export const RecognitionSection = () => {
           {/* Alternating Branch Timeline */}
           <div className="relative">
             {/* Central spine */}
-            <div className="absolute left-1/2 top-0 bottom-0 w-[2px] -translate-x-1/2 hidden lg:block">
+            <div className="absolute left-1/2 top-0 bottom-0 w-px lg:w-[2px] -translate-x-1/2">
               <div className="absolute inset-0 bg-[#2a2a3a]" />
               <motion.div
                 initial={{ scaleY: 0 }}
@@ -1533,13 +1546,36 @@ export const RecognitionSection = () => {
                     </div>
 
                     {/* Mobile layout */}
-                    <div className="lg:hidden">
-                      <RecognitionCard
-                        award={award}
-                        index={index}
-                        position="left"
-                        onClick={() => setSelectedAward(award)}
+                    <div className={`lg:hidden flex ${position === 'left' ? 'justify-start' : 'justify-end'}`}>
+                      {/* Mobile timeline dot + branch line (desktop-inspired asymmetry + motion) */}
+                      <motion.div
+                        initial={{ scale: 0, opacity: 0 }}
+                        whileInView={{ scale: 1, opacity: 1 }}
+                        viewport={{ once: true }}
+                        transition={{ duration: 0.35, delay: index * 0.15 + 0.35, type: 'spring', stiffness: 200 }}
+                        className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10 lg:hidden"
+                      >
+                        <div className="absolute inset-0 w-3 h-3 rounded-full bg-[#f59e0b] blur-md opacity-45" />
+                        <div className="relative w-3 h-3 rounded-full bg-[#0a0a0a] border border-[#f59e0b]">
+                          <div className="absolute inset-0 m-auto w-1.5 h-1.5 rounded-full bg-[#f59e0b]" />
+                        </div>
+                      </motion.div>
+                      <motion.div
+                        initial={{ scaleX: 0, opacity: 0 }}
+                        whileInView={{ scaleX: 1, opacity: 1 }}
+                        viewport={{ once: true }}
+                        transition={{ duration: 0.45, delay: index * 0.15 + 0.25, ease: [0.16, 1, 0.3, 1] }}
+                        className={`absolute top-1/2 -translate-y-1/2 h-[1px] w-[18%] bg-gradient-to-r from-[#f59e0b] to-[#2a2a3a] ${position === 'left' ? 'left-[50%]' : 'right-[50%]'}`}
+                        style={{ transformOrigin: position === 'left' ? 'left' : 'right' }}
                       />
+                      <div className="w-[92%]">
+                        <RecognitionCard
+                          award={award}
+                          index={index}
+                          position={position}
+                          onClick={() => setSelectedAward(award)}
+                        />
+                      </div>
                     </div>
                   </div>
                 );
@@ -1552,7 +1588,7 @@ export const RecognitionSection = () => {
               whileInView={{ scale: 1 }}
               viewport={{ once: true }}
               transition={{ duration: 0.4, delay: 1.2, type: 'spring' }}
-              className="hidden lg:block absolute left-1/2 bottom-0 -translate-x-1/2 translate-y-full mt-4"
+              className="absolute left-1/2 bottom-0 -translate-x-1/2 translate-y-full mt-4"
             >
               <div className="w-3 h-3 rounded-full bg-[#f59e0b] border border-[#f59e0b]" />
             </motion.div>

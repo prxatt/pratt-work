@@ -26,7 +26,7 @@ const roles = [
   "Teams That Create"
 ];
 
-const RotatingRoles = () => {
+const RotatingRoles = ({ isTouch }: { isTouch: boolean }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isVisible, setIsVisible] = useState(true);
   const [hasStarted, setHasStarted] = useState(false);
@@ -59,9 +59,28 @@ const RotatingRoles = () => {
   }, [hasStarted]);
 
   return (
-    <div ref={ref} className="h-10 flex items-center overflow-hidden px-5 py-2 rounded-full bg-white/[0.03] border border-white/[0.06] gpu-accelerated">
+    <div ref={ref} className="relative h-10 flex items-center overflow-hidden px-5 py-2 rounded-full bg-white/[0.03] border border-white/[0.06] gpu-accelerated">
+      {isTouch && (
+        <>
+          {/* Mobile-only local attenuation around subtitle to keep text readable over particles. */}
+          <div
+            className="absolute inset-[-7px_-14px] rounded-full pointer-events-none"
+            style={{
+              background:
+                'radial-gradient(ellipse 70% 78% at 50% 50%, rgba(10,10,10,0.7) 0%, rgba(10,10,10,0.48) 52%, rgba(10,10,10,0) 100%)',
+              filter: 'blur(0.3px)',
+            }}
+          />
+          <div
+            className="absolute inset-0 rounded-full pointer-events-none"
+            style={{
+              boxShadow: '0 0 28px rgba(10,10,10,0.55) inset',
+            }}
+          />
+        </>
+      )}
       <motion.span
-        className="font-mono text-xs md:text-sm tracking-[0.2em] uppercase text-[#B8B8B3] whitespace-nowrap gpu-accelerated"
+        className="relative z-[1] font-mono text-xs md:text-sm tracking-[0.2em] uppercase text-[#B8B8B3] whitespace-nowrap gpu-accelerated"
         initial={{ opacity: 0, y: 8 }}
         animate={{ 
           opacity: isVisible ? 1 : 0,
@@ -98,6 +117,8 @@ export const Hero = () => {
   const [terminalDpr, setTerminalDpr] = useState(1);
   const [showTerminal, setShowTerminal] = useState(false);
   const [contentReady, setContentReady] = useState(false);
+  const mobileTerminalScale = isTouch ? (prefersReducedMotion ? 1.24 : 1.34) : 1.8;
+  const mobileGrid = isTouch ? [2.45, 1.7] as [number, number] : [3, 2] as [number, number];
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -107,7 +128,7 @@ export const Hero = () => {
       return;
     }
     if (isTouch) {
-      setTerminalDpr(Math.min(raw, 1.35));
+      setTerminalDpr(Math.min(raw, 1.2));
     } else {
       setTerminalDpr(Math.min(raw, isLowEnd ? 1 : 1.2));
     }
@@ -161,8 +182,8 @@ export const Hero = () => {
       <div className="absolute inset-0 z-[1] will-change-transform" style={{ contain: 'strict' }}>
         {showTerminal ? (
           <FaultyTerminal
-            scale={isTouch ? 1.52 : 1.8}
-            gridMul={[3, 2]}
+            scale={mobileTerminalScale}
+            gridMul={mobileGrid}
             digitSize={1.0}
             timeScale={prefersReducedMotion ? 0.05 : isTouch ? 0.11 : 0.12}
             scanlineIntensity={0.04}
@@ -280,7 +301,7 @@ export const Hero = () => {
             variants={itemVariants}
             className="mt-6 md:mt-8"
           >
-            <RotatingRoles />
+            <RotatingRoles isTouch={isTouch} />
           </motion.div>
 
           {/* Decorative Element */}

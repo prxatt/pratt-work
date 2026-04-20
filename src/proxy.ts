@@ -47,7 +47,7 @@ function homepageMarkdown(origin: string): string {
   ].join('\n');
 }
 
-export function middleware(request: NextRequest) {
+function runProxy(request: NextRequest) {
   const { pathname, origin } = request.nextUrl;
   const accept = request.headers.get('accept') || '';
 
@@ -73,6 +73,9 @@ export function middleware(request: NextRequest) {
   }
   return response;
 }
+
+export default runProxy;
+export { runProxy as proxy };
 
 export const config = {
   matcher: '/',
