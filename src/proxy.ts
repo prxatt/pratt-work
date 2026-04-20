@@ -47,7 +47,7 @@ function homepageMarkdown(origin: string): string {
   ].join('\n');
 }
 
-export function proxy(request: NextRequest) {
+export function middleware(request: NextRequest) {
   const { pathname, origin } = request.nextUrl;
   const accept = request.headers.get('accept') || '';
 
