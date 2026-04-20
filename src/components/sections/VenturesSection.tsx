@@ -287,14 +287,6 @@ export const VenturesSection = () => {
                 <svg width="180" height="320" viewBox="0 0 180 320" fill="none" className="overflow-visible">
                   {/* Glow filter for lines */}
                   <defs>
-                    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
-                      <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
-                      <feMerge>
-                        <feMergeNode in="coloredBlur"/>
-                        <feMergeNode in="SourceGraphic"/>
-                      </feMerge>
-                    </filter>
-                    
                     <linearGradient id="gradientSOEN" x1="0%" y1="0%" x2="100%" y2="0%">
                       <stop offset="0%" stopColor="#f59e0b" />
                       <stop offset="100%" stopColor="#06b6d4" />
@@ -310,10 +302,10 @@ export const VenturesSection = () => {
                     d="M0 160 H60 V100 H140"
                     stroke="url(#gradientSOEN)"
                     strokeWidth="2"
-                    filter="url(#glow)"
+                    strokeLinecap="round"
                     initial={{ pathLength: 0, opacity: 0 }}
                     whileInView={{ pathLength: 1, opacity: 1 }}
-                    viewport={{ once: true, amount: 0.2 }}
+                    viewport={{ once: true, amount: 0, margin: '0px 0px 120px 0px' }}
                     transition={{ duration: 0.6, delay: 0.8, ease: [0.16, 1, 0.3, 1] }}
                   />
                   
@@ -322,10 +314,10 @@ export const VenturesSection = () => {
                     d="M0 160 H60 V220 H140"
                     stroke="url(#gradientCulture)"
                     strokeWidth="2"
-                    filter="url(#glow)"
+                    strokeLinecap="round"
                     initial={{ pathLength: 0, opacity: 0 }}
                     whileInView={{ pathLength: 1, opacity: 1 }}
-                    viewport={{ once: true, amount: 0.2 }}
+                    viewport={{ once: true, amount: 0, margin: '0px 0px 120px 0px' }}
                     transition={{ duration: 0.6, delay: 1.0, ease: [0.16, 1, 0.3, 1] }}
                   />
                   
@@ -338,11 +330,11 @@ export const VenturesSection = () => {
                     opacity="0.2"
                     initial={{ scale: 0 }}
                     whileInView={{ scale: 1 }}
-                    viewport={{ once: true, amount: 0.2 }}
+                    viewport={{ once: true, amount: 0, margin: '0px 0px 120px 0px' }}
                     transition={{ duration: 0.3, delay: 1.3, type: 'spring', stiffness: 200 }}
                   />
                   
-                  {/* SOEN endpoint dot - cyan with pulse */}
+                  {/* SOEN endpoint dot - cyan (no SMIL pulse — avoids compositor work during scroll) */}
                   <motion.circle
                     cx="140"
                     cy="100"
@@ -350,12 +342,9 @@ export const VenturesSection = () => {
                     fill="#06b6d4"
                     initial={{ scale: 0 }}
                     whileInView={{ scale: 1 }}
-                    viewport={{ once: true, amount: 0.2 }}
+                    viewport={{ once: true, amount: 0, margin: '0px 0px 120px 0px' }}
                     transition={{ duration: 0.3, delay: 1.3, type: 'spring', stiffness: 300 }}
-                  >
-                    <animate attributeName="r" values="4;5;4" dur="2s" repeatCount="indefinite" />
-                    <animate attributeName="opacity" values="1;0.7;1" dur="2s" repeatCount="indefinite" />
-                  </motion.circle>
+                  />
                   
                   {/* CulturePulse endpoint glow */}
                   <motion.circle
@@ -366,11 +355,11 @@ export const VenturesSection = () => {
                     opacity="0.2"
                     initial={{ scale: 0 }}
                     whileInView={{ scale: 1 }}
-                    viewport={{ once: true, amount: 0.2 }}
+                    viewport={{ once: true, amount: 0, margin: '0px 0px 120px 0px' }}
                     transition={{ duration: 0.3, delay: 1.5, type: 'spring', stiffness: 200 }}
                   />
                   
-                  {/* CulturePulse endpoint dot - violet with pulse */}
+                  {/* CulturePulse endpoint dot - violet */}
                   <motion.circle
                     cx="140"
                     cy="220"
@@ -378,12 +367,9 @@ export const VenturesSection = () => {
                     fill="#6366f1"
                     initial={{ scale: 0 }}
                     whileInView={{ scale: 1 }}
-                    viewport={{ once: true, amount: 0.2 }}
+                    viewport={{ once: true, amount: 0, margin: '0px 0px 120px 0px' }}
                     transition={{ duration: 0.3, delay: 1.5, type: 'spring', stiffness: 300 }}
-                  >
-                    <animate attributeName="r" values="4;5;4" dur="2.5s" repeatCount="indefinite" begin="0.5s" />
-                    <animate attributeName="opacity" values="1;0.7;1" dur="2.5s" repeatCount="indefinite" begin="0.5s" />
-                  </motion.circle>
+                  />
                 </svg>
               </div>
 
