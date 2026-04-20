@@ -123,9 +123,21 @@ export default function ContactPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const prefersReducedMotion = useReducedMotion();
   const isMobile = useIsMobile();
+  const [mobileScanColor, setMobileScanColor] = useState('#6366f1');
 
   // Get memoized animation variants
   const variants = useContactAnimationVariants(prefersReducedMotion, isMobile);
+
+  useEffect(() => {
+    if (!isMobile || prefersReducedMotion) return;
+    const palette = ['#6366f1', '#8b5cf6', '#06b6d4'];
+    let idx = 0;
+    const timer = window.setInterval(() => {
+      idx = (idx + 1) % palette.length;
+      setMobileScanColor(palette[idx]);
+    }, 2800);
+    return () => window.clearInterval(timer);
+  }, [isMobile, prefersReducedMotion]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -158,24 +170,26 @@ export default function ContactPage() {
             sensitivity={isMobile ? 0.3 : 0.45}
             lineThickness={isMobile ? 0.5 : 0.8}
             linesColor="#1a1a2e"
-            gridScale={isMobile ? 0.12 : 0.08}
-            scanColor="#6366f1"
-            scanOpacity={0.25}
-            scanGlow={isMobile ? 0.4 : 0.6}
+            gridScale={isMobile ? 0.1 : 0.08}
+            scanColor={isMobile ? mobileScanColor : "#6366f1"}
+            scanOpacity={isMobile ? 0.34 : 0.25}
+            scanGlow={isMobile ? 0.52 : 0.6}
             scanSoftness={2.5}
             scanDuration={isMobile ? 4 : 3}
             scanDelay={2}
-            noiseIntensity={isMobile ? 0.005 : 0.008}
+            noiseIntensity={isMobile ? 0.006 : 0.008}
             enablePost
-            bloomIntensity={isMobile ? 0.12 : 0.15}
+            bloomIntensity={isMobile ? 0.17 : 0.15}
             chromaticAberration={isMobile ? 0.00085 : 0.001}
-            className="opacity-35 md:opacity-40"
+            className="opacity-50 md:opacity-40"
           />
           {/* Gradient overlay for depth */}
           <div 
             className="absolute inset-0 pointer-events-none"
             style={{
-              background: 'radial-gradient(ellipse 80% 80% at 50% 50%, transparent 20%, rgba(13, 13, 13, 0.7) 100%)'
+              background: isMobile
+                ? 'radial-gradient(ellipse 86% 84% at 50% 50%, transparent 14%, rgba(13, 13, 13, 0.5) 100%)'
+                : 'radial-gradient(ellipse 80% 80% at 50% 50%, transparent 20%, rgba(13, 13, 13, 0.7) 100%)'
             }}
           />
         </div>
