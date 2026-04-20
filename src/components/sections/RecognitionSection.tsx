@@ -3,7 +3,7 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCursor } from '@/context/CursorContext';
-import { X, Trophy, Film, Award, BarChart3, Play } from 'lucide-react';
+import { X, Trophy, Film, Award, BarChart3, Play, Volume2, VolumeX, Maximize2 } from 'lucide-react';
 import Image from 'next/image';
 import { getImageUrl, getVideoUrl } from '@/lib/media';
 
@@ -71,8 +71,127 @@ const awards: Award[] = [
   },
 ];
 
+const CinemaModeOverlay = ({
+  isOpen,
+  onClose,
+  title,
+  poster,
+  video,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  title: string;
+  poster: string;
+  video: { mp4: string; webm: string };
+}) => {
+  const [volume, setVolume] = useState(0.8);
+  const [muted, setMuted] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isOpen]);
+
+  useEffect(() => {
+    const node = videoRef.current;
+    if (!node) return;
+    node.volume = muted ? 0 : volume;
+    node.muted = muted;
+  }, [muted, volume]);
+
+  const requestFullscreen = () => {
+    if (!containerRef.current) return;
+    if (document.fullscreenElement) return;
+    void containerRef.current.requestFullscreen?.();
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.24 }}
+      className="fixed inset-0 z-[400] bg-black/95 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <div
+        ref={containerRef}
+        className="relative w-full h-full flex items-center justify-center"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <video
+          ref={videoRef}
+          autoPlay
+          loop
+          playsInline
+          poster={poster}
+          className="absolute inset-0 w-full h-full object-contain"
+        >
+          <source src={video.mp4} type="video/mp4" />
+          <source src={video.webm} type="video/webm" />
+        </video>
+        <div className="absolute inset-0 pointer-events-none bg-gradient-to-t from-black/55 via-black/10 to-black/35" />
+
+        <div className="absolute top-4 left-4 right-4 flex items-center justify-between gap-3 z-10">
+          <span className="font-mono text-[10px] sm:text-xs tracking-[0.2em] uppercase text-[#c7c7c2]">
+            Cinema Mode — {title}
+          </span>
+          <button
+            onClick={onClose}
+            className="w-10 h-10 rounded-full border border-white/25 bg-black/35 flex items-center justify-center hover:border-white/45 transition-colors"
+            aria-label="Close cinema mode"
+          >
+            <X className="w-5 h-5 text-white/80" />
+          </button>
+        </div>
+
+        <div className="absolute bottom-4 left-4 right-4 z-10 flex items-center justify-between gap-3 rounded-xl border border-white/15 bg-black/55 backdrop-blur-sm p-3">
+          <button
+            onClick={() => setMuted((prev) => !prev)}
+            className="w-9 h-9 rounded-full border border-white/20 flex items-center justify-center hover:border-[#f59e0b]/70 transition-colors"
+            aria-label={muted ? 'Unmute video' : 'Mute video'}
+          >
+            {muted ? <VolumeX className="w-4 h-4 text-white/80" /> : <Volume2 className="w-4 h-4 text-white/80" />}
+          </button>
+          <input
+            type="range"
+            min={0}
+            max={1}
+            step={0.01}
+            value={volume}
+            onChange={(e) => {
+              const next = Number(e.target.value);
+              setVolume(next);
+              if (muted && next > 0) setMuted(false);
+            }}
+            className="flex-1 accent-[#f59e0b]"
+            aria-label="Volume"
+          />
+          <button
+            onClick={requestFullscreen}
+            className="w-9 h-9 rounded-full border border-white/20 flex items-center justify-center hover:border-[#f59e0b]/70 transition-colors"
+            aria-label="Enter browser fullscreen"
+          >
+            <Maximize2 className="w-4 h-4 text-white/80" />
+          </button>
+        </div>
+      </div>
+    </motion.div>
+  );
+};
+
 // Cinematic Modal for ALONE Film
 const AloneModal = ({ onClose }: { onClose: () => void }) => {
+  const [cinemaOpen, setCinemaOpen] = React.useState(false);
+
   React.useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
@@ -212,6 +331,13 @@ const AloneModal = ({ onClose }: { onClose: () => void }) => {
                 >
                   Written & Directed by Pratt Majmudar
                 </motion.p>
+                <button
+                  onClick={() => setCinemaOpen(true)}
+                  className="mt-4 inline-flex items-center gap-2 rounded-full border border-[#f59e0b]/45 bg-black/35 px-4 py-2 font-mono text-[10px] uppercase tracking-[0.18em] text-[#f2f2f0] hover:border-[#f59e0b] hover:bg-black/55 transition-colors"
+                >
+                  <Play className="w-3.5 h-3.5" />
+                  Enter Cinema Mode
+                </button>
               </div>
 
               {/* Distribution Badges */}
@@ -350,6 +476,21 @@ const AloneModal = ({ onClose }: { onClose: () => void }) => {
             RETURN TO RECOGNITION
           </button>
         </div>
+
+        <AnimatePresence>
+          {cinemaOpen && (
+            <CinemaModeOverlay
+              isOpen={cinemaOpen}
+              onClose={() => setCinemaOpen(false)}
+              title="ALONE"
+              poster={getImageUrl('/recognition/alone-poster.jpg', 1920)}
+              video={{
+                mp4: getVideoUrl('/recognition/alone-trailer.mp4'),
+                webm: getVideoUrl('/recognition/alone-trailer.webm'),
+              }}
+            />
+          )}
+        </AnimatePresence>
       </motion.div>
     </motion.div>
   );
@@ -357,6 +498,8 @@ const AloneModal = ({ onClose }: { onClose: () => void }) => {
 
 // Cinematic Modal for WOMEN IS LOSERS — SXSW Festival Premiere
 const WomenIsLosersModal = ({ onClose }: { onClose: () => void }) => {
+  const [cinemaOpen, setCinemaOpen] = React.useState(false);
+
   React.useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
@@ -496,6 +639,13 @@ const WomenIsLosersModal = ({ onClose }: { onClose: () => void }) => {
                 >
                   Production Supervisor & Transportation Coordinator: Pratt Majmudar
                 </motion.p>
+                <button
+                  onClick={() => setCinemaOpen(true)}
+                  className="mt-4 inline-flex items-center gap-2 rounded-full border border-[#f59e0b]/45 bg-black/35 px-4 py-2 font-mono text-[10px] uppercase tracking-[0.18em] text-[#f2f2f0] hover:border-[#f59e0b] hover:bg-black/55 transition-colors"
+                >
+                  <Play className="w-3.5 h-3.5" />
+                  Enter Cinema Mode
+                </button>
               </div>
 
               {/* Distribution Badges */}
@@ -637,6 +787,21 @@ const WomenIsLosersModal = ({ onClose }: { onClose: () => void }) => {
             RETURN TO RECOGNITION
           </button>
         </div>
+
+        <AnimatePresence>
+          {cinemaOpen && (
+            <CinemaModeOverlay
+              isOpen={cinemaOpen}
+              onClose={() => setCinemaOpen(false)}
+              title="WOMEN IS LOSERS"
+              poster={getImageUrl('/recognition/women-is-losers-poster.jpg', 1920)}
+              video={{
+                mp4: getVideoUrl('/recognition/women-is-losers-trailer.mp4'),
+                webm: getVideoUrl('/recognition/women-is-losers-trailer.webm'),
+              }}
+            />
+          )}
+        </AnimatePresence>
       </motion.div>
     </motion.div>
   );
@@ -1068,6 +1233,8 @@ const RecognitionModal = ({ award, onClose }: { award: Award; onClose: () => voi
 
 // Documentary Modal for SYNCHRONICITY — Musical Journey
 const SynchronicityDocumentaryModal = ({ onClose }: { onClose: () => void }) => {
+  const [cinemaOpen, setCinemaOpen] = React.useState(false);
+
   React.useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
@@ -1210,6 +1377,13 @@ const SynchronicityDocumentaryModal = ({ onClose }: { onClose: () => void }) => 
                 >
                   Next Up Festival Nominee — Best Short Documentary
                 </motion.p>
+                <button
+                  onClick={() => setCinemaOpen(true)}
+                  className="mt-4 inline-flex items-center gap-2 rounded-full border border-[#6366f1]/45 bg-black/35 px-4 py-2 font-mono text-[10px] uppercase tracking-[0.18em] text-[#f2f2f0] hover:border-[#6366f1] hover:bg-black/55 transition-colors"
+                >
+                  <Play className="w-3.5 h-3.5" />
+                  Enter Cinema Mode
+                </button>
               </div>
 
               {/* Festival Badge */}
@@ -1353,6 +1527,21 @@ const SynchronicityDocumentaryModal = ({ onClose }: { onClose: () => void }) => 
             RETURN TO RECOGNITION
           </button>
         </div>
+
+        <AnimatePresence>
+          {cinemaOpen && (
+            <CinemaModeOverlay
+              isOpen={cinemaOpen}
+              onClose={() => setCinemaOpen(false)}
+              title="SYNCHRONICITY"
+              poster={getImageUrl('/recognition/synchronicity-poster.jpg', 1920)}
+              video={{
+                mp4: getVideoUrl('/recognition/synchronicity-trailer.mp4'),
+                webm: getVideoUrl('/recognition/synchronicity-trailer.webm'),
+              }}
+            />
+          )}
+        </AnimatePresence>
       </motion.div>
     </motion.div>
   );
@@ -1429,7 +1618,7 @@ const RecognitionCard = ({
       onMouseLeave={handleMouseLeave}
       onMouseMove={handleMouseMove}
       onClick={onClick}
-      className="group relative bg-gradient-to-br from-[#1a1a1a] to-[#0f0f0f] rounded-xl border border-[#2a2a3a] p-6 cursor-none hover:border-[#f59e0b] hover:shadow-[0_0_40px_rgba(245,158,11,0.15)] transition-all duration-500 h-[280px] flex flex-col"
+      className="group relative bg-gradient-to-br from-[#1a1a1a] to-[#0f0f0f] rounded-xl border border-[#2a2a3a] p-6 cursor-none hover:border-[#f59e0b] hover:shadow-[0_0_40px_rgba(245,158,11,0.15)] transition-all duration-500 h-[280px] lg:h-[320px] flex flex-col"
       style={{ width: '100%' }}
     >
       <div className="flex justify-between items-start mb-6">
@@ -1556,7 +1745,7 @@ export const RecognitionSection = () => {
 
                       {/* Card positioned */}
                       <div className={`w-full flex ${position === 'left' ? 'justify-start' : 'justify-end'}`}>
-                        <div className="w-[calc(50%-40px)]">
+                        <div className="w-[calc(50%-40px)] max-w-[26rem]">
                           <RecognitionCard
                             award={award}
                             index={index}

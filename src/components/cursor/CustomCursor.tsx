@@ -11,7 +11,7 @@ export const CustomCursor = () => {
   const [mounted, setMounted] = useState(false);
   const [isTouch, setIsTouch] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
-  const [previewZoom, setPreviewZoom] = useState(1.35);
+  const [previewZoom, setPreviewZoom] = useState(1.8);
 
   // Refs to eliminate React re-renders on mousemove (Step 1 optimization)
   const isVisibleRef = useRef(false);
@@ -93,7 +93,7 @@ export const CustomCursor = () => {
   // Scroll-to-zoom lens behavior while hovering recognition cards.
   useEffect(() => {
     if (typeof window === 'undefined' || !hasPreviewImage) {
-      setPreviewZoom(1.35);
+      setPreviewZoom(1.8);
       return;
     }
 
@@ -101,8 +101,8 @@ export const CustomCursor = () => {
       if (cursorState !== 'recognition' && cursorState !== 'recognition-card') return;
       if (!event.altKey) return;
       event.preventDefault();
-      const delta = event.deltaY > 0 ? -0.12 : 0.12;
-      setPreviewZoom((prev) => Math.min(3, Math.max(1, Number((prev + delta).toFixed(2)))));
+      const delta = event.deltaY > 0 ? -0.16 : 0.16;
+      setPreviewZoom((prev) => Math.min(4.2, Math.max(1, Number((prev + delta).toFixed(2)))));
     };
 
     window.addEventListener('wheel', handleWheel, { passive: false });
@@ -153,8 +153,8 @@ export const CustomCursor = () => {
           willChange: 'transform',
         }}
         animate={{
-          width: hasPreviewImage ? 120 : isHovering ? 64 : 40,
-          height: hasPreviewImage ? 120 : isHovering ? 64 : 40,
+          width: hasPreviewImage ? 140 : isHovering ? 64 : 40,
+          height: hasPreviewImage ? 140 : isHovering ? 64 : 40,
           border: hasPreviewImage
             ? '2px solid rgba(245, 158, 11, 0.8)'
             : isHovering 
