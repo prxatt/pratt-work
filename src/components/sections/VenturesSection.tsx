@@ -35,6 +35,7 @@ const StatusBadge = ({ status }: { status: string }) => {
 const TeaserImageHover = ({ 
   isVisible, 
   imageSrc, 
+  fallbackSrc,
   alt,
   position = 'right',
   vertical = 'center',
@@ -42,11 +43,17 @@ const TeaserImageHover = ({
 }: { 
   isVisible: boolean; 
   imageSrc: string; 
+  fallbackSrc?: string;
   alt: string;
   position?: 'left' | 'right';
   vertical?: 'top' | 'center' | 'bottom';
   offset?: number;
 }) => {
+  const [src, setSrc] = useState(imageSrc);
+  useEffect(() => {
+    setSrc(imageSrc);
+  }, [imageSrc]);
+
   const getVerticalClass = () => {
     switch (vertical) {
       case 'top': return 'top-0';
@@ -67,12 +74,15 @@ const TeaserImageHover = ({
         >
           <div className="relative w-[320px] h-auto rounded-lg overflow-hidden shadow-2xl border border-white/10">
             <Image
-              src={imageSrc}
+              src={src}
               alt={alt}
               width={320}
               height={200}
               className="object-contain w-full h-auto"
               sizes="320px"
+              onError={() => {
+                if (fallbackSrc && src !== fallbackSrc) setSrc(fallbackSrc);
+              }}
             />
             {/* Gradient overlay for elegance */}
             <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent" />
@@ -100,6 +110,12 @@ const TeaserImageModal = ({
   fallbackSrc?: string;
   alt: string;
 }) => {
+  const [displaySrc, setDisplaySrc] = useState(imageSrc);
+
+  useEffect(() => {
+    if (isOpen) setDisplaySrc(imageSrc);
+  }, [isOpen, imageSrc]);
+
   React.useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
@@ -136,16 +152,14 @@ const TeaserImageModal = ({
         {/* Image with fallback support */}
         <div className="relative max-w-4xl max-h-[80vh] w-full h-full flex items-center justify-center">
           <Image
-            src={imageSrc}
+            src={displaySrc}
             alt={alt}
             fill
             className="object-contain"
             sizes="(max-width: 1200px) 90vw, 1000px"
             priority
-            onError={(e) => {
-              if (fallbackSrc) {
-                (e.target as HTMLImageElement).src = fallbackSrc;
-              }
+            onError={() => {
+              if (fallbackSrc && displaySrc !== fallbackSrc) setDisplaySrc(fallbackSrc);
             }}
           />
         </div>
@@ -396,7 +410,8 @@ export const VenturesSection = () => {
                   {/* Teaser Image on Hover - Desktop only */}
                   <TeaserImageHover 
                     isVisible={soenHovered} 
-                    imageSrc={getImageUrl('/ventures/soen-teaser.jpg', 600)} 
+                    imageSrc={getImageUrl('/ventures/soen-teaser.webp', 600)} 
+                    fallbackSrc={getImageUrl('/ventures/soen-teaser.jpg', 600)}
                     alt="SOEN - AI for Humans"
                     position="left"
                     vertical="top"
@@ -447,6 +462,7 @@ export const VenturesSection = () => {
                   <TeaserImageHover 
                     isVisible={culturePulseHovered} 
                     imageSrc={getImageUrl('/ventures/culturepulse-teaser.webp', 600)} 
+                    fallbackSrc={getImageUrl('/ventures/culturepulse-teaser.jpg', 600)}
                     alt="CulturePulse - Enterprise Intelligence Platform"
                     position="left"
                     vertical="bottom"
@@ -497,7 +513,8 @@ export const VenturesSection = () => {
           <TeaserImageModal
             isOpen={soenModalOpen}
             onClose={() => setSoenModalOpen(false)}
-            imageSrc={getImageUrl('/ventures/soen-teaser.jpg', 800)}
+            imageSrc={getImageUrl('/ventures/soen-teaser.webp', 800)}
+            fallbackSrc={getImageUrl('/ventures/soen-teaser.jpg', 800)}
             alt="SOEN - AI for Humans"
           />
         )}

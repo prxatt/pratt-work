@@ -2,20 +2,22 @@
 
 import React, { useRef, useState, useEffect } from 'react';
 import { motion, useInView } from 'framer-motion';
-import { getVideoUrl } from '@/lib/media';
+import { useVideoSourceFallback } from '@/hooks/useVideoSourceFallback';
+
+const PORTRAIT_VIDEO_STEM = '/videos/pr8-ff-portrait';
 
 // Portrait Video Frame Component
 const PortraitVideoFrame = () => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [canPlay, setCanPlay] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
-  const isInView = useInView(ref, { once: true, margin: '-50px' });
+  const { activeSrc, onError } = useVideoSourceFallback(PORTRAIT_VIDEO_STEM);
 
-  // Fast video startup
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
 
+    setCanPlay(false);
     video.load();
 
     const handleCanPlay = () => {
@@ -26,13 +28,13 @@ const PortraitVideoFrame = () => {
     };
 
     video.addEventListener('canplaythrough', handleCanPlay);
-    const fallbackTimer = setTimeout(() => setCanPlay(true), 300);
+    const fallbackTimer = setTimeout(() => setCanPlay(true), 500);
 
     return () => {
       video.removeEventListener('canplaythrough', handleCanPlay);
       clearTimeout(fallbackTimer);
     };
-  }, []);
+  }, [activeSrc]);
 
   return (
     <motion.div
@@ -52,6 +54,8 @@ const PortraitVideoFrame = () => {
         {/* Video - same frame size */}
         <video
           ref={videoRef}
+          src={activeSrc}
+          onError={onError}
           autoPlay
           muted
           loop
@@ -64,10 +68,7 @@ const PortraitVideoFrame = () => {
             willChange: 'transform',
             transform: 'translateZ(0)',
           }}
-        >
-          <source src={getVideoUrl('/videos/pr8-ff-portrait.webm')} type="video/webm" />
-          <source src={getVideoUrl('/videos/pr8-ff-portrait.mp4')} type="video/mp4" />
-        </video>
+        />
 
         {/* Loading placeholder */}
         <div
