@@ -94,7 +94,13 @@ const RotatingRoles = () => {
 // ============================================
 export const Hero = () => {
   const containerRef = useRef<HTMLDivElement>(null);
-  
+  const { isTouch, isLowEnd, prefersReducedMotion } = useDeviceCapabilities();
+  const [terminalDpr, setTerminalDpr] = useState(1);
+
+  useEffect(() => {
+    setTerminalDpr(Math.min(typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1, isLowEnd ? 1 : 1.2));
+  }, [isLowEnd]);
+
   // Entry animation sequence - background loads first, then content
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -130,22 +136,22 @@ export const Hero = () => {
       {/* Faulty Terminal WebGL Background - Optimized for performance */}
       <div className="absolute inset-0 z-[1] will-change-transform" style={{ contain: 'strict' }}>
         <FaultyTerminal
-          scale={1.8}
+          scale={isTouch ? 1.65 : 1.8}
           gridMul={[3, 2]}
           digitSize={1.0}
-          timeScale={0.12}
+          timeScale={prefersReducedMotion ? 0.05 : isTouch ? 0.13 : 0.12}
           scanlineIntensity={0.04}
           glitchAmount={0.08}
           flickerAmount={0.02}
           noiseAmp={0.5}
           curvature={0.08}
-          chromaticAberration={0}
+          chromaticAberration={isTouch && !prefersReducedMotion ? 0.002 : 0}
           tint="#F5F5F3"
           mouseReact={true}
-          mouseStrength={1.2}
+          mouseStrength={isTouch ? 1.45 : 1.2}
           pageLoadAnimation={true}
           brightness={0.95}
-          dpr={1}
+          dpr={terminalDpr}
         />
       </div>
 

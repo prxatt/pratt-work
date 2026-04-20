@@ -65,18 +65,21 @@ const LogoItem = ({
 export const LogoMarquee = () => {
   const [hoveredLogo, setHoveredLogo] = useState<string | null>(null);
   const trackRef = useRef<HTMLDivElement>(null);
+  const sectionRef = useRef<HTMLElement>(null);
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
+    const root = sectionRef.current;
+    if (!root) return;
+
+    // Observe the section (not the ultra-wide track): a long row often never reaches
+    // threshold 0.1 intersection *ratio*, so the marquee never started on mobile.
     const observer = new IntersectionObserver(
       ([entry]) => setIsVisible(entry.isIntersecting),
-      { threshold: 0.1 }
+      { threshold: 0, rootMargin: '80px 0px' }
     );
-    
-    if (trackRef.current) {
-      observer.observe(trackRef.current);
-    }
-    
+
+    observer.observe(root);
     return () => observer.disconnect();
   }, []);
 
@@ -109,6 +112,7 @@ export const LogoMarquee = () => {
             className="flex py-8 items-center"
             style={{
               animation: isVisible ? 'marquee 50s linear infinite' : 'none',
+              WebkitAnimation: isVisible ? 'marquee 50s linear infinite' : 'none',
               willChange: 'transform',
             }}
           >
