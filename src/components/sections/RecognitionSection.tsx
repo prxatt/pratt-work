@@ -125,11 +125,62 @@ const CinemaModeOverlay = ({
   const [volume, setVolume] = useState(0.4);
   const [muted, setMuted] = useState(false);
   const [isPlaying, setIsPlaying] = useState(true);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const [duration, setDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
   const isScrubbingRef = useRef(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+
+  const enterFullscreen = useCallback(async () => {
+    const container = containerRef.current as (HTMLElement & {
+      webkitRequestFullscreen?: () => Promise<void> | void;
+    }) | null;
+    const video = videoRef.current as (HTMLVideoElement & {
+      webkitEnterFullscreen?: () => void;
+      webkitSupportsFullscreen?: boolean;
+    }) | null;
+    if (!container) return;
+
+    try {
+      if (container.requestFullscreen) {
+        await container.requestFullscreen();
+        return;
+      }
+      if (container.webkitRequestFullscreen) {
+        await container.webkitRequestFullscreen();
+        return;
+      }
+    } catch {
+      // Fallback to inline cinema viewport on unsupported or blocked fullscreen.
+    }
+
+    if (video?.webkitEnterFullscreen && video.webkitSupportsFullscreen !== false) {
+      try {
+        video.webkitEnterFullscreen();
+      } catch {
+        // Keep inline viewport if iOS fullscreen is unavailable.
+      }
+    }
+  }, []);
+
+  const exitFullscreen = useCallback(async () => {
+    const doc = document as Document & {
+      webkitFullscreenElement?: Element | null;
+      webkitExitFullscreen?: () => Promise<void> | void;
+    };
+    try {
+      if (doc.fullscreenElement && doc.exitFullscreen) {
+        await doc.exitFullscreen();
+        return;
+      }
+      if (doc.webkitFullscreenElement && doc.webkitExitFullscreen) {
+        await doc.webkitExitFullscreen();
+      }
+    } catch {
+      // No-op: overlay close still works even if fullscreen exit is blocked.
+    }
+  }, []);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -186,19 +237,30 @@ const CinemaModeOverlay = ({
 
   useEffect(() => {
     if (!isOpen || !containerRef.current) return;
-    const node = containerRef.current;
-    void node.requestFullscreen?.();
+    void enterFullscreen();
     const video = videoRef.current;
     if (!video) return;
     video.muted = false;
     video.volume = 0.4;
     void video.play().catch(() => {});
     return () => {
-      if (document.fullscreenElement) {
-        void document.exitFullscreen?.();
-      }
+      void exitFullscreen();
     };
-  }, [isOpen]);
+  }, [enterFullscreen, exitFullscreen, isOpen]);
+
+  useEffect(() => {
+    const doc = document as Document & { webkitFullscreenElement?: Element | null };
+    const handleFullscreenChange = () => {
+      setIsFullscreen(Boolean(doc.fullscreenElement ?? doc.webkitFullscreenElement));
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange as EventListener);
+    handleFullscreenChange();
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange as EventListener);
+    };
+  }, []);
 
   const togglePlayback = () => {
     const node = videoRef.current;
@@ -234,7 +296,7 @@ const CinemaModeOverlay = ({
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.24 }}
-      className="fixed inset-0 z-[400] bg-black/95"
+      className="fixed inset-0 z-[400] bg-black/95 [backface-visibility:hidden]"
       onClick={onClose}
     >
       <div className="absolute inset-0 pointer-events-auto" onClick={onClose} />
@@ -243,7 +305,7 @@ const CinemaModeOverlay = ({
         className="relative w-full h-full flex items-center justify-center p-4 sm:p-6"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="relative w-full max-w-[min(94vw,1200px)] h-[min(72vh,760px)]">
+        <div className="relative w-full h-full">
         <video
           ref={videoRef}
           autoPlay
@@ -252,7 +314,7 @@ const CinemaModeOverlay = ({
           preload="metadata"
           playsInline
           poster={poster}
-          className="absolute inset-0 w-full h-full object-contain pointer-events-auto"
+          className="absolute inset-0 w-full h-full object-contain pointer-events-auto transform-gpu will-change-transform"
           onPlay={() => setIsPlaying(true)}
           onPause={() => setIsPlaying(false)}
           onClick={togglePlayback}
@@ -266,13 +328,44 @@ const CinemaModeOverlay = ({
           <span className="font-mono text-[10px] sm:text-xs tracking-[0.2em] uppercase text-[#c7c7c2]">
             Cinema Mode — {title}
           </span>
-          <button
-            onClick={onClose}
-            className="w-10 h-10 rounded-full border border-white/25 bg-black/35 flex items-center justify-center hover:border-white/45 transition-colors"
-            aria-label="Close cinema mode"
-          >
-            <X className="w-5 h-5 text-white/80" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                if (isFullscreen) {
+                  void exitFullscreen();
+                } else {
+                  void enterFullscreen();
+                }
+              }}
+              className="w-10 h-10 rounded-full border border-white/25 bg-black/35 flex items-center justify-center hover:border-white/45 transition-colors"
+              aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+            >
+              <svg className="w-4 h-4 text-white/80" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                {isFullscreen ? (
+                  <>
+                    <path d="M9 15H5v4" />
+                    <path d="M15 9h4V5" />
+                    <path d="M19 15v4h-4" />
+                    <path d="M5 9V5h4" />
+                  </>
+                ) : (
+                  <>
+                    <path d="M15 3h6v6" />
+                    <path d="M9 21H3v-6" />
+                    <path d="M21 3l-7 7" />
+                    <path d="M3 21l7-7" />
+                  </>
+                )}
+              </svg>
+            </button>
+            <button
+              onClick={onClose}
+              className="w-10 h-10 rounded-full border border-white/25 bg-black/35 flex items-center justify-center hover:border-white/45 transition-colors"
+              aria-label="Close cinema mode"
+            >
+              <X className="w-5 h-5 text-white/80" />
+            </button>
+          </div>
         </div>
 
         <div className="absolute bottom-3 left-3 right-3 sm:bottom-4 sm:left-4 sm:right-4 z-10 rounded-xl border border-white/15 bg-black/55 p-3 pointer-events-auto">
@@ -1870,8 +1963,8 @@ const TimelineConnector = ({ position, index }: { position: 'left' | 'right'; in
     : 'bg-gradient-to-r from-[#f59e0b] to-[#2a2a3a]';
   
   const positionClass = position === 'left'
-    ? 'right-1/2 mr-10'
-    : 'left-1/2 ml-10';
+    ? 'right-1/2'
+    : 'left-1/2';
 
   return (
     <motion.div
@@ -1880,7 +1973,7 @@ const TimelineConnector = ({ position, index }: { position: 'left' | 'right'; in
       viewport={{ once: true }}
       transition={{ duration: 0.6, delay: index * 0.15 + 0.3, ease: [0.16, 1, 0.3, 1] }}
       className={`absolute top-1/2 -translate-y-1/2 h-[2px] ${gradientClass} ${positionClass}`}
-      style={{ transformOrigin: position === 'left' ? 'right' : 'left', width: 'calc(50% - 84px)' }}
+      style={{ transformOrigin: position === 'left' ? 'right' : 'left', width: '56px' }}
     />
   );
 };
@@ -1941,12 +2034,12 @@ export const RecognitionSection = () => {
             </div>
 
             {/* Cards */}
-            <div className="relative z-[2] space-y-8 lg:space-y-0">
+            <div className="relative z-[2] space-y-8 md:space-y-0">
               {awards.map((award, index) => {
                 const position = index % 2 === 0 ? 'left' : 'right';
                 
                 return (
-                  <div key={award.id} className="relative lg:py-6">
+                  <div key={award.id} className="relative md:py-6">
                     {/* Desktop layout */}
                     <div className="hidden md:flex items-center relative">
                       {/* Timeline dot */}
