@@ -20,11 +20,16 @@ const nextConfig: NextConfig = {
       { pathname: '/images/**' },
       { pathname: '/playground/**' },
     ],
-    // Cloudinary (absolute URLs from getImageUrl when cloud name is set).
+    // Absolute CDN assets (Cloudinary + Vercel Blob).
     remotePatterns: [
       {
         protocol: 'https',
         hostname: 'res.cloudinary.com',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: '**.public.blob.vercel-storage.com',
         pathname: '/**',
       },
     ],
