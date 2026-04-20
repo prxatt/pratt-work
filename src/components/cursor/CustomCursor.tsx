@@ -11,6 +11,7 @@ export const CustomCursor = () => {
   const [mounted, setMounted] = useState(false);
   const [isTouch, setIsTouch] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
+  const [previewZoom, setPreviewZoom] = useState(1.35);
 
   // Refs to eliminate React re-renders on mousemove (Step 1 optimization)
   const isVisibleRef = useRef(false);
@@ -86,6 +87,27 @@ export const CustomCursor = () => {
       }
     };
   }, [dotX, dotY, isTouch]);
+
+  const hasPreviewImage = Boolean(previewData?.src);
+
+  // Scroll-to-zoom lens behavior while hovering recognition cards.
+  useEffect(() => {
+    if (typeof window === 'undefined' || !hasPreviewImage) {
+      setPreviewZoom(1.35);
+      return;
+    }
+
+    const handleWheel = (event: WheelEvent) => {
+      if (cursorState !== 'recognition' && cursorState !== 'recognition-card') return;
+      if (!event.altKey) return;
+      event.preventDefault();
+      const delta = event.deltaY > 0 ? -0.12 : 0.12;
+      setPreviewZoom((prev) => Math.min(3, Math.max(1, Number((prev + delta).toFixed(2)))));
+    };
+
+    window.addEventListener('wheel', handleWheel, { passive: false });
+    return () => window.removeEventListener('wheel', handleWheel);
+  }, [cursorState, hasPreviewImage]);
   
   // ─────────────────────────────────────────────────────
   // CONDITIONAL RETURNS — only after ALL hooks above
@@ -96,7 +118,6 @@ export const CustomCursor = () => {
 
   const isHovering = cursorState === 'hover' || cursorState === 'magnetic';
   const isRecognitionCard = cursorState === 'recognition-card';
-  const hasPreviewImage = previewData?.src;
 
   return (
     <>
@@ -156,6 +177,10 @@ export const CustomCursor = () => {
             loading="lazy"
             decoding="async"
             className="w-full h-full object-cover rounded-full"
+            style={{
+              transform: `scale(${previewZoom})`,
+              transformOrigin: `${previewData.focusX ?? 50}% ${previewData.focusY ?? 50}%`,
+            }}
           />
         )}
       </motion.div>

@@ -11,15 +11,17 @@ interface CursorContextType {
     src?: string;
     stats?: string[];
     text?: string;
+    focusX?: number;
+    focusY?: number;
   };
-  setPreviewData: (data: { src?: string; stats?: string[]; text?: string }) => void;
+  setPreviewData: (data: { src?: string; stats?: string[]; text?: string; focusX?: number; focusY?: number }) => void;
 }
 
 const CursorContext = createContext<CursorContextType | undefined>(undefined);
 
 export const CursorProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [cursorState, setCursorState] = useState<CursorState>('default');
-  const [previewData, setPreviewData] = useState<{ src?: string; stats?: string[]; text?: string }>({});
+  const [previewData, setPreviewData] = useState<{ src?: string; stats?: string[]; text?: string; focusX?: number; focusY?: number }>({});
 
   // Reset state on mouse leave window - only runs client-side
   useEffect(() => {

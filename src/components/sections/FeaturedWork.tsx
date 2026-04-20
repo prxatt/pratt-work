@@ -255,7 +255,7 @@ const LetterReveal = ({
   return (
     <motion.h3 
       ref={ref} 
-      className={`${className} whitespace-nowrap`}
+      className={className}
       initial={lite ? { opacity: 0, y: 10 } : { opacity: 0, y: 20, filter: 'blur(8px)' }}
       animate={isInView ? (lite ? { opacity: 1, y: 0 } : { opacity: 1, y: 0, filter: 'blur(0px)' }) : {}}
       transition={{ duration: lite ? 0.45 : 0.8, delay, ease: [0.16, 1, 0.3, 1] }}
@@ -286,7 +286,7 @@ const CardContent = ({
         <div className="overflow-hidden">
           <LetterReveal
             text={project.title}
-            className={`font-display text-primary leading-[1.15] ${featured ? 'text-lg sm:text-xl md:text-2xl lg:text-3xl' : 'text-xl sm:text-2xl md:text-3xl'}`}
+            className={`font-display text-primary leading-[1.15] whitespace-normal break-words max-w-full ${featured ? 'text-lg sm:text-xl md:text-2xl lg:text-3xl' : 'text-xl sm:text-2xl md:text-3xl'}`}
             delay={0.3 + index * 0.15}
             lite={titleLite}
           />

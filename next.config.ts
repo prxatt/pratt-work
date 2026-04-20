@@ -1,5 +1,10 @@
 import type { NextConfig } from "next";
 
+const isDev = process.env.NODE_ENV !== 'production';
+const scriptSrc = isDev
+  ? "script-src 'self' 'unsafe-inline' 'unsafe-eval'"
+  : "script-src 'self' 'unsafe-inline'";
+
 const csp = [
   "default-src 'self'",
   "base-uri 'self'",
@@ -7,7 +12,7 @@ const csp = [
   "form-action 'self'",
   "object-src 'none'",
   "frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com",
-  "script-src 'self' 'unsafe-inline'",
+  scriptSrc,
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https://*.public.blob.vercel-storage.com",
   "font-src 'self' data:",
@@ -60,6 +65,17 @@ const nextConfig: NextConfig = {
   experimental: {
     optimizePackageImports: ['framer-motion', 'lucide-react', '@react-three/fiber', '@react-three/drei'],
     webVitalsAttribution: ['CLS', 'LCP', 'FCP', 'FID', 'TTFB', 'INP'],
+  },
+  async redirects() {
+    return [
+      // Keep a single canonical host to reduce phishing confusion and duplicate indexing.
+      {
+        source: '/:path*',
+        has: [{ type: 'host', value: 'www.pratt.work' }],
+        destination: 'https://pratt.work/:path*',
+        permanent: true,
+      },
+    ];
   },
   async headers() {
     return [
@@ -134,17 +150,6 @@ const nextConfig: NextConfig = {
         headers: [
           { key: 'X-Robots-Tag', value: 'noindex, nofollow, noarchive, nosnippet' },
         ],
-      },
-    ];
-  },
-  async redirects() {
-    return [
-      // Keep a single canonical host to reduce phishing confusion and duplicate indexing.
-      {
-        source: '/:path*',
-        has: [{ type: 'host', value: 'www.pratt.work' }],
-        destination: 'https://pratt.work/:path*',
-        permanent: true,
       },
     ];
   },

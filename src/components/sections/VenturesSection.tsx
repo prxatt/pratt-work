@@ -69,9 +69,9 @@ const TeaserImageHover = ({
           animate={{ opacity: 1, scale: 1, x: 0, y: offset }}
           exit={{ opacity: 0, scale: 0.9, x: position === 'right' ? -20 : 20, y: offset }}
           transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-          className={`absolute ${position === 'right' ? 'left-full ml-8' : 'right-full mr-8'} ${getVerticalClass()} z-50 pointer-events-none`}
+          className={`absolute ${position === 'right' ? 'left-full ml-8' : 'right-0 lg:right-full lg:mr-8'} ${getVerticalClass()} z-50 pointer-events-none`}
         >
-          <div className="relative w-[320px] h-auto rounded-lg overflow-hidden shadow-2xl border border-white/10">
+          <div className="relative w-[min(85vw,320px)] h-auto rounded-lg overflow-hidden shadow-2xl border border-white/10">
             <Image
               src={src}
               alt={alt}
@@ -129,7 +129,7 @@ const TeaserImageModal = ({
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.3 }}
-      className="fixed inset-0 z-[100] bg-[#0a0a0a] overflow-hidden"
+      className="fixed inset-0 z-[300] bg-[#0a0a0a] overflow-hidden"
       onClick={onClose}
     >
       <motion.div
@@ -137,19 +137,20 @@ const TeaserImageModal = ({
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.95, opacity: 0 }}
         transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-        className="relative w-full h-full flex items-center justify-center p-8"
+        className="relative w-full h-full flex items-center justify-center p-4 sm:p-8"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Close button */}
         <button
           onClick={onClose}
-          className="fixed top-6 right-6 z-20 w-12 h-12 border border-[#2a2a3a] flex items-center justify-center hover:border-white/30 hover:bg-white/5 transition-all duration-300 group"
+          className="fixed right-4 sm:right-6 z-[320] w-12 h-12 border border-[#2a2a3a] flex items-center justify-center hover:border-white/30 hover:bg-white/5 transition-all duration-300 group"
+          style={{ top: 'max(1rem, env(safe-area-inset-top))' }}
         >
           <X className="w-5 h-5 text-[#6b7280] group-hover:text-white transition-colors" />
         </button>
 
         {/* Image with fallback support */}
-        <div className="relative max-w-4xl max-h-[80vh] w-full h-full flex items-center justify-center">
+        <div className="relative max-h-[80vh] w-full h-full max-w-[min(94vw,56rem)] sm:max-w-[min(90vw,56rem)] flex items-center justify-center">
           <Image
             src={displaySrc}
             alt={alt}
@@ -449,7 +450,7 @@ export const VenturesSection = () => {
                     alt="CulturePulse - Enterprise Intelligence Platform"
                     position="left"
                     vertical="bottom"
-                    offset={150}
+                    offset={0}
                   />
                   {/* Glow effect on hover */}
                   <div className="absolute inset-0 bg-gradient-to-r from-[#6366f1]/0 via-[#6366f1]/5 to-[#6366f1]/0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 blur-xl" />
