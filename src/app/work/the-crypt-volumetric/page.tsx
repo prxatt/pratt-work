@@ -1015,11 +1015,11 @@ export default function TheCryptPage() {
                 />
                 
                 {/* Subtle overlay to ensure UI readability */}
-                <div className="absolute inset-0 bg-[#030303]/30 z-[1]" />
+                <div className="absolute inset-0 bg-[#030303]/30 z-[1] pointer-events-none" />
                 
                 {/* Grid overlay */}
                 <div 
-                  className="absolute inset-0 opacity-[0.03]"
+                  className="absolute inset-0 opacity-[0.03] pointer-events-none"
                   style={{
                     backgroundImage: `linear-gradient(to right, #fff 1px, transparent 1px), linear-gradient(to bottom, #fff 1px, transparent 1px)`,
                     backgroundSize: '80px 80px',
@@ -1028,7 +1028,7 @@ export default function TheCryptPage() {
                 
                 {/* Animated scanlines */}
                 <motion.div 
-                  className="absolute inset-0 z-[2]"
+                  className="absolute inset-0 z-[2] pointer-events-none"
                   style={{
                     background: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,0.02) 2px, rgba(255,255,255,0.02) 4px)',
                   }}
@@ -1067,7 +1067,7 @@ export default function TheCryptPage() {
                 />
 
                 {/* HUD Elements - moved to corners away from button */}
-                <div className="absolute top-2 left-2 md:top-4 md:left-4 font-mono text-[9px] md:text-[10px] tracking-wider text-white/30 uppercase">
+                <div className="absolute top-2 left-2 md:top-4 md:left-4 font-mono text-[9px] md:text-[10px] tracking-wider text-white/30 uppercase pointer-events-none">
                   <div className="flex items-center gap-2">
                     <motion.div 
                       className="w-2 h-2 rounded-full bg-white"
@@ -1079,13 +1079,13 @@ export default function TheCryptPage() {
                   <div className="mt-1 text-white/20">DEPTH: 4.2M</div>
                 </div>
                 
-                <div className="absolute top-2 right-2 md:top-4 md:right-4 font-mono text-[9px] md:text-[10px] tracking-wider text-white/30 uppercase text-right">
+                <div className="absolute top-2 right-2 md:top-4 md:right-4 font-mono text-[9px] md:text-[10px] tracking-wider text-white/30 uppercase text-right pointer-events-none">
                   <div>60 FPS</div>
                   <div className="text-white/20">&lt;100ms LATENCY</div>
                 </div>
 
                 {/* Bottom timeline */}
-                <div className="absolute bottom-6 left-6 right-6">
+                <div className="absolute bottom-6 left-6 right-6 pointer-events-none">
                   <div className="flex items-center justify-between mb-3">
                     <span className="font-mono text-[10px] text-white/30 tracking-wider uppercase">
                       Timeline

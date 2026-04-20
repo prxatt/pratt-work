@@ -96,6 +96,8 @@ export const Hero = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const { isTouch, isLowEnd, prefersReducedMotion } = useDeviceCapabilities();
   const [terminalDpr, setTerminalDpr] = useState(1);
+  const [showTerminal, setShowTerminal] = useState(false);
+  const [contentReady, setContentReady] = useState(false);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -111,28 +113,40 @@ export const Hero = () => {
     }
   }, [isLowEnd, isTouch, prefersReducedMotion]);
 
+  useEffect(() => {
+    const bgDelay = prefersReducedMotion ? 1150 : isTouch ? 900 : 700;
+    const terminalTimer = window.setTimeout(() => setShowTerminal(true), bgDelay);
+    return () => window.clearTimeout(terminalTimer);
+  }, [isTouch, prefersReducedMotion]);
+
+  useEffect(() => {
+    if (!showTerminal) return;
+    // Start text shortly after background animation is alive.
+    const contentTimer = window.setTimeout(() => setContentReady(true), 160);
+    return () => window.clearTimeout(contentTimer);
+  }, [showTerminal]);
+
   // Entry animation sequence - background loads first, then content
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
       opacity: 1,
       transition: {
-        duration: 0.8,
+        duration: 0.5,
         ease: [0.16, 1, 0.3, 1] as const,
-        staggerChildren: 0.2,
-        delayChildren: 1.5, // Background animates for 1.5s before content appears
+        staggerChildren: 0.1,
+        delayChildren: 0.06,
       },
     },
   };
   
   const itemVariants = {
-    hidden: { opacity: 0, y: 40, filter: 'blur(15px)' },
+    // Keep headings stable on first paint; vertical tween caused subtle "jump" on load.
+    hidden: { opacity: 0 },
     visible: {
       opacity: 1,
-      y: 0,
-      filter: 'blur(0px)',
       transition: {
-        duration: 1.0,
+        duration: 0.6,
         ease: [0.16, 1, 0.3, 1] as const,
       },
     },
@@ -145,24 +159,28 @@ export const Hero = () => {
 
       {/* Faulty Terminal WebGL Background - Optimized for performance */}
       <div className="absolute inset-0 z-[1] will-change-transform" style={{ contain: 'strict' }}>
-        <FaultyTerminal
-          scale={isTouch ? 1.52 : 1.8}
-          gridMul={[3, 2]}
-          digitSize={1.0}
-          timeScale={prefersReducedMotion ? 0.05 : isTouch ? 0.11 : 0.12}
-          scanlineIntensity={0.04}
-          glitchAmount={0.08}
-          flickerAmount={0.02}
-          noiseAmp={0.5}
-          curvature={0.08}
-          chromaticAberration={isTouch && !prefersReducedMotion ? 0.0022 : 0}
-          tint="#F5F5F3"
-          mouseReact={!isTouch}
-          mouseStrength={1.2}
-          pageLoadAnimation={true}
-          brightness={isTouch ? 0.98 : 0.95}
-          dpr={terminalDpr}
-        />
+        {showTerminal ? (
+          <FaultyTerminal
+            scale={isTouch ? 1.52 : 1.8}
+            gridMul={[3, 2]}
+            digitSize={1.0}
+            timeScale={prefersReducedMotion ? 0.05 : isTouch ? 0.11 : 0.12}
+            scanlineIntensity={0.04}
+            glitchAmount={0.08}
+            flickerAmount={0.02}
+            noiseAmp={0.5}
+            curvature={0.08}
+            chromaticAberration={isTouch && !prefersReducedMotion ? 0.0022 : 0}
+            tint="#F5F5F3"
+            mouseReact={!isTouch}
+            mouseStrength={1.2}
+            pageLoadAnimation={true}
+            brightness={isTouch ? 0.98 : 0.95}
+            dpr={terminalDpr}
+          />
+        ) : (
+          <div className="absolute inset-0 bg-[#0a0a0a]" />
+        )}
       </div>
 
       {/* Organic Vignette — mobile: centered lift for name legibility; desktop: asymmetric */}
@@ -206,7 +224,7 @@ export const Hero = () => {
         data-cursor="hover"
         variants={containerVariants}
         initial="hidden"
-        animate="visible"
+        animate={contentReady ? "visible" : "hidden"}
       >
 
         {/* Hero Name - Centered */}
@@ -279,13 +297,13 @@ export const Hero = () => {
       <motion.div 
         className="w-full px-6 md:px-12 lg:px-20 py-6 md:py-8 flex flex-row flex-nowrap justify-between items-center gap-3 z-10 relative"
         initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 1.0, delay: 2.5, ease: [0.16, 1, 0.3, 1] }}
+        animate={contentReady ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
+        transition={{ duration: 0.6, delay: 0.5, ease: [0.16, 1, 0.3, 1] }}
       >
         <motion.span 
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ duration: 0.8, delay: 2.7 }}
+          transition={{ duration: 0.45, delay: 0.7 }}
           className="font-mono text-[10px] sm:text-[11px] tracking-[0.18em] sm:tracking-[0.2em] uppercase whitespace-nowrap text-[#B5B5B0] shrink-0 min-w-0"
           style={{
             textShadow: '0 1px 3px rgba(0,0,0,0.9), 0 0 20px rgba(10,10,10,0.5)',
@@ -297,7 +315,7 @@ export const Hero = () => {
         <motion.div 
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ duration: 0.8, delay: 2.9 }}
+          transition={{ duration: 0.45, delay: 0.78 }}
           className="shrink-0"
         >
           <Link 

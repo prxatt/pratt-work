@@ -12,6 +12,8 @@ import { MotionConfig } from "framer-motion";
 import ScrollToTop from '@/components/ScrollToTop';
 import { ScrollProgress } from '@/components/ui/ScrollProgress';
 import { SpeedInsights } from "@vercel/speed-insights/next";
+import { LcpObserver } from "@/components/dev/LcpObserver";
+import { WebMcpProvider } from "@/components/agent/WebMcpProvider";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -103,6 +105,7 @@ export default function RootLayout({
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData).replace(/</g, '\\u003c') }}
         />
+        <WebMcpProvider />
         <ScrollToTop />
         <CursorProvider>
           <MotionConfig reducedMotion="user">
@@ -119,6 +122,7 @@ export default function RootLayout({
             </ClientLayout>
           </MotionConfig>
         </CursorProvider>
+        {process.env.NODE_ENV === 'development' && <LcpObserver />}
         <SpeedInsights />
       </body>
     </html>

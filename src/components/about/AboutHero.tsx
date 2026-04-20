@@ -58,12 +58,21 @@ export const AboutHero = () => {
         style={{ y: bgY, scale: bgScale, willChange: 'transform' }}
       >
         <div className="absolute inset-0 bg-[#0D0D0D]" />
+        {/* Homepage-inspired scanline texture for brand cohesion */}
+        <div
+          className="absolute inset-0 opacity-[0.03] pointer-events-none"
+          style={{
+            backgroundImage:
+              'repeating-linear-gradient(0deg, transparent, transparent 4px, rgba(255,255,255,0.015) 4px, rgba(255,255,255,0.015) 8px)',
+            backgroundSize: '100% 8px',
+          }}
+        />
         
         {/* Noise texture overlay - static for performance */}
         <div 
-          className="absolute inset-0 opacity-[0.03] gpu-accelerated"
+          className="absolute inset-0 opacity-[0.02] gpu-accelerated"
           style={{
-            backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
+            backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`,
             willChange: 'auto',
           }}
         />
@@ -72,14 +81,14 @@ export const AboutHero = () => {
         <div 
           className="absolute inset-0 gpu-accelerated"
           style={{
-            background: 'radial-gradient(ellipse 80% 80% at 50% 50%, transparent 30%, rgba(13, 13, 13, 0.6) 100%)',
+            background: 'radial-gradient(ellipse 82% 72% at 42% 36%, transparent 40%, rgba(13, 13, 13, 0.45) 70%, rgba(13, 13, 13, 0.75) 100%)',
             willChange: 'opacity',
           }}
         />
       </motion.div>
 
       {/* Layer 5: LineWaves - Full viewport coverage, subtle fade only at very bottom */}
-      <div className="absolute inset-0 z-[1] opacity-60">
+      <div className="absolute inset-0 z-[1] opacity-66">
         <LineWaves 
           speed={0.15}
           innerLineCount={24}
@@ -88,10 +97,10 @@ export const AboutHero = () => {
           rotation={-30}
           edgeFadeWidth={0.2}
           colorCycleSpeed={0.3}
-          brightness={0.15}
-          color1="#F2F2F0"
-          color2="#8A8A85"
-          color3="#6366f1"
+          brightness={0.18}
+          color1="#F5F5F3"
+          color2="#B8B8B3"
+          color3="#7C84F7"
           enableMouseInteraction={true}
           mouseInfluence={1.5}
           reducedMotion={prefersReducedMotion || false}
