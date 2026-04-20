@@ -1,66 +1,103 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
-import { motion, useScroll, useTransform } from 'framer-motion';
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { motion, useReducedMotion, useScroll, useTransform } from 'framer-motion';
 import FaultyTerminal from '@/components/ui/FaultyTerminal';
-import { ResumeModal } from './ResumeModal';
-import { useReducedMotion } from 'framer-motion';
-import { useDeviceCapabilities } from '@/hooks/useReducedMotion';
+
+const HERO_VEIL_MS = 1100;
+const HERO_VEIL_EASE = 'cubic-bezier(0.22, 1, 0.36, 1)';
+
+function readClientTouch(): boolean {
+  if (typeof window === 'undefined') return false;
+  return (
+    'ontouchstart' in window ||
+    navigator.maxTouchPoints > 0 ||
+    window.matchMedia('(pointer: coarse)').matches
+  );
+}
+
+function readClientLowEnd(): boolean {
+  if (typeof navigator === 'undefined') return false;
+  const cores = navigator.hardwareConcurrency || 4;
+  const mem = (navigator as Navigator & { deviceMemory?: number }).deviceMemory ?? 8;
+  return cores <= 2 || mem <= 4;
+}
 
 export const AboutHero = () => {
   const containerRef = useRef<HTMLElement>(null);
-  const [isResumeOpen, setIsResumeOpen] = useState(false);
+  const [hasMounted, setHasMounted] = useState(false);
+  const [veilLifted, setVeilLifted] = useState(false);
   const prefersReducedMotion = useReducedMotion();
-  const { isTouch, isLowEnd } = useDeviceCapabilities();
-  const [shaderDpr, setShaderDpr] = useState(1);
+
+  const clientTouch = hasMounted && readClientTouch();
+  const clientLowEnd = hasMounted && readClientLowEnd();
+
   const { scrollYProgress } = useScroll({
     target: containerRef,
-    offset: ["start start", "end start"]
+    offset: ['start start', 'end start'],
   });
 
   // Direct scroll transforms - NO useSpring (eliminates continuous animation overhead)
   const opacity = useTransform(scrollYProgress, [0, 0.5], [1, 0]);
   const scale = useTransform(scrollYProgress, [0, 0.5], [1, 0.95]);
-  
+
   // Parallax horizontal scroll - direct transforms for max performance
   const moreX = useTransform(scrollYProgress, [0, 1], [0, -200]);
   const meX = useTransform(scrollYProgress, [0, 1], [0, 80]);
   const meScale = useTransform(scrollYProgress, [0, 1], [1, 1.05]);
 
-  const liteMotion = prefersReducedMotion || isLowEnd;
+  const liteMotion = prefersReducedMotion || clientLowEnd;
 
   const wordReveal = {
     hidden: liteMotion
-      ? { y: 24, opacity: 0 }
-      : { y: 48, opacity: 0, filter: 'blur(8px)' },
+      ? { y: 20, opacity: 0 }
+      : { y: 40, opacity: 0, filter: 'blur(6px)' },
     visible: (delay: number) => ({
       y: 0,
       opacity: 1,
       ...(liteMotion ? {} : { filter: 'blur(0px)' }),
       transition: {
         delay,
-        duration: liteMotion ? 0.55 : 0.85,
+        duration: liteMotion ? 0.6 : 1.05,
         ease: [0.16, 1, 0.3, 1] as const,
       },
     }),
   };
 
-  const title = "MORE";
-  const subtitle = "ABOUT";
-  const third = "ME";
-  useEffect(() => {
+  const shaderDpr = useMemo(() => {
+    if (!hasMounted || typeof window === 'undefined') return 1;
     const raw = window.devicePixelRatio || 1;
-    if (prefersReducedMotion) {
-      setShaderDpr(1);
-    } else if (isTouch) {
-      setShaderDpr(Math.min(raw, 1));
-    } else {
-      setShaderDpr(Math.min(raw, isLowEnd ? 1 : 1.1));
-    }
-  }, [isLowEnd, isTouch, prefersReducedMotion]);
+    if (prefersReducedMotion) return 1;
+    if (clientTouch) return Math.min(raw, 1);
+    return Math.min(raw, clientLowEnd ? 1 : 1.1);
+  }, [hasMounted, prefersReducedMotion, clientTouch, clientLowEnd]);
+
+  useLayoutEffect(() => {
+    setHasMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!hasMounted) return;
+    const id = requestAnimationFrame(() => {
+      requestAnimationFrame(() => setVeilLifted(true));
+    });
+    return () => cancelAnimationFrame(id);
+  }, [hasMounted]);
+
+  const title = 'MORE';
+  const subtitle = 'ABOUT';
+  const third = 'ME';
+
+  const staticFieldBg: React.CSSProperties = {
+    background:
+      'radial-gradient(ellipse 85% 70% at 50% 40%, rgba(245,245,243,0.07) 0%, rgba(10,10,10,1) 55%, #0a0a0a 100%)',
+  };
 
   return (
-    <section ref={containerRef} className="min-h-[100dvh] bg-[#0D0D0D] relative overflow-hidden contain-layout gpu-accelerated">
+    <section
+      ref={containerRef}
+      className="min-h-[100dvh] bg-[#0D0D0D] relative overflow-hidden contain-layout gpu-accelerated"
+    >
       {/* Layer 0: Base dark background — static (parallax removed: was repainting above WebGL) */}
       <div className="absolute inset-0 z-0">
         <div className="absolute inset-0 bg-[#0D0D0D]" />
@@ -73,51 +110,70 @@ export const AboutHero = () => {
             backgroundSize: '100% 8px',
           }}
         />
-        
+
         {/* Noise texture overlay - static for performance */}
-        <div 
+        <div
           className="absolute inset-0 opacity-[0.02] gpu-accelerated"
           style={{
             backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`,
             willChange: 'auto',
           }}
         />
-        
+
         {/* Vignette overlay - GPU layer */}
-        <div 
+        <div
           className="absolute inset-0 gpu-accelerated"
           style={{
-            background: 'radial-gradient(ellipse 82% 72% at 42% 36%, transparent 40%, rgba(13, 13, 13, 0.45) 70%, rgba(13, 13, 13, 0.75) 100%)',
+            background:
+              'radial-gradient(ellipse 82% 72% at 42% 36%, transparent 40%, rgba(13, 13, 13, 0.45) 70%, rgba(13, 13, 13, 0.75) 100%)',
             willChange: 'opacity',
           }}
         />
       </div>
 
-      {/* Layer 8: Homepage shader field — always on while hero is in view (no scroll handoff / fade to black) */}
+      {/* Layer 8: field — placeholder matches WebGL fallback so first paint never “pops” */}
       <div className="absolute inset-0 z-[8] min-h-[100dvh] pointer-events-none overflow-hidden">
-        <FaultyTerminal
-          scale={isTouch ? 1.26 : 1.42}
-          gridMul={isTouch ? [2.28, 1.58] : [2.62, 1.74]}
-          digitSize={1.0}
-          timeScale={prefersReducedMotion ? 0.028 : isTouch ? 0.095 : 0.108}
-          scanlineIntensity={0.028}
-          glitchAmount={prefersReducedMotion ? 0.055 : 0.072}
-          flickerAmount={prefersReducedMotion ? 0.02 : 0.028}
-          noiseAmp={isLowEnd ? 0.46 : 0.56}
-          curvature={0.065}
-          chromaticAberration={0}
-          dither={isLowEnd ? 0.08 : 0.18}
-          tint="#F5F5F3"
-          mouseReact={false}
-          mouseStrength={0}
-          pageLoadAnimation={false}
-          brightness={0.72}
-          dpr={shaderDpr}
-          pause={false}
-        />
+        {!hasMounted ? (
+          <div className="absolute inset-0" style={staticFieldBg} />
+        ) : (
+          <FaultyTerminal
+            scale={clientTouch ? 1.26 : 1.42}
+            gridMul={clientTouch ? [2.28, 1.58] : [2.62, 1.74]}
+            digitSize={1.0}
+            timeScale={prefersReducedMotion ? 0.028 : clientTouch ? 0.095 : 0.108}
+            scanlineIntensity={0.028}
+            glitchAmount={prefersReducedMotion ? 0.055 : 0.072}
+            flickerAmount={prefersReducedMotion ? 0.02 : 0.028}
+            noiseAmp={clientLowEnd ? 0.46 : 0.56}
+            curvature={0.065}
+            chromaticAberration={0}
+            dither={clientLowEnd ? 0.08 : 0.18}
+            tint="#F5F5F3"
+            mouseReact={false}
+            mouseStrength={0}
+            pageLoadAnimation={false}
+            brightness={0.72}
+            dpr={shaderDpr}
+            pause={false}
+          />
+        )}
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_38%,rgba(13,13,13,0.28)_100%)]" />
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-[#0d0d0d]/14" />
       </div>
+
+      {/* Mist veil: same palette as static field; lifts after mount so WebGL never flashes in raw */}
+      {hasMounted && (
+        <div
+          className="pointer-events-none absolute inset-0 z-[10] min-h-[100dvh] select-none"
+          style={{
+            background:
+              'radial-gradient(ellipse 88% 74% at 50% 38%, rgba(245,245,243,0.06) 0%, rgba(10,10,10,0.92) 52%, #0a0a0a 100%)',
+            opacity: veilLifted ? 0 : 1,
+            transition: `opacity ${HERO_VEIL_MS}ms ${HERO_VEIL_EASE}`,
+          }}
+          aria-hidden
+        />
+      )}
 
       {/* Layer 20: Typography - always on top, full viewport; transparent so the field reads through empty areas */}
       <motion.div
@@ -130,7 +186,7 @@ export const AboutHero = () => {
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ delay: 0.2, duration: 0.8 }}
+            transition={{ delay: 0.35, duration: 1, ease: [0.22, 1, 0.36, 1] }}
             className="absolute bottom-[15vh] right-[5vw] pointer-events-none z-0"
           >
             <span className="font-display text-[80px] md:text-[140px] text-[#F2F2F0]/[0.015] leading-none tracking-wider">
@@ -141,9 +197,9 @@ export const AboutHero = () => {
           {/* Text stack container - equal vertical spacing with offset positioning */}
           <div className="relative flex w-full max-w-[100%] flex-col items-stretch gap-[2vh] md:gap-[3vh]">
             {/* First line - MORE — anchored left; avoids parent items-center “centering” */}
-            <motion.div 
+            <motion.div
               className="relative z-30 w-max max-w-[92vw] self-start overflow-hidden pl-[max(0px,env(safe-area-inset-left))] ml-[clamp(0.25rem,7vw,6.5rem)] md:ml-[clamp(1.25rem,12vw,9rem)] lg:ml-[clamp(2rem,14vw,11rem)]"
-              style={{ 
+              style={{
                 x: moreX,
                 willChange: 'transform',
                 transform: 'translateZ(0)',
@@ -183,11 +239,8 @@ export const AboutHero = () => {
               </motion.div>
             </motion.div>
 
-            {/* Second line - ABOUT - centered */}
-            <div 
-              className="relative z-20 self-center overflow-hidden"
-              onClick={() => setIsResumeOpen(true)}
-            >
+            {/* Second line - ABOUT - centered (no resume affordance) */}
+            <div className="relative z-20 self-center overflow-hidden">
               <motion.div
                 className="relative"
                 initial="hidden"
@@ -220,22 +273,13 @@ export const AboutHero = () => {
                   {subtitle}
                 </motion.span>
               </motion.div>
-
-              <span 
-                className="absolute -bottom-7 left-1/2 -translate-x-1/2 font-mono text-[10px] text-[#818cf8] uppercase tracking-[0.25em] whitespace-nowrap flex items-center gap-2 opacity-85"
-              >
-                <span>View Resume</span>
-                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 8l4 4m0 0l-4 4m4-4H3" />
-                </svg>
-              </span>
             </div>
 
             {/* Third line - ME - largest, positioned far right maintaining equal spacing */}
-            <motion.div 
+            <motion.div
               className="overflow-hidden relative z-30 self-end mr-[5vw] md:mr-[8vw] -mt-[2vh]"
-              style={{ 
-                x: meX, 
+              style={{
+                x: meX,
                 scale: meScale,
                 willChange: 'transform',
                 transform: 'translateZ(0)',
@@ -279,14 +323,17 @@ export const AboutHero = () => {
 
         {/* Descriptor + resume — one calm row: legible left, premium CTA right */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.8, duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+          transition={{ delay: 0.95, duration: 0.75, ease: [0.22, 1, 0.36, 1] }}
           className="absolute bottom-[10vh] left-0 right-0 z-[25] px-6 md:px-12 lg:px-20 pointer-events-none"
         >
           <div className="flex flex-row flex-wrap items-center justify-between gap-x-8 gap-y-3 sm:flex-nowrap pointer-events-auto">
             <div className="flex min-w-0 max-w-[min(100%,32rem)] items-center gap-3 sm:gap-4">
-              <div className="h-[2px] w-12 shrink-0 bg-gradient-to-r from-[#f59e0b] via-[#F2F2F0] to-transparent sm:w-20" aria-hidden />
+              <div
+                className="h-[2px] w-12 shrink-0 bg-gradient-to-r from-[#f59e0b] via-[#F2F2F0] to-transparent sm:w-20"
+                aria-hidden
+              />
               <span
                 className="font-mono text-[10px] font-medium uppercase tracking-[0.2em] text-[#F2F2F0] sm:text-[11px] sm:tracking-[0.24em]"
                 style={{
@@ -301,29 +348,13 @@ export const AboutHero = () => {
             <a
               href="/resume/Pratt_Majmudar_Resume.pdf"
               download="Pratt_Majmudar_Resume.pdf"
-              className="group inline-flex shrink-0 items-center gap-2 transition-colors duration-300"
+              className="inline-flex shrink-0 font-mono text-[10px] uppercase tracking-[0.22em] text-[#F2F2F0] no-underline decoration-transparent transition-[text-shadow,filter] duration-500 ease-out sm:text-[11px] sm:tracking-[0.26em] hover:text-[#F2F2F0] hover:[text-shadow:0_0_20px_rgba(242,242,240,0.45),0_0_42px_rgba(242,242,240,0.12)]"
             >
-              <span className="font-mono text-[10px] uppercase tracking-[0.22em] text-[#F2F2F0] underline decoration-[#f59e0b]/55 underline-offset-[6px] transition-colors duration-300 group-hover:text-white group-hover:decoration-[#f59e0b] sm:text-[11px] sm:tracking-[0.26em]">
-                Download resume
-              </span>
-              <svg
-                className="h-3.5 w-3.5 shrink-0 text-[#f59e0b] transition-transform duration-300 group-hover:translate-y-0.5"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.75"
-                aria-hidden
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v12m0 0l-4-4m4 4l4-4M5 20h14" />
-              </svg>
+              resume
             </a>
           </div>
         </motion.div>
-
       </motion.div>
-      
-      {/* Resume Modal */}
-      <ResumeModal isOpen={isResumeOpen} onClose={() => setIsResumeOpen(false)} />
     </section>
   );
 };
