@@ -3,7 +3,7 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCursor } from '@/context/CursorContext';
-import { X, Trophy, Film, Award, BarChart3, Play, Pause, Volume2, VolumeX, Maximize2, Minimize2 } from 'lucide-react';
+import { X, Trophy, Film, Award, BarChart3, Play, Pause, VolumeX, Maximize2, Minimize2 } from 'lucide-react';
 import Image from 'next/image';
 import { getImageUrl, getVideoUrl } from '@/lib/media';
 
@@ -91,6 +91,8 @@ const CinemaModeOverlay = ({
   const [duration, setDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
   const isScrubbingRef = useRef(false);
+  const [showControls, setShowControls] = useState(true);
+  const controlsHideTimerRef = useRef<number | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
 
@@ -116,6 +118,7 @@ const CinemaModeOverlay = ({
       setDuration(0);
       setMuted(true);
       setIsPlaying(true);
+      setShowControls(true);
       return;
     }
     const node = videoRef.current;
@@ -134,6 +137,21 @@ const CinemaModeOverlay = ({
       node.removeEventListener('timeupdate', handleTimeUpdate);
     };
   }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    if (controlsHideTimerRef.current !== null) {
+      window.clearTimeout(controlsHideTimerRef.current);
+    }
+    controlsHideTimerRef.current = window.setTimeout(() => {
+      setShowControls(false);
+    }, 2200);
+    return () => {
+      if (controlsHideTimerRef.current !== null) {
+        window.clearTimeout(controlsHideTimerRef.current);
+      }
+    };
+  }, [isOpen, showControls]);
 
   useEffect(() => {
     const handleFullscreenChange = () => {
@@ -185,6 +203,16 @@ const CinemaModeOverlay = ({
     return `${mins}:${String(secs).padStart(2, '0')}`;
   };
 
+  const revealControls = () => {
+    setShowControls(true);
+    if (controlsHideTimerRef.current !== null) {
+      window.clearTimeout(controlsHideTimerRef.current);
+    }
+    controlsHideTimerRef.current = window.setTimeout(() => {
+      setShowControls(false);
+    }, 2200);
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -196,11 +224,15 @@ const CinemaModeOverlay = ({
       className="fixed inset-0 z-[400] bg-black/95"
       onClick={onClose}
     >
+      <div className="absolute inset-0 pointer-events-auto" onClick={onClose} />
       <div
         ref={containerRef}
-        className="relative w-full h-full flex items-center justify-center pointer-events-none"
+        className="relative w-full h-full flex items-center justify-center p-4 sm:p-6"
+        onClick={(e) => e.stopPropagation()}
+        onMouseMove={revealControls}
+        onTouchStart={revealControls}
       >
-        <div className="absolute inset-0 pointer-events-auto" onClick={onClose} />
+        <div className="relative w-full max-w-[min(94vw,1200px)] h-[min(72vh,760px)]">
         <video
           ref={videoRef}
           autoPlay
@@ -212,14 +244,14 @@ const CinemaModeOverlay = ({
           className="absolute inset-0 w-full h-full object-contain pointer-events-auto"
           onPlay={() => setIsPlaying(true)}
           onPause={() => setIsPlaying(false)}
-          onClick={(e) => e.stopPropagation()}
+          onClick={togglePlayback}
         >
           <source src={video.mp4} type="video/mp4" />
           <source src={video.webm} type="video/webm" />
         </video>
-        <div className="absolute inset-0 pointer-events-none bg-gradient-to-t from-black/45 via-black/10 to-black/30" />
+        <div className="absolute inset-0 pointer-events-none bg-gradient-to-t from-black/45 via-black/10 to-black/30 rounded-lg" />
 
-        <div className="absolute top-4 left-4 right-4 flex items-center justify-between gap-3 z-10 pointer-events-auto" onClick={(e) => e.stopPropagation()}>
+        <div className={`absolute top-3 left-3 right-3 sm:top-4 sm:left-4 sm:right-4 flex items-center justify-between gap-3 z-10 pointer-events-auto transition-opacity duration-200 ${showControls ? 'opacity-100' : 'opacity-0'}`}>
           <span className="font-mono text-[10px] sm:text-xs tracking-[0.2em] uppercase text-[#c7c7c2]">
             Cinema Mode — {title}
           </span>
@@ -232,7 +264,7 @@ const CinemaModeOverlay = ({
           </button>
         </div>
 
-        <div className="absolute bottom-4 left-4 right-4 z-10 rounded-xl border border-white/15 bg-black/55 p-3 pointer-events-auto" onClick={(e) => e.stopPropagation()}>
+        <div className={`absolute bottom-3 left-3 right-3 sm:bottom-4 sm:left-4 sm:right-4 z-10 rounded-xl border border-white/15 bg-black/55 p-3 pointer-events-auto transition-opacity duration-200 ${showControls ? 'opacity-100' : 'opacity-0'}`}>
           <div className="mb-2 flex items-center gap-3">
             <span className="font-mono text-[10px] text-white/60 tabular-nums min-w-[2.25rem]">
               {formatTime(currentTime)}
@@ -275,20 +307,20 @@ const CinemaModeOverlay = ({
             className="w-9 h-9 rounded-full border border-white/20 flex items-center justify-center hover:border-[#f59e0b]/70 transition-colors"
             aria-label={muted ? 'Unmute video' : 'Mute video'}
           >
-            {muted ? <VolumeX className="w-4 h-4 text-white/80" /> : <Volume2 className="w-4 h-4 text-white/80" />}
+            <VolumeX className="w-4 h-4 text-white/80" />
           </button>
           <input
             type="range"
             min={0}
             max={1}
-            step={0.01}
+            step={0.05}
             value={volume}
             onChange={(e) => {
               const next = Number(e.target.value);
               setVolume(next);
-              if (muted && next > 0) setMuted(false);
+              if (next > 0 && muted) setMuted(false);
             }}
-            className="flex-1 accent-[#f59e0b]"
+            className="w-20 sm:w-28 accent-[#f59e0b]"
             aria-label="Volume"
           />
           <button
@@ -298,8 +330,16 @@ const CinemaModeOverlay = ({
           >
             {isFullscreen ? <Minimize2 className="w-4 h-4 text-white/80" /> : <Maximize2 className="w-4 h-4 text-white/80" />}
           </button>
+          <button
+            onClick={onClose}
+            className="h-9 px-3 rounded-full border border-white/20 flex items-center justify-center hover:border-[#f59e0b]/70 transition-colors font-mono text-[10px] tracking-[0.16em] uppercase text-white/75"
+            aria-label="Exit cinema mode"
+          >
+            Exit
+          </button>
           </div>
         </div>
+      </div>
       </div>
     </motion.div>
   );
@@ -308,6 +348,7 @@ const CinemaModeOverlay = ({
 // Cinematic Modal for ALONE Film
 const AloneModal = ({ onClose }: { onClose: () => void }) => {
   const [cinemaOpen, setCinemaOpen] = React.useState(false);
+  const trailerRef = useRef<HTMLVideoElement>(null);
 
   React.useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
@@ -321,6 +362,13 @@ const AloneModal = ({ onClose }: { onClose: () => void }) => {
     window.addEventListener('keydown', handleEsc);
     return () => window.removeEventListener('keydown', handleEsc);
   }, [cinemaOpen, onClose]);
+
+  React.useEffect(() => {
+    const node = trailerRef.current;
+    if (!node) return;
+    if (cinemaOpen) node.pause();
+    else void node.play().catch(() => {});
+  }, [cinemaOpen]);
 
   return (
     <motion.div
@@ -352,6 +400,7 @@ const AloneModal = ({ onClose }: { onClose: () => void }) => {
           {/* Video trailer background - autoplaying, looping, muted */}
           <div className="absolute inset-0 z-0">
             <video
+              ref={trailerRef}
               autoPlay
               muted
               loop
@@ -621,6 +670,7 @@ const AloneModal = ({ onClose }: { onClose: () => void }) => {
 // Cinematic Modal for WOMEN IS LOSERS — SXSW Festival Premiere
 const WomenIsLosersModal = ({ onClose }: { onClose: () => void }) => {
   const [cinemaOpen, setCinemaOpen] = React.useState(false);
+  const trailerRef = useRef<HTMLVideoElement>(null);
 
   React.useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
@@ -634,6 +684,13 @@ const WomenIsLosersModal = ({ onClose }: { onClose: () => void }) => {
     window.addEventListener('keydown', handleEsc);
     return () => window.removeEventListener('keydown', handleEsc);
   }, [cinemaOpen, onClose]);
+
+  React.useEffect(() => {
+    const node = trailerRef.current;
+    if (!node) return;
+    if (cinemaOpen) node.pause();
+    else void node.play().catch(() => {});
+  }, [cinemaOpen]);
 
   return (
     <motion.div
@@ -665,6 +722,7 @@ const WomenIsLosersModal = ({ onClose }: { onClose: () => void }) => {
           {/* Video trailer background - autoplaying, looping, muted */}
           <div className="absolute inset-0 z-0">
             <video
+              ref={trailerRef}
               autoPlay
               muted
               loop
@@ -1360,6 +1418,7 @@ const RecognitionModal = ({ award, onClose }: { award: Award; onClose: () => voi
 // Documentary Modal for SYNCHRONICITY — Musical Journey
 const SynchronicityDocumentaryModal = ({ onClose }: { onClose: () => void }) => {
   const [cinemaOpen, setCinemaOpen] = React.useState(false);
+  const trailerRef = useRef<HTMLVideoElement>(null);
 
   React.useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
@@ -1373,6 +1432,13 @@ const SynchronicityDocumentaryModal = ({ onClose }: { onClose: () => void }) => 
     window.addEventListener('keydown', handleEsc);
     return () => window.removeEventListener('keydown', handleEsc);
   }, [cinemaOpen, onClose]);
+
+  React.useEffect(() => {
+    const node = trailerRef.current;
+    if (!node) return;
+    if (cinemaOpen) node.pause();
+    else void node.play().catch(() => {});
+  }, [cinemaOpen]);
 
   return (
     <motion.div
@@ -1404,6 +1470,7 @@ const SynchronicityDocumentaryModal = ({ onClose }: { onClose: () => void }) => 
           {/* Video trailer background - autoplaying, looping, muted */}
           <div className="absolute inset-0 z-0">
             <video
+              ref={trailerRef}
               autoPlay
               muted
               loop
@@ -1824,6 +1891,13 @@ const TimelineConnector = ({ position, index }: { position: 'left' | 'right'; in
 // Main Section
 export const RecognitionSection = () => {
   const [selectedAward, setSelectedAward] = useState<Award | null>(null);
+  const { setCursorState, setPreviewData } = useCursor();
+
+  useEffect(() => {
+    if (!selectedAward) return;
+    setCursorState('default');
+    setPreviewData({});
+  }, [selectedAward, setCursorState, setPreviewData]);
 
   return (
     <>
@@ -1897,7 +1971,7 @@ export const RecognitionSection = () => {
 
                       {/* Card positioned */}
                       <div className={`w-full flex ${position === 'left' ? 'justify-start' : 'justify-end'}`}>
-                        <div className="w-[calc(50%-40px)] max-w-[26rem]">
+                        <div className="max-w-[26rem]" style={{ width: 'calc(50% - 40px)' }}>
                           <RecognitionCard
                             award={award}
                             index={index}

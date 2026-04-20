@@ -117,7 +117,6 @@ export const CustomCursor = () => {
   if (isTouch) return null;
 
   const isHovering = cursorState === 'hover' || cursorState === 'magnetic';
-  const isRecognitionPreview = hasPreviewImage && (cursorState === 'recognition' || cursorState === 'recognition-card');
 
   return (
     <>
@@ -144,7 +143,7 @@ export const CustomCursor = () => {
 
       {/* Ring - 40px (64px on hover, 120px when showing preview image), spring physics */}
       <motion.div
-        className={`fixed top-0 left-0 pointer-events-none z-[9998] flex items-center justify-center overflow-hidden ${isRecognitionPreview ? 'rounded-xl' : 'rounded-full'}`}
+        className="fixed top-0 left-0 pointer-events-none z-[9998] rounded-full flex items-center justify-center overflow-hidden"
         style={{
           x: ringX,
           y: ringY,
@@ -153,8 +152,8 @@ export const CustomCursor = () => {
           willChange: 'transform',
         }}
         animate={{
-          width: hasPreviewImage ? (isRecognitionPreview ? 148 : 140) : isHovering ? 64 : 40,
-          height: hasPreviewImage ? (isRecognitionPreview ? 200 : 140) : isHovering ? 64 : 40,
+          width: hasPreviewImage ? 140 : isHovering ? 64 : 40,
+          height: hasPreviewImage ? 140 : isHovering ? 64 : 40,
           border: hasPreviewImage
             ? '2px solid rgba(245, 158, 11, 0.8)'
             : isHovering 
@@ -176,7 +175,7 @@ export const CustomCursor = () => {
             alt=""
             loading="lazy"
             decoding="async"
-            className={`w-full h-full object-cover ${isRecognitionPreview ? 'rounded-xl' : 'rounded-full'}`}
+            className="w-full h-full object-cover rounded-full"
             style={{
               transform: `scale(${previewZoom})`,
               transformOrigin: `${previewData.focusX ?? 50}% ${previewData.focusY ?? 50}%`,
