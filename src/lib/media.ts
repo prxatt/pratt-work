@@ -56,23 +56,6 @@ export function getVideoUrl(
   return toBlobUrl(normalizeVideoPath(t, format));
 }
 
-/**
- * CDN URLs first, then same-origin `/public` paths, so `<video>` can recover when Blob is missing a file.
- * `stem` has no extension, e.g. `/videos/st-dd-prod`.
- */
-export function getVideoFallbackChain(stem: string): string[] {
-  const base = stem
-    .trim()
-    .replace(/\/+$/, '')
-    .replace(/\.(mp4|webm|mov|m4v)$/i, '');
-  return [
-    getVideoUrl(`${base}.webm`),
-    getVideoUrl(`${base}.mp4`),
-    `${base}.webm`,
-    `${base}.mp4`,
-  ];
-}
-
 export function getMediaUrl(
   localPath: string,
   options: {
