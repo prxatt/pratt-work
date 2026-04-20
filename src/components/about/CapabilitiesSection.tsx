@@ -70,6 +70,7 @@ const VideoFrame = React.memo(
     const video = videoRef.current;
     if (!video) return;
 
+    setCanPlay(false);
     video.load();
 
     const startPlayback = () => {

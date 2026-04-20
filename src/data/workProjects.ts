@@ -4,6 +4,22 @@
 
 import { getImageUrl, getVideoUrl } from '@/lib/media';
 
+/** Video cards require an MP4 (or other Safari-friendly) URL alongside WebM. */
+export type WorkProjectThumbnail =
+  | {
+      type: 'image';
+      src: string;
+      alt: string;
+      objectPosition?: string;
+    }
+  | {
+      type: 'video';
+      src: string;
+      fallback: string;
+      alt: string;
+      objectPosition?: string;
+    };
+
 export interface WorkProject {
   id: string;
   slug: string;
@@ -16,13 +32,7 @@ export interface WorkProject {
   role: string;
   featured: boolean;
   featuredSize: 'small' | 'medium' | 'large';
-  thumbnail: {
-    type: 'image' | 'video';
-    src: string;
-    fallback?: string;
-    alt: string;
-    objectPosition?: string;
-  };
+  thumbnail: WorkProjectThumbnail;
   heroMedia?: string;
   clientLogos?: string[];
   tags?: string[];
@@ -44,6 +54,7 @@ export const workProjects: WorkProject[] = [
     thumbnail: {
       type: 'video',
       src: getVideoUrl('/work/the-crypt-thumb.webm'),
+      fallback: getVideoUrl('/work/the-crypt-thumb.mp4'),
       alt: 'The Crypt volumetric capture immersive experience',
     },
     heroMedia: getVideoUrl('/work/the-crypt-hero.webm'),
@@ -84,6 +95,7 @@ export const workProjects: WorkProject[] = [
     thumbnail: {
       type: 'video',
       src: getVideoUrl('/work/surface-tension-thumb.webm'),
+      fallback: getVideoUrl('/work/surface-tension-thumb.mp4'),
       alt: 'Surface Tension Digital Drip immersive art installation',
     },
     tags: ['experiential', 'immersive', 'art', 'installation', 'interactive', 'generative', 'spatial audio']
