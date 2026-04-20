@@ -150,7 +150,7 @@ const TeaserImageModal = ({
         </button>
 
         {/* Image with fallback support */}
-        <div className="relative max-w-4xl max-h-[80vh] w-full h-full max-w-[94vw] sm:max-w-[90vw] flex items-center justify-center">
+        <div className="relative max-h-[80vh] w-full h-full max-w-[min(94vw,56rem)] sm:max-w-[min(90vw,56rem)] flex items-center justify-center">
           <Image
             src={displaySrc}
             alt={alt}

@@ -99,6 +99,7 @@ export const CustomCursor = () => {
 
     const handleWheel = (event: WheelEvent) => {
       if (cursorState !== 'recognition' && cursorState !== 'recognition-card') return;
+      if (!event.altKey) return;
       event.preventDefault();
       const delta = event.deltaY > 0 ? -0.12 : 0.12;
       setPreviewZoom((prev) => Math.min(3, Math.max(1, Number((prev + delta).toFixed(2)))));

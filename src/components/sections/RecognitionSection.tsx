@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCursor } from '@/context/CursorContext';
 import { X, Trophy, Film, Award, BarChart3, Play } from 'lucide-react';
@@ -1372,6 +1372,16 @@ const RecognitionCard = ({
 }) => {
   const { setCursorState, setPreviewData } = useCursor();
   const Icon = award.icon;
+  const previewRafRef = useRef<number | null>(null);
+  const pendingFocusRef = useRef<{ focusX: number; focusY: number } | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (previewRafRef.current !== null) {
+        cancelAnimationFrame(previewRafRef.current);
+      }
+    };
+  }, []);
 
   const handleMouseEnter = () => {
     setCursorState('recognition');
@@ -1390,10 +1400,22 @@ const RecognitionCard = ({
     const rect = e.currentTarget.getBoundingClientRect();
     const focusX = ((e.clientX - rect.left) / rect.width) * 100;
     const focusY = ((e.clientY - rect.top) / rect.height) * 100;
-    setPreviewData({
-      src: award.image,
+    pendingFocusRef.current = {
       focusX: Math.max(0, Math.min(100, focusX)),
       focusY: Math.max(0, Math.min(100, focusY)),
+    };
+    if (previewRafRef.current !== null) return;
+    previewRafRef.current = requestAnimationFrame(() => {
+      if (!pendingFocusRef.current) {
+        previewRafRef.current = null;
+        return;
+      }
+      setPreviewData({
+        src: award.image,
+        focusX: pendingFocusRef.current.focusX,
+        focusY: pendingFocusRef.current.focusY,
+      });
+      previewRafRef.current = null;
     });
   };
 
