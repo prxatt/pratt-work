@@ -13,14 +13,12 @@ export const AboutHero = () => {
   const prefersReducedMotion = useReducedMotion();
   const { isTouch, isLowEnd } = useDeviceCapabilities();
   const [shaderDpr, setShaderDpr] = useState(1);
-  const [capabilitiesInView, setCapabilitiesInView] = useState(false);
   const { scrollYProgress } = useScroll({
     target: containerRef,
     offset: ["start start", "end start"]
   });
 
   // Direct scroll transforms - NO useSpring (eliminates continuous animation overhead)
-  const y = useTransform(scrollYProgress, [0, 1], [0, 300]);
   const opacity = useTransform(scrollYProgress, [0, 0.5], [1, 0]);
   const scale = useTransform(scrollYProgress, [0, 0.5], [1, 0.95]);
   
@@ -29,19 +27,19 @@ export const AboutHero = () => {
   const meX = useTransform(scrollYProgress, [0, 1], [0, 80]);
   const meScale = useTransform(scrollYProgress, [0, 1], [1, 1.05]);
 
-  // Background parallax - slower than foreground for depth
-  const bgY = useTransform(scrollYProgress, [0, 1], [0, 150]);
-  const bgScale = useTransform(scrollYProgress, [0, 1], [1, 1.1]);
+  const liteMotion = prefersReducedMotion || isLowEnd;
 
   const wordReveal = {
-    hidden: { y: 48, opacity: 0, filter: 'blur(12px)' },
+    hidden: liteMotion
+      ? { y: 24, opacity: 0 }
+      : { y: 48, opacity: 0, filter: 'blur(8px)' },
     visible: (delay: number) => ({
       y: 0,
       opacity: 1,
-      filter: 'blur(0px)',
+      ...(liteMotion ? {} : { filter: 'blur(0px)' }),
       transition: {
         delay,
-        duration: 0.85,
+        duration: liteMotion ? 0.55 : 0.85,
         ease: [0.16, 1, 0.3, 1] as const,
       },
     }),
@@ -55,32 +53,16 @@ export const AboutHero = () => {
     if (prefersReducedMotion) {
       setShaderDpr(1);
     } else if (isTouch) {
-      setShaderDpr(Math.min(raw, 1.2));
+      setShaderDpr(Math.min(raw, 1));
     } else {
-      setShaderDpr(Math.min(raw, isLowEnd ? 1 : 1.25));
+      setShaderDpr(Math.min(raw, isLowEnd ? 1 : 1.1));
     }
   }, [isLowEnd, isTouch, prefersReducedMotion]);
 
-  useEffect(() => {
-    const cap = document.getElementById('capabilities');
-    if (!cap) return;
-    const io = new IntersectionObserver(
-      ([entry]) => {
-        setCapabilitiesInView(entry.isIntersecting && entry.intersectionRatio > 0);
-      },
-      { threshold: [0, 0.02, 0.08], rootMargin: '0px 0px -8% 0px' }
-    );
-    io.observe(cap);
-    return () => io.disconnect();
-  }, []);
-
   return (
     <section ref={containerRef} className="min-h-[100dvh] bg-[#0D0D0D] relative overflow-hidden contain-layout gpu-accelerated">
-      {/* Layer 0: Base dark background - GPU optimized */}
-      <motion.div 
-        className="absolute inset-0 z-0 gpu-accelerated"
-        style={{ y: bgY, scale: bgScale, willChange: 'transform' }}
-      >
+      {/* Layer 0: Base dark background — static (parallax removed: was repainting above WebGL) */}
+      <div className="absolute inset-0 z-0">
         <div className="absolute inset-0 bg-[#0D0D0D]" />
         {/* Homepage-inspired scanline texture for brand cohesion */}
         <div
@@ -109,38 +91,39 @@ export const AboutHero = () => {
             willChange: 'opacity',
           }}
         />
-      </motion.div>
+      </div>
 
-      {/* Layer 8: Homepage shader field — single continuous motion (no ribbon/wave layer swap) */}
-      <div
-        className="absolute inset-0 z-[8] min-h-[100dvh] pointer-events-none overflow-hidden transition-opacity duration-700 ease-out"
-        style={{ opacity: capabilitiesInView ? 0 : 1 }}
-      >
+      {/* Layer 8: Homepage shader field — always on while hero is in view (no scroll handoff / fade to black) */}
+      <div className="absolute inset-0 z-[8] min-h-[100dvh] pointer-events-none overflow-hidden">
         <FaultyTerminal
           scale={isTouch ? 1.26 : 1.42}
           gridMul={isTouch ? [2.28, 1.58] : [2.62, 1.74]}
           digitSize={1.0}
-          timeScale={prefersReducedMotion ? 0.028 : isTouch ? 0.092 : 0.102}
+          timeScale={prefersReducedMotion ? 0.028 : isTouch ? 0.095 : 0.108}
           scanlineIntensity={0.028}
-          glitchAmount={0.055}
-          flickerAmount={0.02}
-          noiseAmp={0.52}
+          glitchAmount={prefersReducedMotion ? 0.055 : 0.072}
+          flickerAmount={prefersReducedMotion ? 0.02 : 0.028}
+          noiseAmp={isLowEnd ? 0.46 : 0.56}
           curvature={0.065}
-          chromaticAberration={isTouch ? 0.0017 : 0.0022}
-          dither={0.35}
+          chromaticAberration={0}
+          dither={isLowEnd ? 0.08 : 0.18}
           tint="#F5F5F3"
           mouseReact={false}
           mouseStrength={0}
           pageLoadAnimation={false}
           brightness={0.72}
           dpr={shaderDpr}
+          pause={false}
         />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_38%,rgba(13,13,13,0.38)_100%)]" />
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-[#0d0d0d]/40" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_38%,rgba(13,13,13,0.28)_100%)]" />
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-[#0d0d0d]/14" />
       </div>
 
-      {/* Layer 20: Typography - always on top, full viewport */}
-      <motion.div style={{ opacity, scale }} className="sticky top-0 h-[100dvh] min-h-[100dvh] flex flex-col justify-center items-center w-full z-20">
+      {/* Layer 20: Typography - always on top, full viewport; transparent so the field reads through empty areas */}
+      <motion.div
+        style={{ opacity, scale }}
+        className="sticky top-0 h-[100dvh] min-h-[100dvh] flex flex-col justify-center items-center w-full z-20 bg-transparent"
+      >
         {/* Oversized typography composition - full viewport width */}
         <div className="relative w-full h-full px-6 md:px-12 lg:px-20 flex flex-col justify-center">
           {/* CI0 - positioned at bottom right */}
@@ -308,7 +291,7 @@ export const AboutHero = () => {
                 className="font-mono text-[10px] font-medium uppercase tracking-[0.2em] text-[#F2F2F0] sm:text-[11px] sm:tracking-[0.24em]"
                 style={{
                   textShadow:
-                    '0 1px 2px rgba(0,0,0,0.95), 0 0 28px rgba(10,10,10,0.92), 0 0 1px rgba(245,245,243,0.4)',
+                    '0 1px 2px rgba(0,0,0,0.55), 0 0 12px rgba(10,10,10,0.35), 0 0 1px rgba(245,245,243,0.45)',
                 }}
               >
                 Producer. Architect. Thinker
@@ -336,14 +319,6 @@ export const AboutHero = () => {
             </a>
           </div>
         </motion.div>
-
-        {/* Bottom fade extension - ensures clean transition to next section */}
-        <div 
-          className="absolute bottom-0 left-0 right-0 h-[35vh] pointer-events-none overflow-hidden z-[4] gpu-accelerated"
-          style={{ willChange: 'opacity' }}
-        >
-          <div className="absolute inset-0 bg-gradient-to-t from-[#0D0D0D] via-[#0D0D0D]/90 to-transparent" />
-        </div>
 
       </motion.div>
       
