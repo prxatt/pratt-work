@@ -3,7 +3,7 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCursor } from '@/context/CursorContext';
-import { X, Trophy, Film, Award, BarChart3, Play, Pause, VolumeX, Maximize2, Minimize2 } from 'lucide-react';
+import { X, Trophy, Film, Award, BarChart3, Play, Pause, Volume2, VolumeX } from 'lucide-react';
 import Image from 'next/image';
 import { getImageUrl, getVideoUrl } from '@/lib/media';
 
@@ -84,15 +84,12 @@ const CinemaModeOverlay = ({
   poster: string;
   video: { mp4: string; webm: string };
 }) => {
-  const [volume, setVolume] = useState(0.8);
-  const [muted, setMuted] = useState(true);
+  const [volume, setVolume] = useState(0.4);
+  const [muted, setMuted] = useState(false);
   const [isPlaying, setIsPlaying] = useState(true);
-  const [isFullscreen, setIsFullscreen] = useState(false);
   const [duration, setDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
   const isScrubbingRef = useRef(false);
-  const [showControls, setShowControls] = useState(true);
-  const controlsHideTimerRef = useRef<number | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
 
@@ -116,9 +113,9 @@ const CinemaModeOverlay = ({
     if (!isOpen) {
       setCurrentTime(0);
       setDuration(0);
-      setMuted(true);
+      setMuted(false);
+      setVolume(0.4);
       setIsPlaying(true);
-      setShowControls(true);
       return;
     }
     const node = videoRef.current;
@@ -140,42 +137,30 @@ const CinemaModeOverlay = ({
 
   useEffect(() => {
     if (!isOpen) return;
-    if (controlsHideTimerRef.current !== null) {
-      window.clearTimeout(controlsHideTimerRef.current);
-    }
-    controlsHideTimerRef.current = window.setTimeout(() => {
-      setShowControls(false);
-    }, 2200);
-    return () => {
-      if (controlsHideTimerRef.current !== null) {
-        window.clearTimeout(controlsHideTimerRef.current);
-      }
-    };
-  }, [isOpen, showControls]);
-
-  useEffect(() => {
-    const handleFullscreenChange = () => {
-      setIsFullscreen(Boolean(document.fullscreenElement));
-    };
     const handleEsc = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
     };
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
     window.addEventListener('keydown', handleEsc);
     return () => {
-      document.removeEventListener('fullscreenchange', handleFullscreenChange);
       window.removeEventListener('keydown', handleEsc);
     };
   }, [onClose]);
 
-  const requestFullscreen = () => {
-    if (!containerRef.current) return;
-    if (!document.fullscreenElement) {
-      void containerRef.current.requestFullscreen?.();
-    } else {
-      void document.exitFullscreen?.();
-    }
-  };
+  useEffect(() => {
+    if (!isOpen || !containerRef.current) return;
+    const node = containerRef.current;
+    void node.requestFullscreen?.();
+    const video = videoRef.current;
+    if (!video) return;
+    video.muted = false;
+    video.volume = 0.4;
+    void video.play().catch(() => {});
+    return () => {
+      if (document.fullscreenElement) {
+        void document.exitFullscreen?.();
+      }
+    };
+  }, [isOpen]);
 
   const togglePlayback = () => {
     const node = videoRef.current;
@@ -203,16 +188,6 @@ const CinemaModeOverlay = ({
     return `${mins}:${String(secs).padStart(2, '0')}`;
   };
 
-  const revealControls = () => {
-    setShowControls(true);
-    if (controlsHideTimerRef.current !== null) {
-      window.clearTimeout(controlsHideTimerRef.current);
-    }
-    controlsHideTimerRef.current = window.setTimeout(() => {
-      setShowControls(false);
-    }, 2200);
-  };
-
   if (!isOpen) return null;
 
   return (
@@ -229,8 +204,6 @@ const CinemaModeOverlay = ({
         ref={containerRef}
         className="relative w-full h-full flex items-center justify-center p-4 sm:p-6"
         onClick={(e) => e.stopPropagation()}
-        onMouseMove={revealControls}
-        onTouchStart={revealControls}
       >
         <div className="relative w-full max-w-[min(94vw,1200px)] h-[min(72vh,760px)]">
         <video
@@ -251,7 +224,7 @@ const CinemaModeOverlay = ({
         </video>
         <div className="absolute inset-0 pointer-events-none bg-gradient-to-t from-black/45 via-black/10 to-black/30 rounded-lg" />
 
-        <div className={`absolute top-3 left-3 right-3 sm:top-4 sm:left-4 sm:right-4 flex items-center justify-between gap-3 z-10 pointer-events-auto transition-opacity duration-200 ${showControls ? 'opacity-100' : 'opacity-0'}`}>
+        <div className="absolute top-3 left-3 right-3 sm:top-4 sm:left-4 sm:right-4 flex items-center justify-between gap-3 z-10 pointer-events-auto">
           <span className="font-mono text-[10px] sm:text-xs tracking-[0.2em] uppercase text-[#c7c7c2]">
             Cinema Mode — {title}
           </span>
@@ -264,7 +237,7 @@ const CinemaModeOverlay = ({
           </button>
         </div>
 
-        <div className={`absolute bottom-3 left-3 right-3 sm:bottom-4 sm:left-4 sm:right-4 z-10 rounded-xl border border-white/15 bg-black/55 p-3 pointer-events-auto transition-opacity duration-200 ${showControls ? 'opacity-100' : 'opacity-0'}`}>
+        <div className="absolute bottom-3 left-3 right-3 sm:bottom-4 sm:left-4 sm:right-4 z-10 rounded-xl border border-white/15 bg-black/55 p-3 pointer-events-auto">
           <div className="mb-2 flex items-center gap-3">
             <span className="font-mono text-[10px] text-white/60 tabular-nums min-w-[2.25rem]">
               {formatTime(currentTime)}
@@ -307,7 +280,7 @@ const CinemaModeOverlay = ({
             className="w-9 h-9 rounded-full border border-white/20 flex items-center justify-center hover:border-[#f59e0b]/70 transition-colors"
             aria-label={muted ? 'Unmute video' : 'Mute video'}
           >
-            <VolumeX className="w-4 h-4 text-white/80" />
+            {muted ? <VolumeX className="w-4 h-4 text-white/80" /> : <Volume2 className="w-4 h-4 text-white/80" />}
           </button>
           <input
             type="range"
@@ -323,20 +296,6 @@ const CinemaModeOverlay = ({
             className="w-20 sm:w-28 accent-[#f59e0b]"
             aria-label="Volume"
           />
-          <button
-            onClick={requestFullscreen}
-            className="w-9 h-9 rounded-full border border-white/20 flex items-center justify-center hover:border-[#f59e0b]/70 transition-colors"
-            aria-label={isFullscreen ? 'Exit browser fullscreen' : 'Enter browser fullscreen'}
-          >
-            {isFullscreen ? <Minimize2 className="w-4 h-4 text-white/80" /> : <Maximize2 className="w-4 h-4 text-white/80" />}
-          </button>
-          <button
-            onClick={onClose}
-            className="h-9 px-3 rounded-full border border-white/20 flex items-center justify-center hover:border-[#f59e0b]/70 transition-colors font-mono text-[10px] tracking-[0.16em] uppercase text-white/75"
-            aria-label="Exit cinema mode"
-          >
-            Exit
-          </button>
           </div>
         </div>
       </div>
@@ -1931,8 +1890,8 @@ export const RecognitionSection = () => {
           {/* Alternating Branch Timeline */}
           <div className="relative">
             {/* Central spine */}
-            <div className="absolute left-1/2 top-0 bottom-0 w-px lg:w-[2px] -translate-x-1/2">
-              <div className="absolute inset-0 bg-[#2a2a3a]" />
+            <div className="absolute left-1/2 top-0 bottom-0 w-[2px] -translate-x-1/2 z-[1]">
+              <div className="absolute inset-0 bg-[#3a3a46]" />
               <motion.div
                 initial={{ scaleY: 0 }}
                 whileInView={{ scaleY: 1 }}
@@ -1940,11 +1899,11 @@ export const RecognitionSection = () => {
                 transition={{ duration: 2.5, ease: [0.16, 1, 0.3, 1] }}
                 className="absolute inset-0 bg-gradient-to-b from-[#f59e0b] via-[#f59e0b] to-[#f59e0b]/30 origin-top"
               />
-              <div className="absolute inset-0 bg-[#f59e0b] blur-[2px] opacity-40" />
+              <div className="absolute inset-0 bg-[#f59e0b] blur-[2px] opacity-50" />
             </div>
 
             {/* Cards */}
-            <div className="space-y-8 lg:space-y-0">
+            <div className="relative z-[2] space-y-8 lg:space-y-0">
               {awards.map((award, index) => {
                 const position = index % 2 === 0 ? 'left' : 'right';
                 
