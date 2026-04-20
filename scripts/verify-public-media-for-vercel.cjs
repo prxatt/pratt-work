@@ -3,7 +3,8 @@
 /**
  * Vercel-only guard: if we ship without Cloudinary, `public/` image/video files must be real
  * binaries. Git LFS pointer files look like text starting with `version https://git-lfs...`;
- * next/image then returns 400 ("The requested resource isn't a valid image").
+ * next/image returns 400 for pointer "images", and `<video>` / direct URLs serve unusable data
+ * for pointer "videos" unless LFS objects are present at build time.
  */
 const fs = require('fs');
 const path = require('path');
@@ -15,7 +16,18 @@ if (/^(off|0|false)$/i.test((process.env.NEXT_PUBLIC_CLOUDINARY_MEDIA || '').tri
 const root = path.join(process.cwd(), 'public');
 if (!fs.existsSync(root)) process.exit(0);
 
-const exts = new Set(['.webp', '.jpg', '.jpeg', '.png', '.gif', '.avif']);
+const exts = new Set([
+  '.webp',
+  '.jpg',
+  '.jpeg',
+  '.png',
+  '.gif',
+  '.avif',
+  // Match `.gitattributes` LFS-tracked video types under `public/`.
+  '.mp4',
+  '.webm',
+  '.mov',
+]);
 
 function walk(dir) {
   for (const ent of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -36,11 +48,11 @@ function checkFile(p) {
   if (buf.toString('utf8').startsWith('version https://git-lfs')) {
     const rel = path.relative(process.cwd(), p);
     console.error('');
-    console.error('[verify-public-media] Git LFS pointer in public/ (not a real image file):');
+    console.error('[verify-public-media] Git LFS pointer in public/ (not real media bytes):');
     console.error('  ' + rel);
     console.error('');
-    console.error('Without NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME, the app uses /work/… URLs and');
-    console.error('next/image cannot decode LFS pointers → 400 in production.');
+    console.error('Without NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME, the app uses /public/… URLs and');
+    console.error('LFS pointers break next/image (400) and video playback in production.');
     console.error('');
     console.error('Fix: add NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME to this Vercel environment and redeploy,');
     console.error('or migrate media out of Git LFS so public/ contains real binaries.');
