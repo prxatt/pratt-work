@@ -23,10 +23,11 @@ const exts = new Set([
   '.png',
   '.gif',
   '.avif',
-  // Match `.gitattributes` LFS-tracked video types under `public/`.
+  // Video extensions used by `src/lib/media.ts` and LFS-tracked in `.gitattributes`.
   '.mp4',
   '.webm',
   '.mov',
+  '.m4v',
 ]);
 
 function walk(dir) {
@@ -51,7 +52,8 @@ function checkFile(p) {
     console.error('[verify-public-media] Git LFS pointer in public/ (not real media bytes):');
     console.error('  ' + rel);
     console.error('');
-    console.error('Without NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME, the app uses /public/… URLs and');
+    console.error('Without NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME, the app uses direct media URLs');
+    console.error('(root-relative paths and/or NEXT_PUBLIC_MEDIA_BASE_URL), not Cloudinary transforms.');
     console.error('LFS pointers break next/image (400) and video playback in production.');
     console.error('');
     console.error('Fix: add NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME to this Vercel environment and redeploy,');
