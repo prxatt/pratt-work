@@ -3,9 +3,47 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCursor } from '@/context/CursorContext';
-import { X, Trophy, Film, Award, BarChart3, Play, Pause, Volume2, VolumeX } from 'lucide-react';
 import Image from 'next/image';
 import { getImageUrl, getVideoUrl } from '@/lib/media';
+
+type IconComponent = React.ComponentType<{ className?: string }>;
+
+const iconProps = {
+  viewBox: '0 0 24 24',
+  fill: 'none',
+  stroke: 'currentColor',
+  strokeWidth: 2,
+  strokeLinecap: 'round' as const,
+  strokeLinejoin: 'round' as const,
+};
+
+const X: IconComponent = ({ className }) => (
+  <svg className={className} {...iconProps}><path d="M18 6 6 18M6 6l12 12" /></svg>
+);
+const Play: IconComponent = ({ className }) => (
+  <svg className={className} {...iconProps}><path d="m8 5 11 7-11 7z" /></svg>
+);
+const Pause: IconComponent = ({ className }) => (
+  <svg className={className} {...iconProps}><path d="M10 4v16M14 4v16" /></svg>
+);
+const Volume2: IconComponent = ({ className }) => (
+  <svg className={className} {...iconProps}><path d="M11 5 6 9H3v6h3l5 4zM15.5 8.5a5 5 0 0 1 0 7M18.5 6a9 9 0 0 1 0 12" /></svg>
+);
+const VolumeX: IconComponent = ({ className }) => (
+  <svg className={className} {...iconProps}><path d="M11 5 6 9H3v6h3l5 4zM22 9l-6 6M16 9l6 6" /></svg>
+);
+const Trophy: IconComponent = ({ className }) => (
+  <svg className={className} {...iconProps}><path d="M8 4h8v3a4 4 0 0 1-8 0zM6 7H4a2 2 0 0 0 2 2M18 7h2a2 2 0 0 1-2 2M12 11v4M9 19h6" /></svg>
+);
+const Film: IconComponent = ({ className }) => (
+  <svg className={className} {...iconProps}><rect x="3" y="3" width="18" height="18" rx="2" /><path d="M7 3v18M17 3v18M3 7h18M3 17h18" /></svg>
+);
+const Award: IconComponent = ({ className }) => (
+  <svg className={className} {...iconProps}><circle cx="12" cy="8" r="4" /><path d="m8 14 1.5 6L12 18l2.5 2 1.5-6" /></svg>
+);
+const BarChart3: IconComponent = ({ className }) => (
+  <svg className={className} {...iconProps}><path d="M3 3v18h18" /><path d="M8 14v4M12 10v8M16 6v12" /></svg>
+);
 
 interface Award {
   id: string;
@@ -16,7 +54,7 @@ interface Award {
   details: string;
   fullDescription: string;
   impact: string[];
-  icon: typeof Trophy;
+  icon: IconComponent;
   image: string;
 }
 
