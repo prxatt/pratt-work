@@ -1,5 +1,21 @@
 import type { NextConfig } from "next";
 
+const csp = [
+  "default-src 'self'",
+  "base-uri 'self'",
+  "frame-ancestors 'none'",
+  "form-action 'self'",
+  "object-src 'none'",
+  "script-src 'self' 'unsafe-inline'",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: blob: https:",
+  "font-src 'self' data:",
+  "media-src 'self' blob: https:",
+  "connect-src 'self' https://vitals.vercel-insights.com https://*.vercel-insights.com",
+  "worker-src 'self' blob:",
+  "upgrade-insecure-requests",
+].join('; ');
+
 const nextConfig: NextConfig = {
   /* config options here */
   // Align Turbopack root with the repo root on any machine (avoids hardcoded paths; matches Vercel cwd)
@@ -55,22 +71,23 @@ const nextConfig: NextConfig = {
         source: '/:path*',
         headers: [
           // Security: Prevent clickjacking
-          { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
+          { key: 'X-Frame-Options', value: 'DENY' },
           // Security: Prevent MIME type sniffing
           { key: 'X-Content-Type-Options', value: 'nosniff' },
-          // Security: XSS Protection
-          { key: 'X-XSS-Protection', value: '1; mode=block' },
           // Security: Referrer Policy
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+          // Security: Content Security Policy
+          { key: 'Content-Security-Policy', value: csp },
+          // Security: Cross-Origin isolation controls
+          { key: 'Cross-Origin-Opener-Policy', value: 'same-origin' },
+          { key: 'Cross-Origin-Resource-Policy', value: 'same-origin' },
           // Security: Permissions Policy (disable unnecessary browser features)
-          { 
-            key: 'Permissions-Policy', 
-            value: 'camera=(), microphone=(), geolocation=(), interest-cohort=(), browsing-topics=()' 
+          {
+            key: 'Permissions-Policy',
+            value: 'accelerometer=(), autoplay=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=(), browsing-topics=()'
           },
           // Security: Strict Transport Security (HSTS)
           { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains; preload' },
-          // Performance: Keep-alive for HTTP/2
-          { key: 'Connection', value: 'keep-alive' },
         ],
       },
       {
@@ -102,6 +119,36 @@ const nextConfig: NextConfig = {
         headers: [
           { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' }
         ],
+      },
+      // Optional crawler guardrails for non-public/internal paths.
+      {
+        source: '/api/:path*',
+        headers: [
+          { key: 'X-Robots-Tag', value: 'noindex, nofollow, noarchive, nosnippet' },
+        ],
+      },
+      {
+        source: '/_next/:path*',
+        headers: [
+          { key: 'X-Robots-Tag', value: 'noindex, nofollow, noarchive, nosnippet' },
+        ],
+      },
+      {
+        source: '/private/:path*',
+        headers: [
+          { key: 'X-Robots-Tag', value: 'noindex, nofollow, noarchive, nosnippet' },
+        ],
+      },
+    ];
+  },
+  async redirects() {
+    return [
+      // Keep a single canonical host to reduce phishing confusion and duplicate indexing.
+      {
+        source: '/:path*',
+        has: [{ type: 'host', value: 'www.pratt.work' }],
+        destination: 'https://pratt.work/:path*',
+        permanent: true,
       },
     ];
   },
