@@ -15,6 +15,7 @@ const LargeVideoFrame = ({ mp4Src, webmSrc }: LargeVideoFrameProps) => {
   const [canPlay, setCanPlay] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const ref = useRef<HTMLDivElement>(null);
+  const hasSource = Boolean(mp4Src || webmSrc);
 
   React.useEffect(() => {
     const video = videoRef.current;
@@ -52,7 +53,7 @@ const LargeVideoFrame = ({ mp4Src, webmSrc }: LargeVideoFrameProps) => {
       viewport={{ once: true }}
       transition={{ duration: 0.8, delay: 0.3, ease: [0.16, 1, 0.3, 1] }}
     >
-      {mp4Src && (
+      {hasSource && (
         <video
           ref={videoRef}
           autoPlay
@@ -69,14 +70,14 @@ const LargeVideoFrame = ({ mp4Src, webmSrc }: LargeVideoFrameProps) => {
           }}
         >
           {webmSrc && <source src={webmSrc} type="video/webm" />}
-          <source src={mp4Src} type="video/mp4" />
+          {mp4Src && <source src={mp4Src} type="video/mp4" />}
         </video>
       )}
 
       {/* Label overlay - shows when loading */}
       <div 
         className="absolute inset-0 flex items-center justify-center"
-        style={{ opacity: mp4Src && canPlay ? 0 : 1 }}
+        style={{ opacity: hasSource && canPlay ? 0 : 1 }}
       >
         <motion.span 
           className="font-mono text-[12px] text-[#4A4A47] uppercase tracking-[0.2em]"
@@ -148,6 +149,7 @@ const VideoFrame = ({ label, index, mp4Src, webmSrc }: VideoFrameProps) => {
   const isInView = useInView(ref, { once: true, margin: '-100px' });
   const [isHovered, setIsHovered] = useState(false);
   const [canPlay, setCanPlay] = useState(false);
+  const hasSource = Boolean(mp4Src || webmSrc);
 
   React.useEffect(() => {
     const video = videoRef.current;
@@ -191,7 +193,7 @@ const VideoFrame = ({ label, index, mp4Src, webmSrc }: VideoFrameProps) => {
           minHeight: '280px',
         }}
       >
-        {mp4Src && (
+        {hasSource && (
           <video
             ref={videoRef}
             autoPlay
@@ -208,7 +210,7 @@ const VideoFrame = ({ label, index, mp4Src, webmSrc }: VideoFrameProps) => {
             }}
           >
             {webmSrc && <source src={webmSrc} type="video/webm" />}
-            <source src={mp4Src} type="video/mp4" />
+            {mp4Src && <source src={mp4Src} type="video/mp4" />}
           </video>
         )}
 
@@ -216,7 +218,7 @@ const VideoFrame = ({ label, index, mp4Src, webmSrc }: VideoFrameProps) => {
         <motion.span 
           className="font-mono text-[10px] text-[#4A4A47] uppercase tracking-[0.2em] transition-colors duration-300 relative z-10"
           animate={{ color: isHovered ? '#6366f1' : '#4A4A47' }}
-          style={{ opacity: mp4Src && canPlay ? 0 : 1 }}
+          style={{ opacity: hasSource && canPlay ? 0 : 1 }}
         >
           [ {label} ]
         </motion.span>
