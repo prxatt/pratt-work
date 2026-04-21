@@ -145,17 +145,17 @@ export const AboutHero = () => {
           <div className="absolute inset-0" style={staticFieldBg} />
         ) : (
           <FaultyTerminal
-            scale={clientTouch ? 1.26 : 1.42}
-            gridMul={clientTouch ? [2.28, 1.58] : [2.62, 1.74]}
+            scale={clientTouch ? 1.24 : 1.5}
+            gridMul={clientTouch ? [2.02, 2.04] : [2.24, 2.16]}
             digitSize={1.0}
-            timeScale={prefersReducedMotion ? 0.028 : clientTouch ? 0.095 : 0.108}
-            scanlineIntensity={0.028}
-            glitchAmount={prefersReducedMotion ? 0.055 : 0.072}
-            flickerAmount={prefersReducedMotion ? 0.02 : 0.028}
-            noiseAmp={clientLowEnd ? 0.46 : 0.56}
-            curvature={0.065}
+            timeScale={prefersReducedMotion ? 0.03 : clientTouch ? 0.114 : 0.13}
+            scanlineIntensity={clientLowEnd ? 0.014 : 0.022}
+            glitchAmount={prefersReducedMotion ? 0.016 : 0.026}
+            flickerAmount={prefersReducedMotion ? 0.006 : 0.01}
+            noiseAmp={clientLowEnd ? 0.3 : 0.38}
+            curvature={0.055}
             chromaticAberration={0}
-            dither={clientLowEnd ? 0.08 : 0.18}
+            dither={clientLowEnd ? 0.06 : 0.12}
             tint="#F5F5F3"
             mouseReact={false}
             mouseStrength={0}
