@@ -465,10 +465,10 @@ export default function SalesforceContent({ metadata, content, mainDescriptionMd
                       transition={{ duration: 0.4 }}
                     >
                       <picture>
-                        <source srcSet={getImageUrl('/work/salesforce-class.webp', 1400, { format: 'webp' })} type="image/webp" />
-                        <source srcSet={getImageUrl('/work/salesforce-class.jpeg', 1400, { format: 'jpg' })} type="image/jpeg" />
+                        <source srcSet={getImageUrl('/work/salesforce-learn.webp', 1400, { format: 'webp' })} type="image/webp" />
+                        <source srcSet={getImageUrl('/work/salesforce-learn.jpeg', 1400, { format: 'jpg' })} type="image/jpeg" />
                         <img 
-                          src={getImageUrl('/work/salesforce-class.jpeg', 1400, { format: 'jpg' })}
+                          src={getImageUrl('/work/salesforce-learn.webp', 1400, { format: 'webp' })}
                           alt="Students participating in STEM class activity"
                           className="w-full h-full object-cover"
                           loading="lazy"

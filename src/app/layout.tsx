@@ -10,10 +10,11 @@ import { Footer } from "@/components/layout/Footer";
 import { ClientLayout } from "./ClientLayout";
 import { MotionConfig } from "framer-motion";
 import ScrollToTop from '@/components/ScrollToTop';
+import { DeferredRuntimeEnhancers } from "@/components/runtime/DeferredRuntimeEnhancers";
 import { ScrollProgress } from '@/components/ui/ScrollProgress';
-import { SpeedInsights } from "@vercel/speed-insights/next";
 import { LcpObserver } from "@/components/dev/LcpObserver";
 import { WebMcpProvider } from "@/components/agent/WebMcpProvider";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -105,13 +106,15 @@ export default function RootLayout({
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData).replace(/</g, '\\u003c') }}
         />
-        <WebMcpProvider />
         <ScrollToTop />
         <CursorProvider>
           <MotionConfig reducedMotion="user">
             <ErrorBoundary fallback={null}>
               <CustomCursor />
-              <ScrollProgress />
+              <DeferredRuntimeEnhancers>
+                <WebMcpProvider />
+                <ScrollProgress />
+              </DeferredRuntimeEnhancers>
             </ErrorBoundary>
             <Navbar />
             <main className="relative flex flex-col min-h-screen">
