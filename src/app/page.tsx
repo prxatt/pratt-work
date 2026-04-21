@@ -4,6 +4,7 @@ import { Hero } from "@/components/sections/Hero";
 
 import { AboutSection } from "@/components/sections/AboutSection";
 import { LogoMarquee } from "@/components/sections/LogoMarquee";
+import { HomeClientSafeTail } from "@/components/sections/HomeClientSafeTail";
 
 export const metadata: Metadata = {
   alternates: { canonical: "/" },
@@ -31,14 +32,6 @@ const HowIWork = dynamic(() => import("@/components/sections/HowIWork").then(mod
   loading: () => <div className="h-[50vh] bg-[#0a0a0a]" />,
 });
 
-const RecognitionSection = dynamic(() => import("@/components/sections/RecognitionSection").then(mod => ({ default: mod.RecognitionSection })), {
-  loading: () => <div className="h-[50vh] bg-[#0a0a0a]" />,
-});
-
-const TypographicCTA = dynamic(() => import("@/components/sections/TypographicCTA").then(mod => ({ default: mod.TypographicCTA })), {
-  loading: () => <div className="h-[40vh] bg-[#0a0a0a]" />,
-});
-
 export default function Home() {
   return (
     <div className="flex flex-col w-full">
@@ -53,8 +46,7 @@ export default function Home() {
       <VenturesSection />
       {/* <SecondaryContent /> */}
       <HowIWork />
-      <RecognitionSection />
-      <TypographicCTA />
+      <HomeClientSafeTail />
     </div>
   );
 }

@@ -271,7 +271,7 @@ const CardContent = ({
   project: Project; index: number; isInView: boolean; featured?: boolean; caps: DeviceCaps;
 }) => {
   const color = getCategoryColor(project.category);
-  const titleLite = caps.isMobile || caps.prefersReducedMotion;
+  const titleLite = caps.isMobile || caps.isTouch || caps.prefersReducedMotion;
   return (
     <div className="mt-4 sm:mt-6 flex flex-col sm:flex-row justify-between items-start gap-4">
       <div className="flex flex-col gap-1 sm:gap-2">

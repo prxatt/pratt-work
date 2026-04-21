@@ -466,7 +466,7 @@ const AloneModal = ({ onClose }: { onClose: () => void }) => {
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.4 }}
-      className="fixed inset-0 z-[100] bg-black overflow-y-auto"
+      className="fixed inset-0 z-[100] bg-black overflow-y-auto overflow-x-hidden"
       onClick={onClose}
     >
       <motion.div
@@ -525,14 +525,14 @@ const AloneModal = ({ onClose }: { onClose: () => void }) => {
           </div>
 
           {/* Content layer - z-10 to appear above video */}
-          <div className="absolute bottom-0 left-0 right-0 p-8 md:p-12 lg:p-16 z-10">
-            <div className="flex items-end gap-6 md:gap-10 max-w-7xl mx-auto">
+          <div className="absolute bottom-0 left-0 right-0 p-5 sm:p-8 md:p-12 lg:p-16 z-10">
+            <div className="flex flex-col sm:flex-row items-start sm:items-end gap-4 sm:gap-6 md:gap-10 max-w-7xl mx-auto">
               {/* Portrait Poster Frame with actual image - above video */}
               <motion.div 
                 initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.2, duration: 0.6 }}
-                className="w-32 h-48 md:w-44 md:h-64 lg:w-52 lg:h-80 bg-gradient-to-br from-[#1a1a2e] to-[#0a0a0a] border border-[#2a2a3a] rounded-lg overflow-hidden flex-shrink-0 shadow-2xl relative z-20"
+                className="w-24 h-36 sm:w-32 sm:h-48 md:w-44 md:h-64 lg:w-52 lg:h-80 bg-gradient-to-br from-[#1a1a2e] to-[#0a0a0a] border border-[#2a2a3a] rounded-lg overflow-hidden flex-shrink-0 shadow-2xl relative z-20"
               >
                 <Image
                   src={getImageUrl('/recognition/alone-poster.jpg', 800)}
@@ -562,12 +562,12 @@ const AloneModal = ({ onClose }: { onClose: () => void }) => {
               </motion.div>
 
               {/* Title and Info */}
-              <div className="flex-grow pb-2 md:pb-4">
+              <div className="flex-grow w-full pb-1 sm:pb-2 md:pb-4">
                 <motion.div 
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.3, duration: 0.5 }}
-                  className="flex items-center gap-3 mb-3"
+                  className="flex flex-wrap items-center gap-2 sm:gap-3 mb-2 sm:mb-3"
                 >
                   <span className="font-mono text-sm text-[#f59e0b]">/2024</span>
                   <span className="font-mono text-xs text-[#8A8A85] uppercase tracking-wider">Short Film</span>
@@ -579,7 +579,7 @@ const AloneModal = ({ onClose }: { onClose: () => void }) => {
                   initial={{ opacity: 0, y: 30 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.4, duration: 0.6 }}
-                  className="font-display text-5xl md:text-6xl lg:text-8xl text-white uppercase leading-[0.9] tracking-tight"
+                  className="font-display text-3xl sm:text-5xl md:text-6xl lg:text-8xl text-white uppercase leading-[0.9] tracking-tight"
                 >
                   ALONE
                 </motion.h2>
@@ -588,13 +588,13 @@ const AloneModal = ({ onClose }: { onClose: () => void }) => {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ delay: 0.5, duration: 0.5 }}
-                  className="font-mono text-sm text-[#8A8A85] mt-4 uppercase tracking-wider"
+                  className="font-mono text-[11px] sm:text-sm text-[#8A8A85] mt-3 sm:mt-4 uppercase tracking-[0.14em] sm:tracking-wider"
                 >
                   Written & Directed by Pratt Majmudar
                 </motion.p>
                 <button
                   onClick={() => setCinemaOpen(true)}
-                  className="mt-4 inline-flex items-center gap-2 rounded-full border border-[#f59e0b]/45 bg-black/35 px-4 py-2 font-mono text-[10px] uppercase tracking-[0.18em] text-[#f2f2f0] hover:border-[#f59e0b] hover:bg-black/55 transition-colors"
+                  className="mt-3 sm:mt-4 inline-flex items-center gap-2 rounded-full border border-[#f59e0b]/45 bg-black/35 px-3.5 sm:px-4 py-2 font-mono text-[10px] uppercase tracking-[0.14em] sm:tracking-[0.18em] text-[#f2f2f0] hover:border-[#f59e0b] hover:bg-black/55 transition-colors"
                 >
                   <Play className="w-3.5 h-3.5" />
                   Enter Cinema Mode
@@ -606,21 +606,21 @@ const AloneModal = ({ onClose }: { onClose: () => void }) => {
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.5, duration: 0.5 }}
-                className="flex flex-col gap-3 flex-shrink-0"
+                className="w-full sm:w-auto flex flex-row sm:flex-col flex-wrap sm:flex-nowrap items-start gap-2 sm:gap-3 flex-shrink-0"
               >
                 {/* Amazon Prime Video Badge */}
-                <div className="bg-[#00A8E1] text-black font-bold px-4 py-2.5 rounded text-xs uppercase tracking-wider shadow-lg flex items-center gap-2">
+                <div className="bg-[#00A8E1] text-black font-bold px-3 sm:px-4 py-2 sm:py-2.5 rounded text-[10px] sm:text-xs uppercase tracking-wider shadow-lg flex items-center gap-2">
                   <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
                   </svg>
                   prime video
                 </div>
                 {/* Shorts.TV Badge */}
-                <div className="bg-[#f59e0b] text-black font-bold px-4 py-2.5 rounded text-xs uppercase tracking-wider shadow-lg">
+                <div className="bg-[#f59e0b] text-black font-bold px-3 sm:px-4 py-2 sm:py-2.5 rounded text-[10px] sm:text-xs uppercase tracking-wider shadow-lg">
                   shorts.tv
                 </div>
                 {/* Global reach indicator */}
-                <div className="text-right">
+                <div className="text-left sm:text-right">
                   <span className="font-mono text-[10px] text-[#6b7280] uppercase tracking-wider block">Global Reach</span>
                   <span className="font-mono text-sm text-[#f59e0b] font-bold">40M+ Homes</span>
                 </div>
@@ -788,7 +788,7 @@ const WomenIsLosersModal = ({ onClose }: { onClose: () => void }) => {
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.4 }}
-      className="fixed inset-0 z-[100] bg-[#0a0a0a] overflow-y-auto"
+      className="fixed inset-0 z-[100] bg-[#0a0a0a] overflow-y-auto overflow-x-hidden"
       onClick={onClose}
     >
       <motion.div
@@ -847,14 +847,14 @@ const WomenIsLosersModal = ({ onClose }: { onClose: () => void }) => {
           </div>
 
           {/* Content layer - z-10 to appear above video */}
-          <div className="absolute bottom-0 left-0 right-0 p-8 md:p-12 lg:p-16 z-10">
-            <div className="flex items-end gap-6 md:gap-10 max-w-7xl mx-auto">
+          <div className="absolute bottom-0 left-0 right-0 p-5 sm:p-8 md:p-12 lg:p-16 z-10">
+            <div className="flex flex-col sm:flex-row items-start sm:items-end gap-4 sm:gap-6 md:gap-10 max-w-7xl mx-auto">
               {/* Women Is Losers Film Poster - above video */}
               <motion.div 
                 initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.2, duration: 0.6 }}
-                className="w-32 h-48 md:w-44 md:h-64 lg:w-52 lg:h-80 bg-gradient-to-br from-[#1a1a1a] to-[#0f0f0f] border-2 border-[#f59e0b] rounded-lg overflow-hidden flex-shrink-0 shadow-2xl relative z-20"
+                className="w-24 h-36 sm:w-32 sm:h-48 md:w-44 md:h-64 lg:w-52 lg:h-80 bg-gradient-to-br from-[#1a1a1a] to-[#0f0f0f] border-2 border-[#f59e0b] rounded-lg overflow-hidden flex-shrink-0 shadow-2xl relative z-20"
               >
                 <Image
                   src={getImageUrl('/recognition/women-is-losers-poster.jpg', 800)}
@@ -884,12 +884,12 @@ const WomenIsLosersModal = ({ onClose }: { onClose: () => void }) => {
               </motion.div>
 
               {/* Title and Info */}
-              <div className="flex-grow pb-2 md:pb-4">
+              <div className="flex-grow w-full pb-1 sm:pb-2 md:pb-4">
                 <motion.div 
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.3, duration: 0.5 }}
-                  className="flex items-center gap-3 mb-3"
+                  className="flex flex-wrap items-center gap-2 sm:gap-3 mb-2 sm:mb-3"
                 >
                   <span className="font-mono text-sm text-[#f59e0b]">/2021</span>
                   <span className="font-mono text-xs text-[#8A8A85] uppercase tracking-wider">Feature Film</span>
@@ -901,7 +901,7 @@ const WomenIsLosersModal = ({ onClose }: { onClose: () => void }) => {
                   initial={{ opacity: 0, y: 30 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.4, duration: 0.6 }}
-                  className="font-display text-4xl md:text-5xl lg:text-7xl text-white uppercase leading-[0.95] tracking-tight"
+                  className="font-display text-3xl sm:text-4xl md:text-5xl lg:text-7xl text-white uppercase leading-[0.95] tracking-tight"
                 >
                   WOMEN IS<br/>LOSERS
                 </motion.h2>
@@ -910,13 +910,13 @@ const WomenIsLosersModal = ({ onClose }: { onClose: () => void }) => {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ delay: 0.5, duration: 0.5 }}
-                  className="font-mono text-sm text-[#8A8A85] mt-4 uppercase tracking-wider"
+                  className="font-mono text-[11px] sm:text-sm text-[#8A8A85] mt-3 sm:mt-4 uppercase tracking-[0.14em] sm:tracking-wider"
                 >
                   Unit Production Supervisor: Pratt Majmudar
                 </motion.p>
                 <button
                   onClick={() => setCinemaOpen(true)}
-                  className="mt-4 inline-flex items-center gap-2 rounded-full border border-[#f59e0b]/45 bg-black/35 px-4 py-2 font-mono text-[10px] uppercase tracking-[0.18em] text-[#f2f2f0] hover:border-[#f59e0b] hover:bg-black/55 transition-colors"
+                  className="mt-3 sm:mt-4 inline-flex items-center gap-2 rounded-full border border-[#f59e0b]/45 bg-black/35 px-3.5 sm:px-4 py-2 font-mono text-[10px] uppercase tracking-[0.14em] sm:tracking-[0.18em] text-[#f2f2f0] hover:border-[#f59e0b] hover:bg-black/55 transition-colors"
                 >
                   <Play className="w-3.5 h-3.5" />
                   Enter Cinema Mode
@@ -928,21 +928,21 @@ const WomenIsLosersModal = ({ onClose }: { onClose: () => void }) => {
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.5, duration: 0.5 }}
-                className="flex flex-col gap-3 flex-shrink-0"
+                className="w-full sm:w-auto flex flex-row sm:flex-col flex-wrap sm:flex-nowrap items-start gap-2 sm:gap-3 flex-shrink-0"
               >
                 {/* HBO Max Badge */}
-                <div className="bg-gradient-to-r from-[#8B5CF6] to-[#6366f1] text-white font-bold px-4 py-2.5 rounded text-xs uppercase tracking-wider shadow-lg flex items-center gap-2">
+                <div className="bg-gradient-to-r from-[#8B5CF6] to-[#6366f1] text-white font-bold px-3 sm:px-4 py-2 sm:py-2.5 rounded text-[10px] sm:text-xs uppercase tracking-wider shadow-lg flex items-center gap-2">
                   <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z"/>
                   </svg>
                   hbo max
                 </div>
                 {/* Festival badge */}
-                <div className="bg-[#f59e0b] text-black font-bold px-4 py-2.5 rounded text-xs uppercase tracking-wider shadow-lg text-center">
+                <div className="bg-[#f59e0b] text-black font-bold px-3 sm:px-4 py-2 sm:py-2.5 rounded text-[10px] sm:text-xs uppercase tracking-wider shadow-lg text-center">
                   Official Selection
                 </div>
                 {/* Impact indicator */}
-                <div className="text-right">
+                <div className="text-left sm:text-right">
                   <span className="font-mono text-[10px] text-[#6b7280] uppercase tracking-wider block">Social Impact</span>
                   <span className="font-mono text-sm text-[#f59e0b] font-bold">Women&apos;s Rights</span>
                 </div>
@@ -2115,7 +2115,7 @@ export const RecognitionSection = () => {
               whileInView={{ scale: 1 }}
               viewport={{ once: true }}
               transition={{ duration: 0.4, delay: 1.2, type: 'spring' }}
-              className="absolute left-1/2 bottom-0 -translate-x-1/2 translate-y-full mt-4"
+              className="absolute left-1/2 bottom-0 -translate-x-1/2 translate-y-full mt-4 hidden md:block"
             >
               <div className="w-3 h-3 rounded-full bg-[#f59e0b] border border-[#f59e0b]" />
             </motion.div>
