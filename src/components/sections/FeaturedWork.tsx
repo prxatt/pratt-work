@@ -248,16 +248,15 @@ const CardOverlays = ({ index, isInView, category }: { index: number; isInView: 
 // Steve Jobs level: Simplified text reveal - no per-character lag
 // Per-character animation removed - now uses clean blur-to-clear for performance
 const LetterReveal = ({
-  text, className, delay = 0, lite = false,
-}: { text: string; className: string; delay?: number; lite?: boolean }) => {
+  text, className, delay = 0, lite = false, reveal = true,
+}: { text: string; className: string; delay?: number; lite?: boolean; reveal?: boolean }) => {
   const ref = useRef<HTMLHeadingElement>(null);
-  const isInView = useInView(ref, { once: true, margin: '0px 0px 80px 0px' });
   return (
     <motion.h3 
       ref={ref} 
       className={className}
       initial={lite ? { opacity: 0, y: 10 } : { opacity: 0, y: 20, filter: 'blur(8px)' }}
-      animate={isInView ? (lite ? { opacity: 1, y: 0 } : { opacity: 1, y: 0, filter: 'blur(0px)' }) : {}}
+      animate={reveal ? (lite ? { opacity: 1, y: 0 } : { opacity: 1, y: 0, filter: 'blur(0px)' }) : {}}
       transition={{ duration: lite ? 0.45 : 0.8, delay, ease: [0.16, 1, 0.3, 1] }}
     >
       {text}
@@ -289,6 +288,7 @@ const CardContent = ({
             className={`font-display text-primary leading-[1.15] whitespace-normal break-normal [word-break:normal] [overflow-wrap:normal] max-w-full ${featured ? 'text-lg sm:text-xl md:text-2xl lg:text-3xl' : 'text-xl sm:text-2xl md:text-3xl'}`}
             delay={0.3 + index * 0.15}
             lite={titleLite}
+            reveal={isInView}
           />
         </div>
         <motion.span
