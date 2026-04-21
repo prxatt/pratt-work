@@ -18,7 +18,7 @@ const LargeVideoFrame = ({ mp4Src, webmSrc }: LargeVideoFrameProps) => {
 
   React.useEffect(() => {
     const video = videoRef.current;
-    if (!video || !mp4Src) return;
+    if (!video || (!mp4Src && !webmSrc)) return;
 
     video.load();
 
@@ -36,7 +36,7 @@ const LargeVideoFrame = ({ mp4Src, webmSrc }: LargeVideoFrameProps) => {
       video.removeEventListener('canplaythrough', handleCanPlay);
       clearTimeout(fallbackTimer);
     };
-  }, [mp4Src]);
+  }, [mp4Src, webmSrc]);
   
   return (
     <motion.div 
@@ -123,6 +123,25 @@ interface VideoFrameProps {
   webmSrc: string;
 }
 
+const momentsFrameSources = [
+  {
+    label: 'Experiential',
+    mp4Src: getVideoUrl('/videos/the-crypt-space.mp4'),
+    webmSrc: getVideoUrl('/videos/the-crypt-space.webm'),
+  },
+  {
+    // Middle frame explicitly wired to the Blob-hosted ST production cut.
+    label: 'Production',
+    mp4Src: getVideoUrl('/videos/st-dd-prod.mp4'),
+    webmSrc: getVideoUrl('/videos/st-dd-prod.webm'),
+  },
+  {
+    label: 'Strategy',
+    mp4Src: getVideoUrl('/videos/the-crypt-run.mp4'),
+    webmSrc: getVideoUrl('/videos/the-crypt-run.webm'),
+  },
+] as const;
+
 const VideoFrame = ({ label, index, mp4Src, webmSrc }: VideoFrameProps) => {
   const ref = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -132,7 +151,7 @@ const VideoFrame = ({ label, index, mp4Src, webmSrc }: VideoFrameProps) => {
 
   React.useEffect(() => {
     const video = videoRef.current;
-    if (!video || !mp4Src) return;
+    if (!video || (!mp4Src && !webmSrc)) return;
 
     video.load();
 
@@ -150,7 +169,7 @@ const VideoFrame = ({ label, index, mp4Src, webmSrc }: VideoFrameProps) => {
       video.removeEventListener('canplaythrough', handleCanPlay);
       clearTimeout(fallbackTimer);
     };
-  }, [mp4Src]);
+  }, [mp4Src, webmSrc]);
 
   return (
     <motion.div
@@ -413,9 +432,15 @@ export const NarrativeStatements = () => {
             transition={{ duration: 0.8, delay: 0.5, ease: [0.16, 1, 0.3, 1] }}
             className="mt-16 flex flex-col sm:flex-row gap-4 sm:gap-5 w-full justify-center px-2 sm:px-[5vw]"
           >
-            <VideoFrame label="Experiential" index={0} mp4Src={getVideoUrl('/videos/the-crypt-space.mp4')} webmSrc={getVideoUrl('/videos/the-crypt-space.webm')} />
-            <VideoFrame label="Production" index={1} mp4Src={getVideoUrl('/videos/st-dd-prod.mp4')} webmSrc={getVideoUrl('/videos/st-dd-prod.webm')} />
-            <VideoFrame label="Strategy" index={2} mp4Src={getVideoUrl('/videos/the-crypt-run.mp4')} webmSrc={getVideoUrl('/videos/the-crypt-run.webm')} />
+            {momentsFrameSources.map((frame, index) => (
+              <VideoFrame
+                key={frame.label}
+                label={frame.label}
+                index={index}
+                mp4Src={frame.mp4Src}
+                webmSrc={frame.webmSrc}
+              />
+            ))}
           </motion.div>
         </motion.div>
       </div>
