@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
-import { motion, useReducedMotion, useScroll, useTransform } from 'framer-motion';
+import { motion, useInView, useReducedMotion, useScroll, useTransform } from 'framer-motion';
 
 const FaultyTerminal = dynamic(() => import('@/components/ui/FaultyTerminal'), {
   ssr: false,
@@ -32,6 +32,7 @@ export const AboutHero = () => {
   const [hasMounted, setHasMounted] = useState(false);
   const [veilLifted, setVeilLifted] = useState(false);
   const prefersReducedMotion = useReducedMotion();
+  const heroInView = useInView(containerRef, { amount: 0.2 });
 
   const clientTouch = hasMounted && readClientTouch();
   const clientLowEnd = hasMounted && readClientLowEnd();
@@ -46,23 +47,20 @@ export const AboutHero = () => {
   const scale = useTransform(scrollYProgress, [0, 0.5], [1, 0.95]);
 
   // Parallax horizontal scroll - direct transforms for max performance
-  const moreX = useTransform(scrollYProgress, [0, 1], [0, -200]);
-  const meX = useTransform(scrollYProgress, [0, 1], [0, 80]);
-  const meScale = useTransform(scrollYProgress, [0, 1], [1, 1.05]);
+  const moreX = useTransform(scrollYProgress, [0, 1], [0, clientTouch ? -90 : -170]);
+  const meX = useTransform(scrollYProgress, [0, 1], [0, clientTouch ? 36 : 68]);
+  const meScale = useTransform(scrollYProgress, [0, 1], [1, clientTouch ? 1.02 : 1.04]);
 
   const liteMotion = prefersReducedMotion || clientLowEnd;
 
   const wordReveal = {
-    hidden: liteMotion
-      ? { y: 20, opacity: 0 }
-      : { y: 40, opacity: 0, filter: 'blur(6px)' },
+    hidden: { y: liteMotion ? 20 : 34, opacity: 0 },
     visible: (delay: number) => ({
       y: 0,
       opacity: 1,
-      ...(liteMotion ? {} : { filter: 'blur(0px)' }),
       transition: {
         delay,
-        duration: liteMotion ? 0.6 : 1.05,
+        duration: liteMotion ? 0.52 : 0.9,
         ease: [0.16, 1, 0.3, 1] as const,
       },
     }),
@@ -148,11 +146,11 @@ export const AboutHero = () => {
             scale={clientTouch ? 1.26 : 1.42}
             gridMul={clientTouch ? [2.28, 1.58] : [2.62, 1.74]}
             digitSize={1.0}
-            timeScale={prefersReducedMotion ? 0.028 : clientTouch ? 0.095 : 0.108}
-            scanlineIntensity={0.028}
-            glitchAmount={prefersReducedMotion ? 0.055 : 0.072}
-            flickerAmount={prefersReducedMotion ? 0.02 : 0.028}
-            noiseAmp={clientLowEnd ? 0.46 : 0.56}
+            timeScale={prefersReducedMotion ? 0.024 : clientTouch ? 0.078 : 0.094}
+            scanlineIntensity={0.024}
+            glitchAmount={prefersReducedMotion ? 0.04 : 0.052}
+            flickerAmount={prefersReducedMotion ? 0.012 : 0.018}
+            noiseAmp={clientLowEnd ? 0.34 : 0.42}
             curvature={0.065}
             chromaticAberration={0}
             dither={clientLowEnd ? 0.08 : 0.18}
@@ -162,7 +160,7 @@ export const AboutHero = () => {
             pageLoadAnimation={false}
             brightness={0.72}
             dpr={shaderDpr}
-            pause={false}
+            pause={!heroInView}
           />
         )}
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_38%,rgba(13,13,13,0.28)_100%)]" />
@@ -193,11 +191,18 @@ export const AboutHero = () => {
           {/* CI0 - positioned at bottom right */}
           <motion.div
             initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.35, duration: 1, ease: [0.22, 1, 0.36, 1] }}
+            animate={{ opacity: [0, 0.2, 0.12], scale: [1, 1.01, 1] }}
+            transition={{ delay: 0.35, duration: 2.2, ease: [0.22, 1, 0.36, 1] }}
             className="absolute bottom-[15vh] right-[5vw] pointer-events-none z-0"
           >
-            <span className="font-display text-[80px] md:text-[140px] text-[#F2F2F0]/[0.015] leading-none tracking-wider">
+            <span
+              className="font-display text-[80px] md:text-[140px] text-[#F2F2F0]/[0.02] leading-none tracking-[0.12em]"
+              style={{
+                filter: 'blur(11px)',
+                textShadow: '0 0 38px rgba(242,242,240,0.11), 0 0 90px rgba(116,130,247,0.1)',
+                mixBlendMode: 'screen',
+              }}
+            >
               CI0
             </span>
           </motion.div>

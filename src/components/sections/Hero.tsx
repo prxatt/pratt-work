@@ -111,8 +111,10 @@ const RotatingRoles = ({ isTouch }: { isTouch: boolean }) => {
 // MAIN HERO - Steve Jobs Level Minimalism
 // ============================================
 export const Hero = () => {
+  const sectionRef = useRef<HTMLElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const { isTouch, isLowEnd, prefersReducedMotion } = useDeviceCapabilities();
+  const heroInView = useInView(sectionRef, { amount: 0.2 });
   const [terminalDpr, setTerminalDpr] = useState(1);
   const [showTerminal, setShowTerminal] = useState(false);
   const [contentReady, setContentReady] = useState(false);
@@ -127,9 +129,9 @@ export const Hero = () => {
       return;
     }
     if (isTouch) {
-      setTerminalDpr(Math.min(raw, 1.2));
+      setTerminalDpr(Math.min(raw, 1));
     } else {
-      setTerminalDpr(Math.min(raw, isLowEnd ? 1 : 1.2));
+      setTerminalDpr(Math.min(raw, isLowEnd ? 1 : 1.1));
     }
   }, [isLowEnd, isTouch, prefersReducedMotion]);
 
@@ -172,7 +174,7 @@ export const Hero = () => {
   };
 
   return (
-    <section className="relative h-[100dvh] w-full overflow-hidden flex flex-col bg-[#0a0a0a]">
+    <section ref={sectionRef} className="relative h-[100dvh] w-full overflow-hidden flex flex-col bg-[#0a0a0a]">
       {/* Deep background */}
       <div className="absolute inset-0 z-0 bg-[#0a0a0a]" />
 
@@ -183,19 +185,20 @@ export const Hero = () => {
             scale={mobileTerminalScale}
             gridMul={mobileGrid}
             digitSize={1.0}
-            timeScale={prefersReducedMotion ? 0.05 : isTouch ? 0.11 : 0.12}
-            scanlineIntensity={0.04}
-            glitchAmount={0.08}
-            flickerAmount={0.02}
-            noiseAmp={0.5}
-            curvature={0.08}
-            chromaticAberration={isTouch && !prefersReducedMotion ? 0.0022 : 0}
+            timeScale={prefersReducedMotion ? 0.04 : isTouch ? 0.085 : 0.1}
+            scanlineIntensity={0.03}
+            glitchAmount={isTouch ? 0.045 : 0.055}
+            flickerAmount={0.012}
+            noiseAmp={isTouch ? 0.38 : 0.44}
+            curvature={0.06}
+            chromaticAberration={0}
             tint="#F5F5F3"
-            mouseReact={!isTouch}
-            mouseStrength={1.2}
-            pageLoadAnimation={true}
+            mouseReact={!isTouch && heroInView}
+            mouseStrength={0.85}
+            pageLoadAnimation={!prefersReducedMotion}
             brightness={isTouch ? 0.95 : 0.95}
             dpr={terminalDpr}
+            pause={!heroInView}
           />
         ) : (
           <div className="absolute inset-0 bg-[#0a0a0a]" />
