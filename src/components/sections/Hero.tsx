@@ -5,7 +5,6 @@ import { motion, useInView } from 'framer-motion';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import { useDeviceCapabilities } from '@/hooks/useReducedMotion';
-import { CustomCursor } from '@/components/ui/CustomCursor';
 
 // Dynamically import FaultyTerminal with mobile optimization
 const FaultyTerminal = dynamic(() => import('@/components/ui/FaultyTerminal'), {
@@ -141,11 +140,10 @@ export const Hero = () => {
   }, [isTouch, prefersReducedMotion]);
 
   useEffect(() => {
-    if (!showTerminal) return;
-    // Start text shortly after background animation is alive.
-    const contentTimer = window.setTimeout(() => setContentReady(true), 160);
+    // Reveal LCP text quickly; don't block on background shader startup.
+    const contentTimer = window.setTimeout(() => setContentReady(true), 120);
     return () => window.clearTimeout(contentTimer);
-  }, [showTerminal]);
+  }, []);
 
   // Entry animation sequence - background loads first, then content
   const containerVariants = {
@@ -235,8 +233,6 @@ export const Hero = () => {
           opacity: 0.02,
         }}
       />
-
-      <CustomCursor />
 
       {/* Main content - Centered with smooth entry animation */}
       <motion.div 

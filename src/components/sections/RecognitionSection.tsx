@@ -132,6 +132,25 @@ const CinemaModeOverlay = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
 
+  const ensureAudiblePlayback = useCallback(async () => {
+    const node = videoRef.current;
+    if (!node) return;
+    const targetVolume = Math.max(node.volume || 0, 0.4);
+    node.muted = false;
+    node.defaultMuted = false;
+    node.volume = targetVolume;
+    setMuted(false);
+    setVolume((prev) => Math.max(prev, targetVolume));
+    try {
+      await node.play();
+    } catch {
+      // Fallback to muted playback if browser blocks autoplay with audio.
+      node.muted = true;
+      setMuted(true);
+      void node.play().catch(() => {});
+    }
+  }, []);
+
   const enterFullscreen = useCallback(async () => {
     const container = containerRef.current as (HTMLElement & {
       webkitRequestFullscreen?: () => Promise<void> | void;
@@ -140,14 +159,14 @@ const CinemaModeOverlay = ({
       webkitEnterFullscreen?: () => void;
       webkitSupportsFullscreen?: boolean;
     }) | null;
-    if (!container) return;
+    if (!container && !video) return;
 
     try {
-      if (container.requestFullscreen) {
+      if (container?.requestFullscreen) {
         await container.requestFullscreen();
         return;
       }
-      if (container.webkitRequestFullscreen) {
+      if (container?.webkitRequestFullscreen) {
         await container.webkitRequestFullscreen();
         return;
       }
@@ -155,6 +174,7 @@ const CinemaModeOverlay = ({
       // Fallback to inline cinema viewport on unsupported or blocked fullscreen.
     }
 
+    // iOS Safari path for native fullscreen video playback.
     if (video?.webkitEnterFullscreen && video.webkitSupportsFullscreen !== false) {
       try {
         video.webkitEnterFullscreen();
@@ -238,15 +258,11 @@ const CinemaModeOverlay = ({
   useEffect(() => {
     if (!isOpen || !containerRef.current) return;
     void enterFullscreen();
-    const video = videoRef.current;
-    if (!video) return;
-    video.muted = false;
-    video.volume = 0.4;
-    void video.play().catch(() => {});
+    void ensureAudiblePlayback();
     return () => {
       void exitFullscreen();
     };
-  }, [enterFullscreen, exitFullscreen, isOpen]);
+  }, [enterFullscreen, ensureAudiblePlayback, exitFullscreen, isOpen]);
 
   useEffect(() => {
     const doc = document as Document & { webkitFullscreenElement?: Element | null };
@@ -303,6 +319,14 @@ const CinemaModeOverlay = ({
       <div
         ref={containerRef}
         className="relative w-full h-full flex items-center justify-center p-4 sm:p-6"
+        onPointerDownCapture={(e) => {
+          const target = e.target as HTMLElement | null;
+          const isInteractiveControl = Boolean(
+            target?.closest('button, input, [role="button"], [aria-label="Volume"], [aria-label="Timeline"]')
+          );
+          if (isInteractiveControl) return;
+          if (muted) void ensureAudiblePlayback();
+        }}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="relative w-full h-full">
@@ -334,6 +358,7 @@ const CinemaModeOverlay = ({
                 if (isFullscreen) {
                   void exitFullscreen();
                 } else {
+                  void ensureAudiblePlayback();
                   void enterFullscreen();
                 }
               }}

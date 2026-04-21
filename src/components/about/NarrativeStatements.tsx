@@ -15,10 +15,11 @@ const LargeVideoFrame = ({ mp4Src, webmSrc }: LargeVideoFrameProps) => {
   const [canPlay, setCanPlay] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const ref = useRef<HTMLDivElement>(null);
+  const hasSource = Boolean(mp4Src || webmSrc);
 
   React.useEffect(() => {
     const video = videoRef.current;
-    if (!video || !mp4Src) return;
+    if (!video || (!mp4Src && !webmSrc)) return;
 
     video.load();
 
@@ -36,7 +37,7 @@ const LargeVideoFrame = ({ mp4Src, webmSrc }: LargeVideoFrameProps) => {
       video.removeEventListener('canplaythrough', handleCanPlay);
       clearTimeout(fallbackTimer);
     };
-  }, [mp4Src]);
+  }, [mp4Src, webmSrc]);
   
   return (
     <motion.div 
@@ -52,7 +53,7 @@ const LargeVideoFrame = ({ mp4Src, webmSrc }: LargeVideoFrameProps) => {
       viewport={{ once: true }}
       transition={{ duration: 0.8, delay: 0.3, ease: [0.16, 1, 0.3, 1] }}
     >
-      {mp4Src && (
+      {hasSource && (
         <video
           ref={videoRef}
           autoPlay
@@ -69,14 +70,14 @@ const LargeVideoFrame = ({ mp4Src, webmSrc }: LargeVideoFrameProps) => {
           }}
         >
           {webmSrc && <source src={webmSrc} type="video/webm" />}
-          <source src={mp4Src} type="video/mp4" />
+          {mp4Src && <source src={mp4Src} type="video/mp4" />}
         </video>
       )}
 
       {/* Label overlay - shows when loading */}
       <div 
         className="absolute inset-0 flex items-center justify-center"
-        style={{ opacity: mp4Src && canPlay ? 0 : 1 }}
+        style={{ opacity: hasSource && canPlay ? 0 : 1 }}
       >
         <motion.span 
           className="font-mono text-[12px] text-[#4A4A47] uppercase tracking-[0.2em]"
@@ -123,16 +124,36 @@ interface VideoFrameProps {
   webmSrc: string;
 }
 
+const momentsFrameSources = [
+  {
+    label: 'Experiential',
+    mp4Src: getVideoUrl('/videos/the-crypt-space.mp4'),
+    webmSrc: getVideoUrl('/videos/the-crypt-space.webm'),
+  },
+  {
+    // Middle frame explicitly wired to the Blob-hosted ST production cut.
+    label: 'Production',
+    mp4Src: getVideoUrl('/videos/st-dd-prod.mp4'),
+    webmSrc: getVideoUrl('/videos/st-dd-prod.webm'),
+  },
+  {
+    label: 'Strategy',
+    mp4Src: getVideoUrl('/videos/the-crypt-run.mp4'),
+    webmSrc: getVideoUrl('/videos/the-crypt-run.webm'),
+  },
+] as const;
+
 const VideoFrame = ({ label, index, mp4Src, webmSrc }: VideoFrameProps) => {
   const ref = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const isInView = useInView(ref, { once: true, margin: '-100px' });
   const [isHovered, setIsHovered] = useState(false);
   const [canPlay, setCanPlay] = useState(false);
+  const hasSource = Boolean(mp4Src || webmSrc);
 
   React.useEffect(() => {
     const video = videoRef.current;
-    if (!video || !mp4Src) return;
+    if (!video || (!mp4Src && !webmSrc)) return;
 
     video.load();
 
@@ -150,7 +171,7 @@ const VideoFrame = ({ label, index, mp4Src, webmSrc }: VideoFrameProps) => {
       video.removeEventListener('canplaythrough', handleCanPlay);
       clearTimeout(fallbackTimer);
     };
-  }, [mp4Src]);
+  }, [mp4Src, webmSrc]);
 
   return (
     <motion.div
@@ -172,7 +193,7 @@ const VideoFrame = ({ label, index, mp4Src, webmSrc }: VideoFrameProps) => {
           minHeight: '280px',
         }}
       >
-        {mp4Src && (
+        {hasSource && (
           <video
             ref={videoRef}
             autoPlay
@@ -189,7 +210,7 @@ const VideoFrame = ({ label, index, mp4Src, webmSrc }: VideoFrameProps) => {
             }}
           >
             {webmSrc && <source src={webmSrc} type="video/webm" />}
-            <source src={mp4Src} type="video/mp4" />
+            {mp4Src && <source src={mp4Src} type="video/mp4" />}
           </video>
         )}
 
@@ -197,7 +218,7 @@ const VideoFrame = ({ label, index, mp4Src, webmSrc }: VideoFrameProps) => {
         <motion.span 
           className="font-mono text-[10px] text-[#4A4A47] uppercase tracking-[0.2em] transition-colors duration-300 relative z-10"
           animate={{ color: isHovered ? '#6366f1' : '#4A4A47' }}
-          style={{ opacity: mp4Src && canPlay ? 0 : 1 }}
+          style={{ opacity: hasSource && canPlay ? 0 : 1 }}
         >
           [ {label} ]
         </motion.span>
@@ -324,7 +345,7 @@ export const NarrativeStatements = () => {
   });
 
   // Reduced motion for mobile - direct transforms (no useSpring for performance)
-  const moveDistance = isMobile ? 50 : 100;
+  const moveDistance = isMobile ? 0 : 100;
   
   // Direct scroll transforms - eliminate spring overhead
   const firstLineX = useTransform(scrollYProgress, [0, 0.3], [moveDistance, 0]);
@@ -352,7 +373,7 @@ export const NarrativeStatements = () => {
           >
             <LetterAnimation 
               text="Creating Moments" 
-              className="font-display text-[#F2F2F0] uppercase text-[8vw] md:text-[6vw] leading-[0.9] block whitespace-nowrap"
+              className="font-display text-[#F2F2F0] uppercase text-[8vw] md:text-[6vw] leading-[0.9] block"
               isInView={true}
             />
           </motion.div>
@@ -367,7 +388,7 @@ export const NarrativeStatements = () => {
           >
             <LetterAnimation 
               text="That Shift" 
-              className="font-display text-[#F2F2F0]/30 uppercase text-[8vw] md:text-[6vw] leading-[0.9] block whitespace-nowrap"
+              className="font-display text-[#F2F2F0]/30 uppercase text-[8vw] md:text-[6vw] leading-[0.9] block"
               delay={0.15}
               isInView={true}
             />
@@ -413,9 +434,15 @@ export const NarrativeStatements = () => {
             transition={{ duration: 0.8, delay: 0.5, ease: [0.16, 1, 0.3, 1] }}
             className="mt-16 flex flex-col sm:flex-row gap-4 sm:gap-5 w-full justify-center px-2 sm:px-[5vw]"
           >
-            <VideoFrame label="Experiential" index={0} mp4Src={getVideoUrl('/videos/the-crypt-space.mp4')} webmSrc={getVideoUrl('/videos/the-crypt-space.webm')} />
-            <VideoFrame label="Production" index={1} mp4Src={getVideoUrl('/videos/st-dd-prod.mp4')} webmSrc={getVideoUrl('/videos/st-dd-prod.webm')} />
-            <VideoFrame label="Strategy" index={2} mp4Src={getVideoUrl('/videos/the-crypt-run.mp4')} webmSrc={getVideoUrl('/videos/the-crypt-run.webm')} />
+            {momentsFrameSources.map((frame, index) => (
+              <VideoFrame
+                key={frame.label}
+                label={frame.label}
+                index={index}
+                mp4Src={frame.mp4Src}
+                webmSrc={frame.webmSrc}
+              />
+            ))}
           </motion.div>
         </motion.div>
       </div>
