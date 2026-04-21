@@ -10,6 +10,7 @@ const FaultyTerminal = dynamic(() => import('@/components/ui/FaultyTerminal'), {
 
 const HERO_VEIL_MS = 1100;
 const HERO_VEIL_EASE = 'cubic-bezier(0.22, 1, 0.36, 1)';
+const HERO_EASE = [0.16, 1, 0.3, 1] as const;
 
 function readClientTouch(): boolean {
   if (typeof window === 'undefined') return false;
@@ -27,6 +28,124 @@ function readClientLowEnd(): boolean {
   return cores <= 2 || mem <= 4;
 }
 
+// ============================================
+// CORNER BRACKETS — editorial viewport markers
+// (mirrors homepage hero grammar; locked to the sticky viewport container)
+// ============================================
+const CornerBrackets = ({ visible }: { visible: boolean }) => {
+  const common =
+    'absolute w-6 h-6 md:w-8 md:h-8 pointer-events-none border-[#F2F2F0]/22';
+  const positions = [
+    { key: 'tl', className: 'top-4 left-4 md:top-6 md:left-8 border-t border-l', delay: 0.1 },
+    { key: 'tr', className: 'top-4 right-4 md:top-6 md:right-8 border-t border-r', delay: 0.16 },
+    { key: 'bl', className: 'bottom-4 left-4 md:bottom-6 md:left-8 border-b border-l', delay: 0.22 },
+    { key: 'br', className: 'bottom-4 right-4 md:bottom-6 md:right-8 border-b border-r', delay: 0.28 },
+  ] as const;
+  return (
+    <>
+      {positions.map((p) => (
+        <motion.div
+          key={p.key}
+          className={`${common} ${p.className}`}
+          style={{ borderWidth: 1 }}
+          initial={{ opacity: 0, scale: 0.82 }}
+          animate={visible ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.82 }}
+          transition={{ duration: 0.7, delay: p.delay, ease: HERO_EASE }}
+        />
+      ))}
+    </>
+  );
+};
+
+// ============================================
+// EDITORIAL COLUMN RULE — thin left rail with three baseline ticks
+// ============================================
+const ColumnRule = ({ visible }: { visible: boolean }) => {
+  const ticks = [
+    { top: '30%', delay: 0.38 },
+    { top: '50%', delay: 0.5 },
+    { top: '70%', delay: 0.62 },
+  ];
+  return (
+    <div
+      aria-hidden
+      className="absolute top-[12%] bottom-[12%] left-4 md:left-8 pointer-events-none"
+    >
+      <motion.div
+        className="w-px h-full bg-gradient-to-b from-transparent via-[#F2F2F0]/18 to-transparent origin-top"
+        initial={{ scaleY: 0, opacity: 0 }}
+        animate={visible ? { scaleY: 1, opacity: 1 } : { scaleY: 0, opacity: 0 }}
+        transition={{ duration: 0.9, delay: 0.32, ease: HERO_EASE }}
+      />
+      {ticks.map((t, i) => (
+        <motion.div
+          key={i}
+          className="absolute h-px w-2.5 md:w-3.5 bg-[#F2F2F0]/28"
+          style={{ top: t.top, left: 0 }}
+          initial={{ opacity: 0, scaleX: 0 }}
+          animate={visible ? { opacity: 1, scaleX: 1 } : { opacity: 0, scaleX: 0 }}
+          transition={{ duration: 0.5, delay: t.delay, ease: HERO_EASE }}
+        />
+      ))}
+    </div>
+  );
+};
+
+// ============================================
+// LETTER CASCADE — per-glyph stagger with blur-clear entry
+// ============================================
+const LetterCascade = ({
+  text,
+  reveal,
+  delay,
+  lite,
+  className,
+  style,
+}: {
+  text: string;
+  reveal: boolean;
+  delay: number;
+  lite: boolean;
+  className?: string;
+  style?: React.CSSProperties;
+}) => {
+  const letters = useMemo(() => Array.from(text), [text]);
+  const per = lite ? 0.034 : 0.05;
+  return (
+    <span className={className} style={style} aria-label={text} role="text">
+      {letters.map((ch, i) => (
+        <motion.span
+          key={`${ch}-${i}`}
+          aria-hidden
+          className="inline-block"
+          initial={{
+            opacity: 0,
+            y: lite ? 18 : 42,
+            filter: lite ? 'blur(0px)' : 'blur(8px)',
+          }}
+          animate={
+            reveal
+              ? { opacity: 1, y: 0, filter: 'blur(0px)' }
+              : {
+                  opacity: 0,
+                  y: lite ? 18 : 42,
+                  filter: lite ? 'blur(0px)' : 'blur(8px)',
+                }
+          }
+          transition={{
+            duration: lite ? 0.6 : 0.9,
+            delay: delay + i * per,
+            ease: HERO_EASE,
+          }}
+          style={{ willChange: 'transform, opacity, filter' }}
+        >
+          {ch}
+        </motion.span>
+      ))}
+    </span>
+  );
+};
+
 export const AboutHero = () => {
   const containerRef = useRef<HTMLElement>(null);
   const [hasMounted, setHasMounted] = useState(false);
@@ -41,31 +160,14 @@ export const AboutHero = () => {
     offset: ['start start', 'end end'],
   });
 
-  // Direct scroll transforms - NO useSpring (eliminates continuous animation overhead)
   const opacity = useTransform(scrollYProgress, [0, 0.5], [1, 0]);
   const scale = useTransform(scrollYProgress, [0, 0.5], [1, 0.95]);
 
-  // Parallax horizontal scroll - softened on touch/low-end to avoid stutter.
   const moreX = useTransform(scrollYProgress, [0, 1], [0, clientTouch || clientLowEnd ? -120 : -220]);
   const meX = useTransform(scrollYProgress, [0, 1], [0, clientTouch || clientLowEnd ? 52 : 88]);
   const meScale = useTransform(scrollYProgress, [0, 1], [1, clientTouch || clientLowEnd ? 1.02 : 1.06]);
 
-  const liteMotion = prefersReducedMotion || clientLowEnd;
-
-  const wordReveal = {
-    hidden: liteMotion
-      ? { y: 20, opacity: 0 }
-      : { y: 38, opacity: 0 },
-    visible: (delay: number) => ({
-      y: 0,
-      opacity: 1,
-      transition: {
-        delay,
-        duration: liteMotion ? 0.6 : 1.05,
-        ease: [0.16, 1, 0.3, 1] as const,
-      },
-    }),
-  };
+  const liteMotion = !!prefersReducedMotion || clientLowEnd;
 
   const shaderDpr = useMemo(() => {
     if (!hasMounted || typeof window === 'undefined') return 1;
@@ -75,6 +177,7 @@ export const AboutHero = () => {
     return Math.min(raw, clientLowEnd ? 0.9 : 0.95);
   }, [hasMounted, prefersReducedMotion, clientTouch, clientLowEnd]);
   const enablePrismaticSweep = !liteMotion && !clientTouch;
+  const enableBreath = !liteMotion && !clientTouch;
 
   useEffect(() => {
     setHasMounted(true);
@@ -106,10 +209,9 @@ export const AboutHero = () => {
       ref={containerRef}
       className="min-h-[145dvh] md:min-h-[155dvh] bg-[#0D0D0D] relative overflow-hidden contain-layout gpu-accelerated"
     >
-      {/* Layer 0: Base dark background — static (parallax removed: was repainting above WebGL) */}
+      {/* Layer 0: base dark field — static */}
       <div className="absolute inset-0 z-0">
         <div className="absolute inset-0 bg-[#0D0D0D]" />
-        {/* Homepage-inspired scanline texture for brand cohesion */}
         <div
           className="absolute inset-0 opacity-[0.03] pointer-events-none"
           style={{
@@ -118,8 +220,6 @@ export const AboutHero = () => {
             backgroundSize: '100% 8px',
           }}
         />
-
-        {/* Noise texture overlay - static for performance */}
         <div
           className="absolute inset-0 opacity-[0.02] gpu-accelerated"
           style={{
@@ -127,8 +227,6 @@ export const AboutHero = () => {
             willChange: 'auto',
           }}
         />
-
-        {/* Vignette overlay - GPU layer */}
         <div
           className="absolute inset-0 gpu-accelerated"
           style={{
@@ -139,7 +237,7 @@ export const AboutHero = () => {
         />
       </div>
 
-      {/* Layer 8: field — placeholder matches WebGL fallback so first paint never “pops” */}
+      {/* Layer 8: shader field (profile preserved — stutter fix + flower character) */}
       <div className="absolute inset-0 z-[8] min-h-[100dvh] pointer-events-none overflow-hidden">
         {!hasMounted ? (
           <div className="absolute inset-0" style={staticFieldBg} />
@@ -170,7 +268,26 @@ export const AboutHero = () => {
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-[#0d0d0d]/14" />
       </div>
 
-      {/* Mist veil: same palette as static field; lifts after mount so WebGL never flashes in raw */}
+      {/* Layer 9: directional key light — upper-right radial, screen blend
+          (matches homepage hero; lifts with veil for a cohesive reveal) */}
+      {hasMounted && (
+        <motion.div
+          aria-hidden
+          className="absolute inset-0 z-[9] pointer-events-none"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: veilLifted ? 1 : 0 }}
+          transition={{ duration: 1.4, ease: HERO_EASE }}
+          style={{
+            background:
+              clientTouch
+                ? 'radial-gradient(ellipse 78% 52% at 80% 18%, rgba(245,245,243,0.09) 0%, rgba(245,245,243,0.02) 40%, transparent 66%)'
+                : 'radial-gradient(ellipse 58% 52% at 74% 20%, rgba(245,245,243,0.11) 0%, rgba(245,245,243,0.03) 42%, transparent 68%)',
+            mixBlendMode: 'screen',
+          }}
+        />
+      )}
+
+      {/* Mist veil: lifts after mount so shader never flashes in raw */}
       {hasMounted && (
         <div
           className="pointer-events-none absolute inset-0 z-[10] min-h-[100dvh] select-none"
@@ -184,34 +301,57 @@ export const AboutHero = () => {
         />
       )}
 
-      {/* Layer 20: Typography - always on top, full viewport; transparent so the field reads through empty areas */}
+      {/* Layer 20: typography composition (sticky viewport-locked) */}
       <motion.div
         style={{ opacity, scale }}
         className="sticky top-0 h-[100dvh] min-h-[100dvh] flex flex-col justify-center items-center w-full z-20 bg-transparent"
       >
-        {/* Oversized typography composition - full viewport width */}
+        {/* Editorial overlay — corner brackets + left column rule */}
+        <div className="absolute inset-0 z-[21] pointer-events-none">
+          <CornerBrackets visible={veilLifted} />
+          <ColumnRule visible={veilLifted} />
+        </div>
+
+        {/* Oversized typography — full viewport width */}
         <div className="relative w-full h-full px-6 md:px-12 lg:px-20 flex flex-col justify-center">
-          {/* CI0 - positioned at bottom right */}
+          {/* CI0 — editorial ghost with optional gentle breath */}
           <motion.div
             initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.35, duration: 1, ease: [0.22, 1, 0.36, 1] }}
+            animate={
+              enableBreath
+                ? { opacity: [0, 1, 0.88, 1] }
+                : { opacity: 1 }
+            }
+            transition={
+              enableBreath
+                ? {
+                    delay: 0.35,
+                    duration: 6.5,
+                    times: [0, 0.18, 0.6, 1],
+                    ease: 'easeInOut',
+                    repeat: Infinity,
+                    repeatType: 'mirror',
+                  }
+                : { delay: 0.35, duration: 1, ease: [0.22, 1, 0.36, 1] }
+            }
             className="absolute bottom-[15vh] right-[5vw] pointer-events-none z-0"
           >
             <span
               className="font-display text-[80px] md:text-[140px] text-[#F2F2F0]/[0.02] leading-none tracking-wider"
               style={{
                 filter: liteMotion ? 'blur(6px)' : 'blur(18px)',
-                textShadow: liteMotion ? 'none' : '0 0 36px rgba(242,242,240,0.2), 0 0 90px rgba(242,242,240,0.1)',
+                textShadow: liteMotion
+                  ? 'none'
+                  : '0 0 36px rgba(242,242,240,0.2), 0 0 90px rgba(242,242,240,0.1)',
               }}
             >
               CI0
             </span>
           </motion.div>
 
-          {/* Text stack container - equal vertical spacing with offset positioning */}
+          {/* Text stack */}
           <div className="relative flex w-full max-w-[100%] flex-col items-stretch gap-[2vh] md:gap-[3vh]">
-            {/* First line - MORE — anchored left; avoids parent items-center “centering” */}
+            {/* MORE — left parallax */}
             <motion.div
               className="relative z-30 w-max max-w-[92vw] self-start overflow-hidden pl-[max(0px,env(safe-area-inset-left))] ml-[clamp(0.25rem,7vw,6.5rem)] md:ml-[clamp(1.25rem,12vw,9rem)] lg:ml-[clamp(2rem,14vw,11rem)]"
               style={{
@@ -220,19 +360,15 @@ export const AboutHero = () => {
                 transform: 'translateZ(0)',
               }}
             >
-              <motion.div
-                className="relative"
-                initial="hidden"
-                animate="visible"
-                custom={0.12}
-              >
-                <motion.span
-                  variants={wordReveal}
+              <div className="relative">
+                <LetterCascade
+                  text={title}
+                  reveal={hasMounted}
+                  delay={0.22}
+                  lite={liteMotion}
                   className="font-display leading-[0.85] inline-block text-[#F2F2F0]"
                   style={{ fontSize: 'clamp(5rem, 15vw, 11rem)' }}
-                >
-                  {title}
-                </motion.span>
+                />
                 {enablePrismaticSweep && (
                   <motion.span
                     aria-hidden
@@ -248,29 +384,25 @@ export const AboutHero = () => {
                     }}
                     initial={{ opacity: 0, backgroundPosition: '0% 0%' }}
                     animate={{ opacity: [0, 1, 0], backgroundPosition: ['0% 0%', '100% 0%', '160% 0%'] }}
-                    transition={{ delay: 0.28, duration: 1.05, ease: 'easeInOut' }}
+                    transition={{ delay: 0.62, duration: 1.1, ease: 'easeInOut' }}
                   >
                     {title}
                   </motion.span>
                 )}
-              </motion.div>
+              </div>
             </motion.div>
 
-            {/* Second line - ABOUT - centered (no resume affordance) */}
+            {/* ABOUT — centered */}
             <div className="relative z-20 self-center overflow-hidden">
-              <motion.div
-                className="relative"
-                initial="hidden"
-                animate="visible"
-                custom={0.24}
-              >
-                <motion.span
-                  variants={wordReveal}
+              <div className="relative">
+                <LetterCascade
+                  text={subtitle}
+                  reveal={hasMounted}
+                  delay={0.48}
+                  lite={liteMotion}
                   className="font-display text-[#F2F2F0] leading-[0.85] inline-block"
                   style={{ fontSize: 'clamp(5rem, 15vw, 11rem)' }}
-                >
-                  {subtitle}
-                </motion.span>
+                />
                 {enablePrismaticSweep && (
                   <motion.span
                     aria-hidden
@@ -286,15 +418,15 @@ export const AboutHero = () => {
                     }}
                     initial={{ opacity: 0, backgroundPosition: '0% 0%' }}
                     animate={{ opacity: [0, 1, 0], backgroundPosition: ['0% 0%', '100% 0%', '160% 0%'] }}
-                    transition={{ delay: 0.42, duration: 1.1, ease: 'easeInOut' }}
+                    transition={{ delay: 0.92, duration: 1.15, ease: 'easeInOut' }}
                   >
                     {subtitle}
                   </motion.span>
                 )}
-              </motion.div>
+              </div>
             </div>
 
-            {/* Third line - ME - largest, positioned far right maintaining equal spacing */}
+            {/* ME — right parallax, largest */}
             <motion.div
               className="overflow-hidden relative z-30 self-end mr-[5vw] md:mr-[8vw] -mt-[2vh]"
               style={{
@@ -304,19 +436,15 @@ export const AboutHero = () => {
                 transform: 'translateZ(0)',
               }}
             >
-              <motion.div
-                className="relative"
-                initial="hidden"
-                animate="visible"
-                custom={0.36}
-              >
-                <motion.span
-                  variants={wordReveal}
+              <div className="relative">
+                <LetterCascade
+                  text={third}
+                  reveal={hasMounted}
+                  delay={0.74}
+                  lite={liteMotion}
                   className="font-display text-[#F2F2F0] leading-[0.85] inline-block"
                   style={{ fontSize: 'clamp(7rem, 24vw, 18rem)' }}
-                >
-                  {third}
-                </motion.span>
+                />
                 {enablePrismaticSweep && (
                   <motion.span
                     aria-hidden
@@ -332,21 +460,21 @@ export const AboutHero = () => {
                     }}
                     initial={{ opacity: 0, backgroundPosition: '0% 0%' }}
                     animate={{ opacity: [0, 1, 0], backgroundPosition: ['0% 0%', '100% 0%', '160% 0%'] }}
-                    transition={{ delay: 0.56, duration: 1.15, ease: 'easeInOut' }}
+                    transition={{ delay: 1.18, duration: 1.2, ease: 'easeInOut' }}
                   >
                     {third}
                   </motion.span>
                 )}
-              </motion.div>
+              </div>
             </motion.div>
           </div>
         </div>
 
-        {/* Descriptor + resume — one calm row: legible left, premium CTA right */}
+        {/* Descriptor + resume row — unchanged */}
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.95, duration: 0.75, ease: [0.22, 1, 0.36, 1] }}
+          transition={{ delay: 1.35, duration: 0.75, ease: [0.22, 1, 0.36, 1] }}
           className="absolute bottom-[10vh] left-0 right-0 z-[25] px-6 md:px-12 lg:px-20 pointer-events-none"
         >
           <div className="flex flex-row flex-wrap items-center justify-between gap-x-8 gap-y-3 sm:flex-nowrap pointer-events-auto">
