@@ -1,8 +1,12 @@
 'use client';
 
-import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { motion, useReducedMotion, useScroll, useTransform } from 'framer-motion';
-import FaultyTerminal from '@/components/ui/FaultyTerminal';
+
+const FaultyTerminal = dynamic(() => import('@/components/ui/FaultyTerminal'), {
+  ssr: false,
+});
 
 const HERO_VEIL_MS = 1100;
 const HERO_VEIL_EASE = 'cubic-bezier(0.22, 1, 0.36, 1)';
@@ -72,16 +76,20 @@ export const AboutHero = () => {
     return Math.min(raw, clientLowEnd ? 1 : 1.1);
   }, [hasMounted, prefersReducedMotion, clientTouch, clientLowEnd]);
 
-  useLayoutEffect(() => {
+  useEffect(() => {
     setHasMounted(true);
   }, []);
 
   useEffect(() => {
     if (!hasMounted) return;
-    const id = requestAnimationFrame(() => {
-      requestAnimationFrame(() => setVeilLifted(true));
+    let innerId: number | null = null;
+    const outerId = requestAnimationFrame(() => {
+      innerId = requestAnimationFrame(() => setVeilLifted(true));
     });
-    return () => cancelAnimationFrame(id);
+    return () => {
+      cancelAnimationFrame(outerId);
+      if (innerId !== null) cancelAnimationFrame(innerId);
+    };
   }, [hasMounted]);
 
   const title = 'MORE';
