@@ -184,17 +184,17 @@ export const Hero = () => {
             scale={mobileTerminalScale}
             gridMul={mobileGrid}
             digitSize={1.0}
-            timeScale={prefersReducedMotion ? 0.038 : isTouch ? 0.118 : 0.132}
+            timeScale={prefersReducedMotion ? 0.04 : isTouch ? 0.14 : 0.16}
             scanlineIntensity={lowMotionShader ? 0.016 : 0.024}
-            glitchAmount={lowMotionShader ? 0.018 : 0.028}
-            flickerAmount={lowMotionShader ? 0.006 : 0.01}
+            glitchAmount={1}
+            flickerAmount={0}
             noiseAmp={lowMotionShader ? 0.3 : 0.36}
             curvature={lowMotionShader ? 0.05 : 0.06}
             chromaticAberration={0}
             tint="#F5F5F3"
             mouseReact={false}
             mouseStrength={0}
-            pageLoadAnimation={true}
+            pageLoadAnimation={false}
             brightness={0.95}
             dpr={terminalDpr}
           />
