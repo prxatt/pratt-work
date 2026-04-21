@@ -345,7 +345,7 @@ export const NarrativeStatements = () => {
   });
 
   // Reduced motion for mobile - direct transforms (no useSpring for performance)
-  const moveDistance = isMobile ? 50 : 100;
+  const moveDistance = isMobile ? 0 : 100;
   
   // Direct scroll transforms - eliminate spring overhead
   const firstLineX = useTransform(scrollYProgress, [0, 0.3], [moveDistance, 0]);
@@ -373,7 +373,7 @@ export const NarrativeStatements = () => {
           >
             <LetterAnimation 
               text="Creating Moments" 
-              className="font-display text-[#F2F2F0] uppercase text-[8vw] md:text-[6vw] leading-[0.9] block whitespace-nowrap"
+              className="font-display text-[#F2F2F0] uppercase text-[8vw] md:text-[6vw] leading-[0.9] block"
               isInView={true}
             />
           </motion.div>
@@ -388,7 +388,7 @@ export const NarrativeStatements = () => {
           >
             <LetterAnimation 
               text="That Shift" 
-              className="font-display text-[#F2F2F0]/30 uppercase text-[8vw] md:text-[6vw] leading-[0.9] block whitespace-nowrap"
+              className="font-display text-[#F2F2F0]/30 uppercase text-[8vw] md:text-[6vw] leading-[0.9] block"
               delay={0.15}
               isInView={true}
             />
