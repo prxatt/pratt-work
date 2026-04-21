@@ -21,7 +21,7 @@ const AnimatedWord = ({ word, delay }: { word: string; delay: number }) => {
         color: '#f59e0b',
         transition: { duration: 0.2 }
       }}
-      className="inline-block mr-[0.3em] cursor-default"
+      className="inline-block mr-[0.24em] cursor-default"
     >
       {word}
     </motion.span>
@@ -40,9 +40,9 @@ const AnimatedHeading = () => {
   let wordIndex = 0;
   
   return (
-    <h2 
-      className="font-display text-[#F2F2F0] uppercase leading-[0.95] tracking-[-0.02em]"
-      style={{ fontSize: 'clamp(2rem, 5.5vw, 4.5rem)' }}
+    <h2
+      className="font-display text-[#F2F2F0] uppercase leading-[0.93] tracking-[-0.02em] max-w-[18ch]"
+      style={{ fontSize: 'clamp(2.05rem, 5.9vw, 5.6rem)' }}
     >
       {lines.map((line, lineIdx) => (
         <span key={lineIdx} className="block">
@@ -68,18 +68,19 @@ export const AboutSection = () => {
   return (
     <section id="about" className="py-20 md:py-28 px-6 md:px-12 lg:px-20 w-full bg-[#0a0a0a] min-h-screen flex flex-col justify-center">
       {/* Large Display Text - with micro animations */}
-      <div className="mb-12 md:mb-16">
+      <div className="mb-12 md:mb-16 max-w-[1600px] w-full mx-auto">
         <AnimatedHeading />
       </div>
 
       {/* Two Column Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 md:gap-16 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 md:gap-16 xl:gap-24 items-start max-w-[1600px] w-full mx-auto">
         {/* Left: CTA Button */}
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1], delay: 0.2 }}
+          className="lg:col-span-4"
         >
           <Link
             href="/about"
@@ -97,15 +98,15 @@ export const AboutSection = () => {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1], delay: 0.3 }}
-          className="flex flex-col gap-5"
+          className="flex flex-col gap-5 lg:col-span-8 lg:max-w-[58ch]"
         >
-          <h3 className="font-mono text-sm tracking-[0.2em] text-[#F2F2F0] uppercase">
+          <h3 className="font-mono text-[11px] md:text-xs tracking-[0.24em] text-[#F2F2F0] uppercase">
             ABOUT PRATT
           </h3>
-          <p className="font-sans text-base leading-relaxed text-[#8A8A85] max-w-lg">
+          <p className="font-sans text-[15px] md:text-base lg:text-lg leading-relaxed text-[#8A8A85]">
             I SEE THE INVISIBLE FRICTIONS IN CREATIVE PIPELINES AND DESIGN SYSTEMS TO SOLVE THEM.
           </p>
-          <p className="font-sans text-base leading-relaxed text-[#8A8A85] max-w-lg">
+          <p className="font-sans text-[15px] md:text-base lg:text-lg leading-relaxed text-[#8A8A85]">
             AS A CREATIVE TECHNOLOGIST AND PRODUCER, I BRIDGE THE GAP BETWEEN AMBITIOUS VISION AND FLAWLESS EXECUTION—DIRECTING TECHNICAL TALENT AND CREATIVE TEAMS TO BRING ABSTRACT CONCEPTS INTO PHYSICAL REALITY, ON TIME AND ON BUDGET.
           </p>
         </motion.div>
