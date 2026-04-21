@@ -116,8 +116,8 @@ export const Hero = () => {
   const [terminalDpr, setTerminalDpr] = useState(1);
   const [showTerminal, setShowTerminal] = useState(false);
   const [contentReady, setContentReady] = useState(false);
-  const mobileTerminalScale = isTouch ? (prefersReducedMotion ? 1.2 : 1.34) : 1.62;
-  const mobileGrid = isTouch ? [2.3, 2.3] as [number, number] : [2.34, 2.3] as [number, number];
+  const mobileTerminalScale = isTouch ? (prefersReducedMotion ? 1.18 : 1.28) : 1.62;
+  const mobileGrid = isTouch ? [2.42, 2.42] as [number, number] : [2.34, 2.3] as [number, number];
   const lowMotionShader = prefersReducedMotion || isLowEnd || isTouch;
 
   useEffect(() => {
@@ -188,15 +188,15 @@ export const Hero = () => {
             scanlineIntensity={0}
             glitchAmount={1}
             flickerAmount={0}
-            noiseAmp={isTouch ? 0.33 : lowMotionShader ? 0.28 : 0.34}
-            curvature={isTouch ? 0.078 : lowMotionShader ? 0.062 : 0.078}
+            noiseAmp={isTouch ? 0.36 : lowMotionShader ? 0.28 : 0.34}
+            curvature={isTouch ? 0.088 : lowMotionShader ? 0.062 : 0.078}
             chromaticAberration={0}
             tint="#F5F5F3"
             mouseReact={false}
             mouseStrength={0}
             pageLoadAnimation={false}
             brightness={0.95}
-            flowJitter={isTouch ? 0.3 : 0.34}
+            flowJitter={isTouch ? 0.38 : 0.34}
             dpr={terminalDpr}
           />
         ) : (

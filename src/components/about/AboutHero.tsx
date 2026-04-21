@@ -38,7 +38,7 @@ export const AboutHero = () => {
 
   const { scrollYProgress } = useScroll({
     target: containerRef,
-    offset: ['start start', 'end start'],
+    offset: ['start start', 'end end'],
   });
 
   // Direct scroll transforms - NO useSpring (eliminates continuous animation overhead)
@@ -46,9 +46,9 @@ export const AboutHero = () => {
   const scale = useTransform(scrollYProgress, [0, 0.5], [1, 0.95]);
 
   // Parallax horizontal scroll - softened on touch/low-end to avoid stutter.
-  const moreX = useTransform(scrollYProgress, [0, 1], [0, clientTouch || clientLowEnd ? -82 : -200]);
-  const meX = useTransform(scrollYProgress, [0, 1], [0, clientTouch || clientLowEnd ? 32 : 80]);
-  const meScale = useTransform(scrollYProgress, [0, 1], [1, clientTouch || clientLowEnd ? 1.012 : 1.05]);
+  const moreX = useTransform(scrollYProgress, [0, 1], [0, clientTouch || clientLowEnd ? -120 : -220]);
+  const meX = useTransform(scrollYProgress, [0, 1], [0, clientTouch || clientLowEnd ? 52 : 88]);
+  const meScale = useTransform(scrollYProgress, [0, 1], [1, clientTouch || clientLowEnd ? 1.02 : 1.06]);
 
   const liteMotion = prefersReducedMotion || clientLowEnd;
 
@@ -104,7 +104,7 @@ export const AboutHero = () => {
   return (
     <section
       ref={containerRef}
-      className="min-h-[100dvh] bg-[#0D0D0D] relative overflow-hidden contain-layout gpu-accelerated"
+      className="min-h-[145dvh] md:min-h-[155dvh] bg-[#0D0D0D] relative overflow-hidden contain-layout gpu-accelerated"
     >
       {/* Layer 0: Base dark background — static (parallax removed: was repainting above WebGL) */}
       <div className="absolute inset-0 z-0">
