@@ -273,7 +273,7 @@ const LetterAnimation = ({
   baseColor?: string;
   style?: React.CSSProperties;
 }) => {
-  const words = text.split(' ');
+  const words = text.trim().split(/\s+/);
   const totalChars = text.replace(/\s+/g, '').length;
   const batchSize = Math.max(1, Math.ceil(totalChars / 3));
   let charCursor = 0;

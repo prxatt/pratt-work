@@ -200,8 +200,8 @@ export const AboutHero = () => {
             <span
               className="font-display text-[80px] md:text-[140px] text-[#F2F2F0]/[0.02] leading-none tracking-wider"
               style={{
-                filter: 'blur(18px)',
-                textShadow: '0 0 36px rgba(242,242,240,0.2), 0 0 90px rgba(242,242,240,0.1)',
+                filter: liteMotion ? 'blur(6px)' : 'blur(18px)',
+                textShadow: liteMotion ? 'none' : '0 0 36px rgba(242,242,240,0.2), 0 0 90px rgba(242,242,240,0.1)',
               }}
             >
               CI0

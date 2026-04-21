@@ -141,13 +141,7 @@ export const MenuOverlay: React.FC<MenuOverlayProps> = ({ isOpen, onClose }) => 
     return updates.find(u => u.priority === 'high') || updates[0];
   }, [updates]);
   const recentTwitterActivity = useMemo(() => {
-    const cutoff = Date.now() - 72 * 60 * 60 * 1000;
-    return updates.filter(
-      (u) =>
-        u.type === 'social' &&
-        u.source === 'twitter' &&
-        new Date(u.date).getTime() >= cutoff
-    );
+    return updates.filter((u) => u.type === 'social' && u.source === 'twitter');
   }, [updates]);
 
   // Memoized callbacks to prevent re-renders
