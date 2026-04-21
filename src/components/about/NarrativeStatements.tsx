@@ -261,7 +261,8 @@ const LetterAnimation = ({
   isInView,
   isHovered = false,
   hoverColor = '#F2F2F0',
-  baseColor = '#F2F2F0'
+  baseColor = '#F2F2F0',
+  style
 }: { 
   text: string; 
   className?: string; 
@@ -270,12 +271,13 @@ const LetterAnimation = ({
   isHovered?: boolean;
   hoverColor?: string;
   baseColor?: string;
+  style?: React.CSSProperties;
 }) => {
   const letters = text.split('');
   const batchSize = Math.ceil(letters.length / 3);
   
   return (
-    <span className={className}>
+    <span className={className} style={style}>
       {letters.map((letter, index) => {
         const batchIndex = Math.floor(index / batchSize);
         const batchDelay = batchIndex * 0.1;
@@ -337,6 +339,7 @@ const useIsMobile = () => {
 
 export const NarrativeStatements = () => {
   const containerRef = useRef<HTMLElement>(null);
+  const refA = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
   
   const { scrollYProgress } = useScroll({
@@ -351,9 +354,9 @@ export const NarrativeStatements = () => {
   const firstLineX = useTransform(scrollYProgress, [0, 0.3], [moveDistance, 0]);
   const secondLineX = useTransform(scrollYProgress, [0.1, 0.4], [-moveDistance, 0]);
   const thirdLineX = useTransform(scrollYProgress, [0.2, 0.5], [moveDistance, 0]);
-  const opacity = useTransform(scrollYProgress, [0, 0.2], [0, 1]);
 
   const refB = useRef<HTMLDivElement>(null);
+  const isInViewA = useInView(refA, { once: true, margin: '0px 0px 30% 0px', amount: 0.12 });
   const isInViewB = useInView(refB, { once: true, margin: '-50px' });
   const [isHovered, setIsHovered] = useState(false);
   const [hoveredWord, setHoveredWord] = useState<string | null>(null);
@@ -361,20 +364,27 @@ export const NarrativeStatements = () => {
   return (
     <section ref={containerRef} className="bg-[#0D0D0D] relative">
       {/* First Statement - massive typography with video frames */}
-      <div className="min-h-screen flex flex-col justify-center overflow-hidden py-32">
-        <motion.div style={{ opacity }} className="w-full px-6 md:px-12 lg:px-20">
+      <div ref={refA} className="min-h-screen flex flex-col justify-center overflow-hidden py-32">
+        <motion.div
+          animate={isInViewA ? { opacity: 1 } : { opacity: 0 }}
+          transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
+          className="w-full px-6 md:px-12 lg:px-20"
+        >
           <motion.div 
             style={{ 
               x: firstLineX,
               willChange: 'transform',
               transform: 'translateZ(0)',
             }} 
-            className="overflow-hidden"
+            className="overflow-hidden pr-[2vw]"
           >
             <LetterAnimation 
               text="Creating Moments" 
-              className="font-display text-[#F2F2F0] uppercase text-[8vw] md:text-[6vw] leading-[0.9] block"
-              isInView={true}
+              className="font-display text-[#F2F2F0] uppercase leading-[0.9] block"
+              isInView={isInViewA}
+              delay={0.05}
+              // Clamp keeps full phrase visible on narrow phones while preserving scale up on desktop.
+              style={{ fontSize: 'clamp(2.3rem, 11vw, 6.5rem)' }}
             />
           </motion.div>
           
@@ -384,13 +394,14 @@ export const NarrativeStatements = () => {
               willChange: 'transform',
               transform: 'translateZ(0)',
             }} 
-            className="overflow-hidden ml-[10vw]"
+            className="overflow-hidden ml-[4vw] md:ml-[10vw] pr-[2vw]"
           >
             <LetterAnimation 
               text="That Shift" 
-              className="font-display text-[#F2F2F0]/30 uppercase text-[8vw] md:text-[6vw] leading-[0.9] block"
+              className="font-display text-[#F2F2F0]/30 uppercase leading-[0.9] block"
               delay={0.15}
-              isInView={true}
+              isInView={isInViewA}
+              style={{ fontSize: 'clamp(2.2rem, 10.8vw, 6.4rem)' }}
             />
           </motion.div>
           
@@ -400,13 +411,14 @@ export const NarrativeStatements = () => {
               willChange: 'transform',
               transform: 'translateZ(0)',
             }} 
-            className="overflow-hidden ml-[5vw]"
+            className="overflow-hidden ml-[2vw] md:ml-[5vw] pr-[2vw]"
           >
             <LetterAnimation 
               text="Perspectives" 
-              className="font-display text-[#F2F2F0] uppercase text-[12vw] md:text-[9vw] leading-[0.9] block"
+              className="font-display text-[#F2F2F0] uppercase leading-[0.9] block"
               delay={0.3}
-              isInView={true}
+              isInView={isInViewA}
+              style={{ fontSize: 'clamp(2.8rem, 13.4vw, 9.4rem)' }}
             />
           </motion.div>
 

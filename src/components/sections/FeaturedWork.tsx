@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useLayoutEffect, useState } from 'react';
 import Link from 'next/link';
 import { motion, useInView } from 'framer-motion';
 import { useCursor } from '@/context/CursorContext';
@@ -23,9 +23,13 @@ const DEFAULT_CAPS: DeviceCaps = {
   isTouch: false, isMobile: false, isLowEnd: false, prefersReducedMotion: false,
 };
 
+const useIsomorphicLayoutEffect = typeof window !== 'undefined' ? useLayoutEffect : useEffect;
+
 const useDeviceCaps = (): DeviceCaps => {
   const [caps, setCaps] = useState<DeviceCaps>(DEFAULT_CAPS);
-  useEffect(() => {
+  // useIsomorphicLayoutEffect: apply caps before first paint so LetterReveal doesn't switch
+  // lite mode mid-animation (useEffect caused mobile titles stuck at opacity 0).
+  useIsomorphicLayoutEffect(() => {
     setCaps({
       isTouch: window.matchMedia('(pointer: coarse)').matches,
       isMobile: /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent),
@@ -251,12 +255,18 @@ const LetterReveal = ({
   text, className, delay = 0, lite = false, reveal = true,
 }: { text: string; className: string; delay?: number; lite?: boolean; reveal?: boolean }) => {
   const ref = useRef<HTMLHeadingElement>(null);
+  const hidden = lite
+    ? { opacity: 0, y: 10, filter: 'blur(0px)' }
+    : { opacity: 0, y: 20, filter: 'blur(8px)' };
+  const visible = lite
+    ? { opacity: 1, y: 0, filter: 'blur(0px)' }
+    : { opacity: 1, y: 0, filter: 'blur(0px)' };
   return (
     <motion.h3 
       ref={ref} 
       className={className}
-      initial={lite ? { opacity: 0, y: 10 } : { opacity: 0, y: 20, filter: 'blur(8px)' }}
-      animate={reveal ? (lite ? { opacity: 1, y: 0 } : { opacity: 1, y: 0, filter: 'blur(0px)' }) : {}}
+      initial={hidden}
+      animate={reveal ? visible : hidden}
       transition={{ duration: lite ? 0.45 : 0.8, delay, ease: [0.16, 1, 0.3, 1] }}
     >
       {text}
@@ -327,13 +337,13 @@ const BoubyanCard = ({
 }) => {
   const { setCursorState } = useCursor();
   const ref      = useRef<HTMLDivElement>(null);
-  const isInView = useInView(ref, { once: true, margin: '0px 0px 120px 0px' });
+  const isInView = useInView(ref, { once: true, margin: '0px 0px 40% 0px', amount: 0.15 });
   const aspectClass = featured ? 'aspect-[16/9] sm:aspect-[21/9] md:aspect-[21/8]' : 'aspect-[16/10]';
 
   return (
     <motion.div
       ref={ref}
-      initial={{ opacity: 0 }} animate={isInView ? { opacity: 1 } : {}}
+      initial={{ opacity: 0 }} animate={isInView ? { opacity: 1 } : { opacity: 0 }}
       transition={{ duration: 0.5, delay: index * 0.15, ease: [0.16, 1, 0.3, 1] }}
       className="relative group"
     >
@@ -344,7 +354,7 @@ const BoubyanCard = ({
           {/* Static video container - no parallax lag */}
           <motion.div
             className="absolute inset-0"
-            initial={{ opacity: 0 }} animate={isInView ? { opacity: 1 } : {}}
+            initial={{ opacity: 0 }} animate={isInView ? { opacity: 1 } : { opacity: 0 }}
             transition={{ duration: 1.2, delay: index * 0.15, ease: [0.16, 1, 0.3, 1] }}
           >
             <div className="absolute inset-0 scale-[1.02]">
@@ -379,7 +389,7 @@ const ImageCard = ({
 }) => {
   const { setCursorState } = useCursor();
   const ref      = useRef<HTMLDivElement>(null);
-  const isInView = useInView(ref, { once: true, margin: '0px 0px 120px 0px' });
+  const isInView = useInView(ref, { once: true, margin: '0px 0px 40% 0px', amount: 0.15 });
   const aspectClass = featured ? 'aspect-[16/9] sm:aspect-[21/9] md:aspect-[21/8]' : 'aspect-[16/10]';
 
   const isWeights = project.slug === 'weights-and-biases-fully-connected';
@@ -390,7 +400,7 @@ const ImageCard = ({
   return (
     <motion.div
       ref={ref}
-      initial={{ opacity: 0 }} animate={isInView ? { opacity: 1 } : {}}
+      initial={{ opacity: 0 }} animate={isInView ? { opacity: 1 } : { opacity: 0 }}
       transition={{ duration: 0.5, delay: index * 0.15, ease: [0.16, 1, 0.3, 1] }}
       className="relative group contain-layout"
     >
@@ -401,7 +411,7 @@ const ImageCard = ({
           <motion.div
             className="absolute inset-0 overflow-hidden"
             initial={{ scale: 1.05, opacity: 0 }}
-            animate={isInView ? { scale: 1, opacity: 1 } : {}}
+            animate={isInView ? { scale: 1, opacity: 1 } : { scale: 1.05, opacity: 0 }}
             transition={{ duration: 1.2, delay: index * 0.15, ease: [0.16, 1, 0.3, 1] }}
           >
             {isWeights ? (

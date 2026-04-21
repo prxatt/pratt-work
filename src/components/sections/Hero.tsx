@@ -116,8 +116,8 @@ export const Hero = () => {
   const [terminalDpr, setTerminalDpr] = useState(1);
   const [showTerminal, setShowTerminal] = useState(false);
   const [contentReady, setContentReady] = useState(false);
-  const mobileTerminalScale = isTouch ? (prefersReducedMotion ? 1.24 : 1.34) : 1.8;
-  const mobileGrid = isTouch ? [2.45, 1.7] as [number, number] : [3, 2] as [number, number];
+  const mobileTerminalScale = isTouch ? (prefersReducedMotion ? 1.3 : 1.52) : 1.8;
+  const mobileGrid = isTouch ? [2.72, 1.86] as [number, number] : [3, 2] as [number, number];
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -194,7 +194,7 @@ export const Hero = () => {
             mouseReact={!isTouch}
             mouseStrength={1.2}
             pageLoadAnimation={true}
-            brightness={isTouch ? 0.98 : 0.95}
+            brightness={isTouch ? 0.95 : 0.95}
             dpr={terminalDpr}
           />
         ) : (
@@ -244,7 +244,7 @@ export const Hero = () => {
         animate={contentReady ? "visible" : "hidden"}
       >
 
-        {/* Hero Name - Centered */}
+        {/* Hero Name - mobile now mirrors desktop centered lockup */}
         <div className="flex flex-col items-center text-center">
           
           {/* Status indicator - Compact pill with hover glow */}
@@ -266,7 +266,7 @@ export const Hero = () => {
             variants={itemVariants}
             className="font-display uppercase cursor-pointer transition-all duration-700 hover:tracking-widest hover:text-white"
             style={{ 
-              fontSize: 'clamp(3.5rem, 12vw, 10rem)',
+              fontSize: 'clamp(3.25rem, 12vw, 10rem)',
               lineHeight: '0.9',
               letterSpacing: '-0.02em',
               color: '#F5F5F3',
@@ -281,7 +281,7 @@ export const Hero = () => {
             variants={itemVariants}
             className="font-display uppercase -mt-1 md:-mt-2 cursor-pointer transition-all duration-700 hover:tracking-widest hover:text-white"
             style={{ 
-              fontSize: 'clamp(3.5rem, 12vw, 10rem)',
+              fontSize: 'clamp(3.25rem, 12vw, 10rem)',
               lineHeight: '0.9',
               letterSpacing: '-0.02em',
               color: '#F5F5F3',

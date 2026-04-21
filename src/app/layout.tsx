@@ -111,11 +111,11 @@ export default function RootLayout({
           <MotionConfig reducedMotion="user">
             <ErrorBoundary fallback={null}>
               <CustomCursor />
-              <DeferredRuntimeEnhancers>
-                <WebMcpProvider />
-                <ScrollProgress />
-              </DeferredRuntimeEnhancers>
             </ErrorBoundary>
+            <DeferredRuntimeEnhancers>
+              <WebMcpProvider />
+              <ScrollProgress />
+            </DeferredRuntimeEnhancers>
             <Navbar />
             <main className="relative flex flex-col min-h-screen">
               {children}
