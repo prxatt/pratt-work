@@ -128,9 +128,9 @@ export const Hero = () => {
       return;
     }
     if (isTouch) {
-      setTerminalDpr(Math.min(raw, 1.2));
+      setTerminalDpr(Math.min(raw, 0.9));
     } else {
-      setTerminalDpr(Math.min(raw, isLowEnd ? 1 : 1.2));
+      setTerminalDpr(Math.min(raw, isLowEnd ? 0.9 : 1));
     }
   }, [isLowEnd, isTouch, prefersReducedMotion]);
 
@@ -184,11 +184,11 @@ export const Hero = () => {
             scale={mobileTerminalScale}
             gridMul={mobileGrid}
             digitSize={1.0}
-            timeScale={prefersReducedMotion ? 0.04 : isTouch ? 0.14 : 0.16}
-            scanlineIntensity={0}
+            timeScale={prefersReducedMotion ? 0.038 : isTouch ? 0.108 : 0.12}
+            scanlineIntensity={0.01}
             glitchAmount={1}
             flickerAmount={0}
-            noiseAmp={lowMotionShader ? 0.3 : 0.36}
+            noiseAmp={lowMotionShader ? 0.26 : 0.3}
             curvature={lowMotionShader ? 0.05 : 0.06}
             chromaticAberration={0}
             tint="#F5F5F3"
@@ -196,7 +196,7 @@ export const Hero = () => {
             mouseStrength={0}
             pageLoadAnimation={false}
             brightness={0.95}
-            flowJitter={0}
+            flowJitter={0.12}
             dpr={terminalDpr}
           />
         ) : (

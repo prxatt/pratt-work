@@ -71,8 +71,8 @@ export const AboutHero = () => {
     if (!hasMounted || typeof window === 'undefined') return 1;
     const raw = window.devicePixelRatio || 1;
     if (prefersReducedMotion) return 1;
-    if (clientTouch) return Math.min(raw, 0.9);
-    return Math.min(raw, clientLowEnd ? 0.95 : 1.05);
+    if (clientTouch) return Math.min(raw, 0.85);
+    return Math.min(raw, clientLowEnd ? 0.9 : 0.95);
   }, [hasMounted, prefersReducedMotion, clientTouch, clientLowEnd]);
   const enablePrismaticSweep = !liteMotion && !clientTouch;
 
@@ -148,20 +148,20 @@ export const AboutHero = () => {
             scale={clientTouch ? 1.24 : 1.5}
             gridMul={clientTouch ? [2.02, 2.04] : [2.24, 2.16]}
             digitSize={1.0}
-            timeScale={prefersReducedMotion ? 0.036 : clientTouch ? 0.135 : 0.155}
-            scanlineIntensity={0}
+            timeScale={prefersReducedMotion ? 0.034 : clientTouch ? 0.102 : 0.116}
+            scanlineIntensity={0.01}
             glitchAmount={1}
             flickerAmount={0}
-            noiseAmp={clientLowEnd ? 0.3 : 0.38}
+            noiseAmp={clientLowEnd ? 0.26 : 0.32}
             curvature={0.055}
             chromaticAberration={0}
-            dither={clientLowEnd ? 0.06 : 0.12}
+            dither={0}
             tint="#F5F5F3"
             mouseReact={false}
             mouseStrength={0}
             pageLoadAnimation={false}
             brightness={0.72}
-            flowJitter={0}
+            flowJitter={0.12}
             dpr={shaderDpr}
             pause={false}
           />
