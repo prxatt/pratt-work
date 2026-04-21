@@ -149,7 +149,7 @@ export const AboutHero = () => {
             gridMul={clientTouch ? [2.02, 2.04] : [2.24, 2.16]}
             digitSize={1.0}
             timeScale={prefersReducedMotion ? 0.036 : clientTouch ? 0.135 : 0.155}
-            scanlineIntensity={clientLowEnd ? 0.014 : 0.022}
+            scanlineIntensity={0}
             glitchAmount={1}
             flickerAmount={0}
             noiseAmp={clientLowEnd ? 0.3 : 0.38}
@@ -161,6 +161,7 @@ export const AboutHero = () => {
             mouseStrength={0}
             pageLoadAnimation={false}
             brightness={0.72}
+            flowJitter={0}
             dpr={shaderDpr}
             pause={false}
           />

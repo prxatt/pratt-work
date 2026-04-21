@@ -185,7 +185,7 @@ export const Hero = () => {
             gridMul={mobileGrid}
             digitSize={1.0}
             timeScale={prefersReducedMotion ? 0.04 : isTouch ? 0.14 : 0.16}
-            scanlineIntensity={lowMotionShader ? 0.016 : 0.024}
+            scanlineIntensity={0}
             glitchAmount={1}
             flickerAmount={0}
             noiseAmp={lowMotionShader ? 0.3 : 0.36}
@@ -196,6 +196,7 @@ export const Hero = () => {
             mouseStrength={0}
             pageLoadAnimation={false}
             brightness={0.95}
+            flowJitter={0}
             dpr={terminalDpr}
           />
         ) : (

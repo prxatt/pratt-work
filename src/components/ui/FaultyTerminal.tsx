@@ -39,6 +39,7 @@ uniform float uUseMouse;
 uniform float uPageLoadProgress;
 uniform float uUsePageLoadAnimation;
 uniform float uBrightness;
+uniform float uFlowJitter;
 
 float time;
 
@@ -85,13 +86,13 @@ float fbm(vec2 p)
 float pattern(vec2 p, out vec2 q, out vec2 r) {
   // Flowing motion that moves across entire viewport
   vec2 flow = vec2(
-    sin(time * 0.04) * 0.8 + time * 0.025,
-    cos(time * 0.03) * 0.6 + time * 0.02
+    sin(time * 0.04) * 0.8 * uFlowJitter + time * 0.025,
+    cos(time * 0.03) * 0.6 * uFlowJitter + time * 0.02
   );
   
   // Rotation with varying speed for organic feel
   mat2 rotSlow = rotate(time * 0.025);
-  mat2 rotFlow = rotate(time * 0.05 + sin(time * 0.02));
+  mat2 rotFlow = rotate(time * 0.05 + sin(time * 0.02) * uFlowJitter);
   
   // Large flowing forms that traverse the viewport
   q = vec2(
@@ -226,8 +227,8 @@ vec2 barrel(vec2 uv){
 void main() {
     time = iTime * 0.333333;
     vec2 cameraOffset = vec2(
-        sin(time * 0.03) * 2.0 + time * 0.01,
-        cos(time * 0.02) * 1.5 + time * 0.008
+        sin(time * 0.03) * 2.0 * uFlowJitter + time * 0.01,
+        cos(time * 0.02) * 1.5 * uFlowJitter + time * 0.008
     );
     
     vec2 uv = (vUv + cameraOffset * 0.02) * uScale;
@@ -287,6 +288,7 @@ interface FaultyTerminalProps {
   dpr?: number;
   pageLoadAnimation?: boolean;
   brightness?: number;
+  flowJitter?: number;
   className?: string;
   style?: React.CSSProperties;
 }
@@ -310,6 +312,7 @@ export default function FaultyTerminal({
   dpr = 1,
   pageLoadAnimation = true,
   brightness = 1,
+  flowJitter = 1,
   className,
   style,
   ...rest
@@ -411,7 +414,8 @@ export default function FaultyTerminal({
           uUseMouse: { value: mouseReact ? 1 : 0 },
           uPageLoadProgress: { value: pageLoadAnimation ? 0 : 1 },
           uUsePageLoadAnimation: { value: pageLoadAnimation ? 1 : 0 },
-          uBrightness: { value: brightness }
+          uBrightness: { value: brightness },
+          uFlowJitter: { value: flowJitter }
         }
       });
     } catch {
@@ -521,6 +525,7 @@ export default function FaultyTerminal({
     mouseStrength,
     pageLoadAnimation,
     brightness,
+    flowJitter,
     handleMouseMove,
     handleTouchMove,
     handleTouchStart
