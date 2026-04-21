@@ -135,11 +135,12 @@ const CinemaModeOverlay = ({
   const ensureAudiblePlayback = useCallback(async () => {
     const node = videoRef.current;
     if (!node) return;
+    const targetVolume = Math.max(node.volume || 0, 0.4);
     node.muted = false;
     node.defaultMuted = false;
-    node.volume = Math.max(0.4, volume);
+    node.volume = targetVolume;
     setMuted(false);
-    setVolume((prev) => Math.max(prev, 0.4));
+    setVolume((prev) => Math.max(prev, targetVolume));
     try {
       await node.play();
     } catch {
@@ -148,30 +149,24 @@ const CinemaModeOverlay = ({
       setMuted(true);
       void node.play().catch(() => {});
     }
-  }, [volume]);
+  }, []);
 
   const enterFullscreen = useCallback(async () => {
     const container = containerRef.current as (HTMLElement & {
       webkitRequestFullscreen?: () => Promise<void> | void;
     }) | null;
     const video = videoRef.current as (HTMLVideoElement & {
-      requestFullscreen?: () => Promise<void> | void;
       webkitEnterFullscreen?: () => void;
       webkitSupportsFullscreen?: boolean;
     }) | null;
     if (!container && !video) return;
 
     try {
-      // Prefer video element fullscreen so the media itself fills the screen.
-      if (video?.requestFullscreen) {
-        await video.requestFullscreen();
-        return;
-      }
-      if (container.requestFullscreen) {
+      if (container?.requestFullscreen) {
         await container.requestFullscreen();
         return;
       }
-      if (container.webkitRequestFullscreen) {
+      if (container?.webkitRequestFullscreen) {
         await container.webkitRequestFullscreen();
         return;
       }
@@ -2085,7 +2080,7 @@ export const RecognitionSection = () => {
                       <TimelineConnector position={position} index={index} />
 
                       {/* Card positioned */}
-                      <div className={`w-full flex ${position === 'left' ? 'justify-end md:pr-6 lg:pr-10' : 'justify-start md:pl-6 lg:pl-10'}`}>
+                      <div className={`w-full flex ${position === 'left' ? 'justify-start md:pl-6 lg:pl-10' : 'justify-end md:pr-6 lg:pr-10'}`}>
                         <div className="relative z-20 max-w-[20rem]" style={{ width: 'calc(50% - 84px)' }}>
                           <RecognitionCard
                             award={award}
