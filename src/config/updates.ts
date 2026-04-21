@@ -23,38 +23,38 @@ export interface Update {
 // Static updates - manually curated
 export const staticUpdates: Update[] = [
   {
-    id: 'website-public',
-    title: 'pratt.work is now public',
-    description: 'Portfolio website launched',
+    id: 'website-online',
+    title: 'pratt.work is now online',
+    description: 'Shipped with playful details: cinematic transitions, hidden hover moments, and a menu built like a control panel.',
     url: '/',
-    date: new Date().toISOString(),
-    type: 'announcement',
+    date: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), // 2 hours ago
+    type: 'website',
     source: 'manual',
     badge: 'NEW',
     priority: 'high',
     external: false,
   },
   {
-    id: 'soen-venture',
-    title: 'SOEN',
-    description: 'AI Productivity OS',
-    url: '/ventures',
-    date: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), // 2 days ago
-    type: 'venture',
+    id: 'website-easter-egg',
+    title: 'Menu update: notification center upgraded',
+    description: 'Live Twitter pulse + manual website notes now share one timeline.',
+    url: '/',
+    date: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(), // 6 hours ago
+    type: 'website',
     source: 'manual',
-    badge: 'BETA',
-    priority: 'high',
+    badge: 'UPDATED',
+    priority: 'normal',
     external: false,
   },
   {
-    id: 'crypt-project',
-    title: 'The Crypt',
-    description: 'Volumetric video research project',
-    url: '/work/the-crypt-volumetric',
-    date: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), // 5 days ago
+    id: 'website-motion-pass',
+    title: 'Hero performance pass shipped',
+    description: 'Homepage and About hero animation stack tuned for smoother motion and cleaner typography.',
+    url: '/about',
+    date: new Date(Date.now() - 18 * 60 * 60 * 1000).toISOString(), // 18 hours ago
     type: 'website',
     source: 'manual',
-    badge: 'SHIPPED',
+    badge: 'UPDATED',
     priority: 'normal',
     external: false,
   },

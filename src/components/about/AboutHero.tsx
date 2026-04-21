@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
-import { motion, useInView, useReducedMotion, useScroll, useTransform } from 'framer-motion';
+import { motion, useReducedMotion, useScroll, useTransform } from 'framer-motion';
 
 const FaultyTerminal = dynamic(() => import('@/components/ui/FaultyTerminal'), {
   ssr: false,
@@ -32,7 +32,6 @@ export const AboutHero = () => {
   const [hasMounted, setHasMounted] = useState(false);
   const [veilLifted, setVeilLifted] = useState(false);
   const prefersReducedMotion = useReducedMotion();
-  const heroInView = useInView(containerRef, { amount: 0.2 });
 
   const clientTouch = hasMounted && readClientTouch();
   const clientLowEnd = hasMounted && readClientLowEnd();
@@ -46,21 +45,23 @@ export const AboutHero = () => {
   const opacity = useTransform(scrollYProgress, [0, 0.5], [1, 0]);
   const scale = useTransform(scrollYProgress, [0, 0.5], [1, 0.95]);
 
-  // Parallax horizontal scroll - direct transforms for max performance
-  const moreX = useTransform(scrollYProgress, [0, 1], [0, clientTouch ? -90 : -170]);
-  const meX = useTransform(scrollYProgress, [0, 1], [0, clientTouch ? 36 : 68]);
-  const meScale = useTransform(scrollYProgress, [0, 1], [1, clientTouch ? 1.02 : 1.04]);
+  // Parallax horizontal scroll - softened on touch/low-end to avoid stutter.
+  const moreX = useTransform(scrollYProgress, [0, 1], [0, clientTouch || clientLowEnd ? -82 : -200]);
+  const meX = useTransform(scrollYProgress, [0, 1], [0, clientTouch || clientLowEnd ? 32 : 80]);
+  const meScale = useTransform(scrollYProgress, [0, 1], [1, clientTouch || clientLowEnd ? 1.012 : 1.05]);
 
   const liteMotion = prefersReducedMotion || clientLowEnd;
 
   const wordReveal = {
-    hidden: { y: liteMotion ? 20 : 34, opacity: 0 },
+    hidden: liteMotion
+      ? { y: 20, opacity: 0 }
+      : { y: 38, opacity: 0 },
     visible: (delay: number) => ({
       y: 0,
       opacity: 1,
       transition: {
         delay,
-        duration: liteMotion ? 0.52 : 0.9,
+        duration: liteMotion ? 0.6 : 1.05,
         ease: [0.16, 1, 0.3, 1] as const,
       },
     }),
@@ -70,9 +71,10 @@ export const AboutHero = () => {
     if (!hasMounted || typeof window === 'undefined') return 1;
     const raw = window.devicePixelRatio || 1;
     if (prefersReducedMotion) return 1;
-    if (clientTouch) return Math.min(raw, 1);
-    return Math.min(raw, clientLowEnd ? 1 : 1.1);
+    if (clientTouch) return Math.min(raw, 0.9);
+    return Math.min(raw, clientLowEnd ? 0.95 : 1.05);
   }, [hasMounted, prefersReducedMotion, clientTouch, clientLowEnd]);
+  const enablePrismaticSweep = !liteMotion && !clientTouch;
 
   useEffect(() => {
     setHasMounted(true);
@@ -146,11 +148,11 @@ export const AboutHero = () => {
             scale={clientTouch ? 1.26 : 1.42}
             gridMul={clientTouch ? [2.28, 1.58] : [2.62, 1.74]}
             digitSize={1.0}
-            timeScale={prefersReducedMotion ? 0.024 : clientTouch ? 0.078 : 0.094}
-            scanlineIntensity={0.024}
-            glitchAmount={prefersReducedMotion ? 0.04 : 0.052}
-            flickerAmount={prefersReducedMotion ? 0.012 : 0.018}
-            noiseAmp={clientLowEnd ? 0.34 : 0.42}
+            timeScale={prefersReducedMotion ? 0.028 : clientTouch ? 0.095 : 0.108}
+            scanlineIntensity={0.028}
+            glitchAmount={prefersReducedMotion ? 0.055 : 0.072}
+            flickerAmount={prefersReducedMotion ? 0.02 : 0.028}
+            noiseAmp={clientLowEnd ? 0.46 : 0.56}
             curvature={0.065}
             chromaticAberration={0}
             dither={clientLowEnd ? 0.08 : 0.18}
@@ -160,7 +162,7 @@ export const AboutHero = () => {
             pageLoadAnimation={false}
             brightness={0.72}
             dpr={shaderDpr}
-            pause={!heroInView}
+            pause={false}
           />
         )}
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_38%,rgba(13,13,13,0.28)_100%)]" />
@@ -191,16 +193,15 @@ export const AboutHero = () => {
           {/* CI0 - positioned at bottom right */}
           <motion.div
             initial={{ opacity: 0 }}
-            animate={{ opacity: [0, 0.2, 0.12], scale: [1, 1.01, 1] }}
-            transition={{ delay: 0.35, duration: 2.2, ease: [0.22, 1, 0.36, 1] }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.35, duration: 1, ease: [0.22, 1, 0.36, 1] }}
             className="absolute bottom-[15vh] right-[5vw] pointer-events-none z-0"
           >
             <span
-              className="font-display text-[80px] md:text-[140px] text-[#F2F2F0]/[0.02] leading-none tracking-[0.12em]"
+              className="font-display text-[80px] md:text-[140px] text-[#F2F2F0]/[0.02] leading-none tracking-wider"
               style={{
-                filter: 'blur(11px)',
-                textShadow: '0 0 38px rgba(242,242,240,0.11), 0 0 90px rgba(116,130,247,0.1)',
-                mixBlendMode: 'screen',
+                filter: 'blur(18px)',
+                textShadow: '0 0 36px rgba(242,242,240,0.2), 0 0 90px rgba(242,242,240,0.1)',
               }}
             >
               CI0
@@ -231,24 +232,26 @@ export const AboutHero = () => {
                 >
                   {title}
                 </motion.span>
-                <motion.span
-                  aria-hidden
-                  className="absolute inset-0 font-display leading-[0.85] inline-block pointer-events-none"
-                  style={{
-                    fontSize: 'clamp(5rem, 15vw, 11rem)',
-                    WebkitBackgroundClip: 'text',
-                    backgroundClip: 'text',
-                    color: 'transparent',
-                    backgroundImage:
-                      'linear-gradient(110deg, rgba(245,245,243,0) 0%, rgba(245,245,243,0.95) 42%, rgba(124,132,247,0.7) 56%, rgba(245,245,243,0) 100%)',
-                    backgroundSize: '230% 100%',
-                  }}
-                  initial={{ opacity: 0, backgroundPosition: '0% 0%' }}
-                  animate={{ opacity: [0, 1, 0], backgroundPosition: ['0% 0%', '100% 0%', '160% 0%'] }}
-                  transition={{ delay: 0.28, duration: 1.05, ease: 'easeInOut' }}
-                >
-                  {title}
-                </motion.span>
+                {enablePrismaticSweep && (
+                  <motion.span
+                    aria-hidden
+                    className="absolute inset-0 font-display leading-[0.85] inline-block pointer-events-none"
+                    style={{
+                      fontSize: 'clamp(5rem, 15vw, 11rem)',
+                      WebkitBackgroundClip: 'text',
+                      backgroundClip: 'text',
+                      color: 'transparent',
+                      backgroundImage:
+                        'linear-gradient(110deg, rgba(245,245,243,0) 0%, rgba(245,245,243,0.95) 42%, rgba(124,132,247,0.7) 56%, rgba(245,245,243,0) 100%)',
+                      backgroundSize: '230% 100%',
+                    }}
+                    initial={{ opacity: 0, backgroundPosition: '0% 0%' }}
+                    animate={{ opacity: [0, 1, 0], backgroundPosition: ['0% 0%', '100% 0%', '160% 0%'] }}
+                    transition={{ delay: 0.28, duration: 1.05, ease: 'easeInOut' }}
+                  >
+                    {title}
+                  </motion.span>
+                )}
               </motion.div>
             </motion.div>
 
@@ -267,24 +270,26 @@ export const AboutHero = () => {
                 >
                   {subtitle}
                 </motion.span>
-                <motion.span
-                  aria-hidden
-                  className="absolute inset-0 font-display leading-[0.85] inline-block pointer-events-none"
-                  style={{
-                    fontSize: 'clamp(5rem, 15vw, 11rem)',
-                    WebkitBackgroundClip: 'text',
-                    backgroundClip: 'text',
-                    color: 'transparent',
-                    backgroundImage:
-                      'linear-gradient(110deg, rgba(245,245,243,0) 0%, rgba(245,245,243,0.95) 42%, rgba(124,132,247,0.7) 56%, rgba(245,245,243,0) 100%)',
-                    backgroundSize: '230% 100%',
-                  }}
-                  initial={{ opacity: 0, backgroundPosition: '0% 0%' }}
-                  animate={{ opacity: [0, 1, 0], backgroundPosition: ['0% 0%', '100% 0%', '160% 0%'] }}
-                  transition={{ delay: 0.42, duration: 1.1, ease: 'easeInOut' }}
-                >
-                  {subtitle}
-                </motion.span>
+                {enablePrismaticSweep && (
+                  <motion.span
+                    aria-hidden
+                    className="absolute inset-0 font-display leading-[0.85] inline-block pointer-events-none"
+                    style={{
+                      fontSize: 'clamp(5rem, 15vw, 11rem)',
+                      WebkitBackgroundClip: 'text',
+                      backgroundClip: 'text',
+                      color: 'transparent',
+                      backgroundImage:
+                        'linear-gradient(110deg, rgba(245,245,243,0) 0%, rgba(245,245,243,0.95) 42%, rgba(124,132,247,0.7) 56%, rgba(245,245,243,0) 100%)',
+                      backgroundSize: '230% 100%',
+                    }}
+                    initial={{ opacity: 0, backgroundPosition: '0% 0%' }}
+                    animate={{ opacity: [0, 1, 0], backgroundPosition: ['0% 0%', '100% 0%', '160% 0%'] }}
+                    transition={{ delay: 0.42, duration: 1.1, ease: 'easeInOut' }}
+                  >
+                    {subtitle}
+                  </motion.span>
+                )}
               </motion.div>
             </div>
 
@@ -311,24 +316,26 @@ export const AboutHero = () => {
                 >
                   {third}
                 </motion.span>
-                <motion.span
-                  aria-hidden
-                  className="absolute inset-0 font-display leading-[0.85] inline-block pointer-events-none"
-                  style={{
-                    fontSize: 'clamp(7rem, 24vw, 18rem)',
-                    WebkitBackgroundClip: 'text',
-                    backgroundClip: 'text',
-                    color: 'transparent',
-                    backgroundImage:
-                      'linear-gradient(110deg, rgba(245,245,243,0) 0%, rgba(245,245,243,0.95) 42%, rgba(124,132,247,0.7) 56%, rgba(245,245,243,0) 100%)',
-                    backgroundSize: '230% 100%',
-                  }}
-                  initial={{ opacity: 0, backgroundPosition: '0% 0%' }}
-                  animate={{ opacity: [0, 1, 0], backgroundPosition: ['0% 0%', '100% 0%', '160% 0%'] }}
-                  transition={{ delay: 0.56, duration: 1.15, ease: 'easeInOut' }}
-                >
-                  {third}
-                </motion.span>
+                {enablePrismaticSweep && (
+                  <motion.span
+                    aria-hidden
+                    className="absolute inset-0 font-display leading-[0.85] inline-block pointer-events-none"
+                    style={{
+                      fontSize: 'clamp(7rem, 24vw, 18rem)',
+                      WebkitBackgroundClip: 'text',
+                      backgroundClip: 'text',
+                      color: 'transparent',
+                      backgroundImage:
+                        'linear-gradient(110deg, rgba(245,245,243,0) 0%, rgba(245,245,243,0.95) 42%, rgba(124,132,247,0.7) 56%, rgba(245,245,243,0) 100%)',
+                      backgroundSize: '230% 100%',
+                    }}
+                    initial={{ opacity: 0, backgroundPosition: '0% 0%' }}
+                    animate={{ opacity: [0, 1, 0], backgroundPosition: ['0% 0%', '100% 0%', '160% 0%'] }}
+                    transition={{ delay: 0.56, duration: 1.15, ease: 'easeInOut' }}
+                  >
+                    {third}
+                  </motion.span>
+                )}
               </motion.div>
             </motion.div>
           </div>

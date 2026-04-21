@@ -111,15 +111,14 @@ const RotatingRoles = ({ isTouch }: { isTouch: boolean }) => {
 // MAIN HERO - Steve Jobs Level Minimalism
 // ============================================
 export const Hero = () => {
-  const sectionRef = useRef<HTMLElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const { isTouch, isLowEnd, prefersReducedMotion } = useDeviceCapabilities();
-  const heroInView = useInView(sectionRef, { amount: 0.2 });
   const [terminalDpr, setTerminalDpr] = useState(1);
   const [showTerminal, setShowTerminal] = useState(false);
   const [contentReady, setContentReady] = useState(false);
   const mobileTerminalScale = isTouch ? (prefersReducedMotion ? 1.3 : 1.52) : 1.8;
   const mobileGrid = isTouch ? [2.72, 1.86] as [number, number] : [3, 2] as [number, number];
+  const lowMotionShader = prefersReducedMotion || isLowEnd || isTouch;
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -129,9 +128,9 @@ export const Hero = () => {
       return;
     }
     if (isTouch) {
-      setTerminalDpr(Math.min(raw, 1));
+      setTerminalDpr(Math.min(raw, 1.2));
     } else {
-      setTerminalDpr(Math.min(raw, isLowEnd ? 1 : 1.1));
+      setTerminalDpr(Math.min(raw, isLowEnd ? 1 : 1.2));
     }
   }, [isLowEnd, isTouch, prefersReducedMotion]);
 
@@ -174,7 +173,7 @@ export const Hero = () => {
   };
 
   return (
-    <section ref={sectionRef} className="relative h-[100dvh] w-full overflow-hidden flex flex-col bg-[#0a0a0a]">
+    <section className="relative h-[100dvh] w-full overflow-hidden flex flex-col bg-[#0a0a0a]">
       {/* Deep background */}
       <div className="absolute inset-0 z-0 bg-[#0a0a0a]" />
 
@@ -185,20 +184,19 @@ export const Hero = () => {
             scale={mobileTerminalScale}
             gridMul={mobileGrid}
             digitSize={1.0}
-            timeScale={prefersReducedMotion ? 0.04 : isTouch ? 0.085 : 0.1}
-            scanlineIntensity={0.03}
-            glitchAmount={isTouch ? 0.045 : 0.055}
-            flickerAmount={0.012}
-            noiseAmp={isTouch ? 0.38 : 0.44}
-            curvature={0.06}
-            chromaticAberration={0}
+            timeScale={prefersReducedMotion ? 0.04 : isTouch ? 0.082 : 0.1}
+            scanlineIntensity={lowMotionShader ? 0.028 : 0.04}
+            glitchAmount={lowMotionShader ? 0.045 : 0.08}
+            flickerAmount={lowMotionShader ? 0.012 : 0.02}
+            noiseAmp={lowMotionShader ? 0.36 : 0.5}
+            curvature={lowMotionShader ? 0.06 : 0.08}
+            chromaticAberration={lowMotionShader ? 0 : 0.0012}
             tint="#F5F5F3"
-            mouseReact={!isTouch && heroInView}
-            mouseStrength={0.85}
-            pageLoadAnimation={!prefersReducedMotion}
-            brightness={isTouch ? 0.95 : 0.95}
+            mouseReact={!isTouch}
+            mouseStrength={lowMotionShader ? 0.8 : 1.2}
+            pageLoadAnimation={true}
+            brightness={0.95}
             dpr={terminalDpr}
-            pause={!heroInView}
           />
         ) : (
           <div className="absolute inset-0 bg-[#0a0a0a]" />
@@ -253,7 +251,7 @@ export const Hero = () => {
           {/* Status indicator - Compact pill with hover glow */}
           <motion.div
             variants={itemVariants}
-            className="flex items-center gap-1.5 mb-5 md:mb-6 px-3 py-1.5 rounded-full bg-white/[0.03] border border-white/[0.08] backdrop-blur-sm group-hover:bg-white/[0.08] group-hover:border-white/[0.15] transition-all duration-500"
+            className="flex items-center gap-1.5 mb-5 md:mb-6 px-3 py-1.5 rounded-full bg-white/[0.03] border border-white/[0.08] group-hover:bg-white/[0.08] group-hover:border-white/[0.15] transition-all duration-500"
           >
             <motion.div 
               className="w-1.5 h-1.5 rounded-full bg-[#22C55E]"

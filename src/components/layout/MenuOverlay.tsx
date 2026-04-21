@@ -126,7 +126,7 @@ export const MenuOverlay: React.FC<MenuOverlayProps> = ({ isOpen, onClose }) => 
   const filteredUpdates = useMemo(() => {
     switch (activeTab) {
       case 'social':
-        return updates.filter(u => u.type === 'social' || u.source === 'twitter' || u.source === 'linkedin' || u.source === 'instagram');
+        return updates.filter(u => u.type === 'social' && u.source === 'twitter');
       case 'website':
         return updates.filter(u => u.type === 'website');
       case 'ventures':
@@ -139,6 +139,15 @@ export const MenuOverlay: React.FC<MenuOverlayProps> = ({ isOpen, onClose }) => 
   // Get priority update for featured banner
   const featuredUpdate = useMemo(() => {
     return updates.find(u => u.priority === 'high') || updates[0];
+  }, [updates]);
+  const recentTwitterActivity = useMemo(() => {
+    const cutoff = Date.now() - 72 * 60 * 60 * 1000;
+    return updates.filter(
+      (u) =>
+        u.type === 'social' &&
+        u.source === 'twitter' &&
+        new Date(u.date).getTime() >= cutoff
+    );
   }, [updates]);
 
   // Memoized callbacks to prevent re-renders
@@ -402,7 +411,7 @@ export const MenuOverlay: React.FC<MenuOverlayProps> = ({ isOpen, onClose }) => 
                           <div className="absolute -top-1 -right-1 w-3 h-3 bg-[#6366f1]/20 rounded-full animate-ping" />
                         )}
                       </div>
-                      <span className="font-mono text-[11px] tracking-[0.2em] text-[#8A8A85] uppercase">Live Updates</span>
+                      <span className="font-mono text-[11px] tracking-[0.2em] text-[#8A8A85] uppercase">Update Center</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <button
@@ -462,6 +471,18 @@ export const MenuOverlay: React.FC<MenuOverlayProps> = ({ isOpen, onClose }) => 
                     </div>
                   )}
 
+                  {/* Live social pulse (72h) */}
+                  <div className="px-5 py-3 border-b border-[#1a1a1a] bg-[#0D0D0D]/60">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="font-mono text-[9px] tracking-[0.18em] text-[#666] uppercase">
+                        X activity (last 72h)
+                      </span>
+                      <span className="font-mono text-[9px] tracking-[0.14em] text-[#6366f1] uppercase">
+                        {recentTwitterActivity.length} live
+                      </span>
+                    </div>
+                  </div>
+
                   {/* Social Cards - Quick Links */}
                   <div className="px-5 py-4 border-b border-[#1a1a1a]">
                     <span className="font-mono text-[9px] tracking-[0.2em] text-[#666] uppercase mb-3 block">Connect</span>
@@ -499,7 +520,7 @@ export const MenuOverlay: React.FC<MenuOverlayProps> = ({ isOpen, onClose }) => 
                             : 'text-[#555] hover:text-[#8A8A85] hover:bg-[#1a1a1a]/50'
                         }`}
                       >
-                        {tab}
+                        {tab === 'social' ? 'x live' : tab}
                       </button>
                     ))}
                   </div>
