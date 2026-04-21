@@ -1,8 +1,10 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { Update, staticUpdates } from '@/config/updates';
 
 export const runtime = 'edge';
 export const revalidate = 300; // 5 minutes
+
+const ACTIVITY_WINDOW_MS = 72 * 60 * 60 * 1000;
 
 // Twitter/X API fetch (requires Bearer token)
 async function fetchTwitterUpdates(): Promise<Update[]> {
@@ -13,9 +15,9 @@ async function fetchTwitterUpdates(): Promise<Update[]> {
   }
 
   try {
-    // Fetch recent tweets from @prxatt
+    // Fetch recent tweets from @prxatt (replies excluded).
     const response = await fetch(
-      'https://api.twitter.com/2/users/by/username/prxatt/tweets?max_results=5&tweet.fields=created_at,public_metrics',
+      'https://api.twitter.com/2/users/by/username/prxatt/tweets?max_results=12&exclude=replies&tweet.fields=created_at',
       {
         headers: {
           Authorization: `Bearer ${bearerToken}`,
@@ -30,84 +32,38 @@ async function fetchTwitterUpdates(): Promise<Update[]> {
 
     const data = await response.json();
     
-    return data.data?.map((tweet: any) => ({
-      id: `twitter-${tweet.id}`,
-      title: tweet.text.slice(0, 60) + (tweet.text.length > 60 ? '...' : ''),
-      description: 'Posted on Twitter',
-      url: `https://twitter.com/prxatt/status/${tweet.id}`,
-      date: tweet.created_at,
-      type: 'social',
-      source: 'twitter',
-      badge: 'LIVE',
-      priority: 'normal',
-      external: true,
-    })) || [];
+    const cutoff = Date.now() - ACTIVITY_WINDOW_MS;
+    return (
+      data.data
+        ?.filter((tweet: any) => new Date(tweet.created_at).getTime() >= cutoff)
+        .map((tweet: any) => {
+          const text = String(tweet.text || '').trim();
+          const isRepost = /^RT\s@/i.test(text);
+          return {
+            id: `twitter-${tweet.id}`,
+            title: text.slice(0, 72) + (text.length > 72 ? '...' : ''),
+            description: isRepost ? 'Repost on X' : 'Tweet on X',
+            url: `https://twitter.com/prxatt/status/${tweet.id}`,
+            date: tweet.created_at,
+            type: 'social' as const,
+            source: 'twitter' as const,
+            badge: 'LIVE' as const,
+            priority: 'normal' as const,
+            external: true,
+          };
+        }) || []
+    );
   } catch (error) {
     console.error('Twitter fetch failed:', error);
     return [];
   }
 }
 
-// LinkedIn API fetch (requires OAuth token)
-async function fetchLinkedInUpdates(): Promise<Update[]> {
-  const accessToken = process.env.LINKEDIN_ACCESS_TOKEN;
-  
-  if (!accessToken) {
-    return []; // Return empty if no token configured
-  }
-
+export async function GET() {
   try {
-    // Fetch recent posts from LinkedIn
-    // Note: This requires the r_basicprofile and r_organization_social permissions
-    const response = await fetch(
-      'https://api.linkedin.com/v2/posts?author=urn:li:person:prxatt&q=author&count=5',
-      {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          'X-Restli-Protocol-Version': '2.0.0',
-        },
-        next: { revalidate: 300 },
-      }
-    );
-
-    if (!response.ok) {
-      throw new Error(`LinkedIn API error: ${response.status}`);
-    }
-
-    const data = await response.json();
-    
-    return data.elements?.map((post: any) => ({
-      id: `linkedin-${post.id}`,
-      title: post.specificContent?.['com.linkedin.ugc.ShareContent']?.shareCommentary?.text?.slice(0, 60) || 'New LinkedIn post',
-      description: 'Posted on LinkedIn',
-      url: post.specificContent?.['com.linkedin.ugc.ShareContent']?.shareMediaCategory === 'ARTICLE' 
-        ? post.specificContent['com.linkedin.ugc.ShareContent'].media?.[0]?.originalUrl 
-        : `https://linkedin.com/in/prxatt`,
-      date: post.created?.time ? new Date(post.created.time).toISOString() : new Date().toISOString(),
-      type: 'social',
-      source: 'linkedin',
-      badge: 'LIVE',
-      priority: 'normal',
-      external: true,
-    })) || [];
-  } catch (error) {
-    console.error('LinkedIn fetch failed:', error);
-    return [];
-  }
-}
-
-export async function GET(request: NextRequest) {
-  try {
-    // Attempt to fetch from APIs
-    const [twitterUpdates, linkedinUpdates] = await Promise.allSettled([
-      fetchTwitterUpdates(),
-      fetchLinkedInUpdates(),
-    ]);
-
-    const apiUpdates: Update[] = [
-      ...(twitterUpdates.status === 'fulfilled' ? twitterUpdates.value : []),
-      ...(linkedinUpdates.status === 'fulfilled' ? linkedinUpdates.value : []),
-    ];
+    // Live activity source: Twitter tweets/reposts from the last 72 hours.
+    const twitterUpdates = await fetchTwitterUpdates();
+    const apiUpdates: Update[] = twitterUpdates;
 
     // Determine if we're using real-time data
     const isRealtime = apiUpdates.length > 0;

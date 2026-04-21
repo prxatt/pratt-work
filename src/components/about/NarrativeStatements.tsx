@@ -273,50 +273,58 @@ const LetterAnimation = ({
   baseColor?: string;
   style?: React.CSSProperties;
 }) => {
-  const letters = text.split('');
-  const batchSize = Math.ceil(letters.length / 3);
+  const words = text.trim().split(/\s+/);
+  const totalChars = text.replace(/\s+/g, '').length;
+  const batchSize = Math.max(1, Math.ceil(totalChars / 3));
+  let charCursor = 0;
   
   return (
     <span className={className} style={style}>
-      {letters.map((letter, index) => {
-        const batchIndex = Math.floor(index / batchSize);
-        const batchDelay = batchIndex * 0.1;
-        const letterDelay = index * 0.02;
-        
-        return (
-          <motion.span
-            key={index}
-            initial={{ opacity: 0, y: 20, scale: 0.9 }}
-            animate={isInView ? { 
-              opacity: 1, 
-              y: 0, 
-              scale: 1,
-              color: isHovered ? hoverColor : baseColor
-            } : { 
-              opacity: 0, 
-              y: 20, 
-              scale: 0.9 
-            }}
-            transition={{
-              duration: 0.4,
-              delay: delay + batchDelay + letterDelay,
-              ease: [0.16, 1, 0.3, 1],
-            }}
-            className="inline-block will-change-transform gpu-accelerated"
-            style={{ 
-              whiteSpace: letter === ' ' ? 'pre' : 'normal',
-              textShadow: isHovered ? '0 0 30px rgba(99,102,241,0.4)' : 'none'
-            }}
-            whileHover={{
-              y: -4,
-              scale: 1.05,
-              transition: { duration: 0.15 }
-            }}
-          >
-            {letter === ' ' ? '\u00A0' : letter}
-          </motion.span>
-        );
-      })}
+      {words.map((word, wordIndex) => (
+        <span
+          key={`${word}-${wordIndex}`}
+          className="inline-block whitespace-nowrap mr-[0.24em] last:mr-0"
+        >
+          {word.split('').map((letter, letterIndex) => {
+            const index = charCursor++;
+            const batchIndex = Math.floor(index / batchSize);
+            const batchDelay = batchIndex * 0.1;
+            const letterDelay = index * 0.02;
+            return (
+              <motion.span
+                key={`${wordIndex}-${letterIndex}`}
+                initial={{ opacity: 0, y: 20, scale: 0.9 }}
+                animate={isInView ? { 
+                  opacity: 1, 
+                  y: 0, 
+                  scale: 1,
+                  color: isHovered ? hoverColor : baseColor
+                } : { 
+                  opacity: 0, 
+                  y: 20, 
+                  scale: 0.9 
+                }}
+                transition={{
+                  duration: 0.4,
+                  delay: delay + batchDelay + letterDelay,
+                  ease: [0.16, 1, 0.3, 1],
+                }}
+                className="inline-block will-change-transform gpu-accelerated"
+                style={{
+                  textShadow: isHovered ? '0 0 30px rgba(99,102,241,0.4)' : 'none'
+                }}
+                whileHover={{
+                  y: -4,
+                  scale: 1.05,
+                  transition: { duration: 0.15 }
+                }}
+              >
+                {letter}
+              </motion.span>
+            );
+          })}
+        </span>
+      ))}
     </span>
   );
 };
@@ -366,6 +374,7 @@ export const NarrativeStatements = () => {
       {/* First Statement - massive typography with video frames */}
       <div ref={refA} className="min-h-screen flex flex-col justify-center overflow-hidden py-32">
         <motion.div
+          initial={{ opacity: 0 }}
           animate={isInViewA ? { opacity: 1 } : { opacity: 0 }}
           transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
           className="w-full px-6 md:px-12 lg:px-20"
