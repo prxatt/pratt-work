@@ -23,11 +23,13 @@ const DEFAULT_CAPS: DeviceCaps = {
   isTouch: false, isMobile: false, isLowEnd: false, prefersReducedMotion: false,
 };
 
+const useIsomorphicLayoutEffect = typeof window !== 'undefined' ? useLayoutEffect : useEffect;
+
 const useDeviceCaps = (): DeviceCaps => {
   const [caps, setCaps] = useState<DeviceCaps>(DEFAULT_CAPS);
-  // useLayoutEffect: apply caps before first paint so LetterReveal doesn't switch
+  // useIsomorphicLayoutEffect: apply caps before first paint so LetterReveal doesn't switch
   // lite mode mid-animation (useEffect caused mobile titles stuck at opacity 0).
-  useLayoutEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     setCaps({
       isTouch: window.matchMedia('(pointer: coarse)').matches,
       isMobile: /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent),
@@ -254,10 +256,10 @@ const LetterReveal = ({
 }: { text: string; className: string; delay?: number; lite?: boolean; reveal?: boolean }) => {
   const ref = useRef<HTMLHeadingElement>(null);
   const hidden = lite
-    ? { opacity: 0, y: 10 }
+    ? { opacity: 0, y: 10, filter: 'blur(0px)' }
     : { opacity: 0, y: 20, filter: 'blur(8px)' };
   const visible = lite
-    ? { opacity: 1, y: 0 }
+    ? { opacity: 1, y: 0, filter: 'blur(0px)' }
     : { opacity: 1, y: 0, filter: 'blur(0px)' };
   return (
     <motion.h3 
