@@ -121,12 +121,16 @@ export const MenuOverlay: React.FC<MenuOverlayProps> = ({ isOpen, onClose }) => 
 
   // Check if there are recent updates
   const hasRecentUpdates = updates.length > 0;
+  const twitterUpdates = useMemo(
+    () => updates.filter((u) => u.type === 'social' && u.source === 'twitter'),
+    [updates]
+  );
 
   // Filter updates by active tab
   const filteredUpdates = useMemo(() => {
     switch (activeTab) {
       case 'social':
-        return updates.filter(u => u.type === 'social' && u.source === 'twitter');
+        return twitterUpdates;
       case 'website':
         return updates.filter(u => u.type === 'website');
       case 'ventures':
@@ -134,14 +138,11 @@ export const MenuOverlay: React.FC<MenuOverlayProps> = ({ isOpen, onClose }) => 
       default:
         return updates;
     }
-  }, [updates, activeTab]);
+  }, [updates, activeTab, twitterUpdates]);
 
   // Get priority update for featured banner
   const featuredUpdate = useMemo(() => {
     return updates.find(u => u.priority === 'high') || updates[0];
-  }, [updates]);
-  const recentTwitterActivity = useMemo(() => {
-    return updates.filter((u) => u.type === 'social' && u.source === 'twitter');
   }, [updates]);
 
   // Memoized callbacks to prevent re-renders
@@ -465,14 +466,14 @@ export const MenuOverlay: React.FC<MenuOverlayProps> = ({ isOpen, onClose }) => 
                     </div>
                   )}
 
-                  {/* Live social pulse (72h) */}
+                  {/* Live social pulse */}
                   <div className="px-5 py-3 border-b border-[#1a1a1a] bg-[#0D0D0D]/60">
                     <div className="flex items-center justify-between gap-3">
                       <span className="font-mono text-[9px] tracking-[0.18em] text-[#666] uppercase">
-                        X activity (last 72h)
+                        Twitter activity
                       </span>
                       <span className="font-mono text-[9px] tracking-[0.14em] text-[#6366f1] uppercase">
-                        {recentTwitterActivity.length} live
+                        {twitterUpdates.length} live
                       </span>
                     </div>
                   </div>
@@ -514,7 +515,7 @@ export const MenuOverlay: React.FC<MenuOverlayProps> = ({ isOpen, onClose }) => 
                             : 'text-[#555] hover:text-[#8A8A85] hover:bg-[#1a1a1a]/50'
                         }`}
                       >
-                        {tab === 'social' ? 'x live' : tab}
+                        {tab === 'social' ? 'twitter live' : tab}
                       </button>
                     ))}
                   </div>
