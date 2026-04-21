@@ -132,17 +132,41 @@ const CinemaModeOverlay = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
 
+  const ensureAudiblePlayback = useCallback(async () => {
+    const node = videoRef.current;
+    if (!node) return;
+    node.muted = false;
+    node.defaultMuted = false;
+    node.volume = Math.max(0.4, volume);
+    setMuted(false);
+    setVolume((prev) => Math.max(prev, 0.4));
+    try {
+      await node.play();
+    } catch {
+      // Fallback to muted playback if browser blocks autoplay with audio.
+      node.muted = true;
+      setMuted(true);
+      void node.play().catch(() => {});
+    }
+  }, [volume]);
+
   const enterFullscreen = useCallback(async () => {
     const container = containerRef.current as (HTMLElement & {
       webkitRequestFullscreen?: () => Promise<void> | void;
     }) | null;
     const video = videoRef.current as (HTMLVideoElement & {
+      requestFullscreen?: () => Promise<void> | void;
       webkitEnterFullscreen?: () => void;
       webkitSupportsFullscreen?: boolean;
     }) | null;
-    if (!container) return;
+    if (!container && !video) return;
 
     try {
+      // Prefer video element fullscreen so the media itself fills the screen.
+      if (video?.requestFullscreen) {
+        await video.requestFullscreen();
+        return;
+      }
       if (container.requestFullscreen) {
         await container.requestFullscreen();
         return;
@@ -155,6 +179,7 @@ const CinemaModeOverlay = ({
       // Fallback to inline cinema viewport on unsupported or blocked fullscreen.
     }
 
+    // iOS Safari path for native fullscreen video playback.
     if (video?.webkitEnterFullscreen && video.webkitSupportsFullscreen !== false) {
       try {
         video.webkitEnterFullscreen();
@@ -238,15 +263,11 @@ const CinemaModeOverlay = ({
   useEffect(() => {
     if (!isOpen || !containerRef.current) return;
     void enterFullscreen();
-    const video = videoRef.current;
-    if (!video) return;
-    video.muted = false;
-    video.volume = 0.4;
-    void video.play().catch(() => {});
+    void ensureAudiblePlayback();
     return () => {
       void exitFullscreen();
     };
-  }, [enterFullscreen, exitFullscreen, isOpen]);
+  }, [enterFullscreen, ensureAudiblePlayback, exitFullscreen, isOpen]);
 
   useEffect(() => {
     const doc = document as Document & { webkitFullscreenElement?: Element | null };
@@ -303,6 +324,9 @@ const CinemaModeOverlay = ({
       <div
         ref={containerRef}
         className="relative w-full h-full flex items-center justify-center p-4 sm:p-6"
+        onPointerDownCapture={() => {
+          if (muted) void ensureAudiblePlayback();
+        }}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="relative w-full h-full">
@@ -334,6 +358,7 @@ const CinemaModeOverlay = ({
                 if (isFullscreen) {
                   void exitFullscreen();
                 } else {
+                  void ensureAudiblePlayback();
                   void enterFullscreen();
                 }
               }}
@@ -2060,7 +2085,7 @@ export const RecognitionSection = () => {
                       <TimelineConnector position={position} index={index} />
 
                       {/* Card positioned */}
-                      <div className={`w-full flex ${position === 'left' ? 'justify-start md:pl-6 lg:pl-10' : 'justify-end md:pr-6 lg:pr-10'}`}>
+                      <div className={`w-full flex ${position === 'left' ? 'justify-end md:pr-6 lg:pr-10' : 'justify-start md:pl-6 lg:pl-10'}`}>
                         <div className="relative z-20 max-w-[20rem]" style={{ width: 'calc(50% - 84px)' }}>
                           <RecognitionCard
                             award={award}
