@@ -319,7 +319,12 @@ const CinemaModeOverlay = ({
       <div
         ref={containerRef}
         className="relative w-full h-full flex items-center justify-center p-4 sm:p-6"
-        onPointerDownCapture={() => {
+        onPointerDownCapture={(e) => {
+          const target = e.target as HTMLElement | null;
+          const isInteractiveControl = Boolean(
+            target?.closest('button, input, [role="button"], [aria-label="Volume"], [aria-label="Timeline"]')
+          );
+          if (isInteractiveControl) return;
           if (muted) void ensureAudiblePlayback();
         }}
         onClick={(e) => e.stopPropagation()}
