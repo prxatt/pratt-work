@@ -1,15 +1,17 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { ScrollProgress } from '@/components/ui/ScrollProgress';
-import { WebMcpProvider } from '@/components/agent/WebMcpProvider';
+import { useEffect, useState, type ReactNode } from 'react';
 
 type IdleWindow = Window & {
   requestIdleCallback?: (callback: () => void, opts?: { timeout: number }) => number;
   cancelIdleCallback?: (id: number) => void;
 };
 
-export function DeferredRuntimeEnhancers() {
+interface DeferredRuntimeEnhancersProps {
+  children: ReactNode;
+}
+
+export function DeferredRuntimeEnhancers({ children }: DeferredRuntimeEnhancersProps) {
   const [enabled, setEnabled] = useState(false);
 
   useEffect(() => {
@@ -27,10 +29,5 @@ export function DeferredRuntimeEnhancers() {
 
   if (!enabled) return null;
 
-  return (
-    <>
-      <WebMcpProvider />
-      <ScrollProgress />
-    </>
-  );
+  return <>{children}</>;
 }

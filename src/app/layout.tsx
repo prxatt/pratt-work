@@ -11,7 +11,9 @@ import { ClientLayout } from "./ClientLayout";
 import { MotionConfig } from "framer-motion";
 import ScrollToTop from '@/components/ScrollToTop';
 import { DeferredRuntimeEnhancers } from "@/components/runtime/DeferredRuntimeEnhancers";
+import { ScrollProgress } from '@/components/ui/ScrollProgress';
 import { LcpObserver } from "@/components/dev/LcpObserver";
+import { WebMcpProvider } from "@/components/agent/WebMcpProvider";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 
 const inter = Inter({
@@ -109,7 +111,10 @@ export default function RootLayout({
           <MotionConfig reducedMotion="user">
             <ErrorBoundary fallback={null}>
               <CustomCursor />
-              <DeferredRuntimeEnhancers />
+              <DeferredRuntimeEnhancers>
+                <WebMcpProvider />
+                <ScrollProgress />
+              </DeferredRuntimeEnhancers>
             </ErrorBoundary>
             <Navbar />
             <main className="relative flex flex-col min-h-screen">
