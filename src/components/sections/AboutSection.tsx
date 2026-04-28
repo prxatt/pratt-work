@@ -101,7 +101,7 @@ export const AboutSection = () => {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1], delay: 0.3 }}
-          className="flex flex-col gap-5 lg:col-span-8 lg:max-w-[58ch]"
+          className="flex flex-col gap-5 lg:col-start-6 lg:col-span-7 xl:col-start-7 xl:col-span-6 lg:max-w-[58ch] xl:max-w-[62ch] lg:ml-auto"
         >
           <h3 className="font-mono text-[11px] md:text-xs tracking-[0.24em] text-[#F2F2F0] uppercase">
             ABOUT PRATT
