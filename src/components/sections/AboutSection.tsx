@@ -21,7 +21,7 @@ const AnimatedWord = ({ word, delay }: { word: string; delay: number }) => {
         color: '#f59e0b',
         transition: { duration: 0.2 }
       }}
-      className="inline-block mr-[0.24em] cursor-default"
+      className="inline-flex shrink-0 cursor-default"
     >
       {word}
     </motion.span>
@@ -41,16 +41,19 @@ const AnimatedHeading = () => {
   
   return (
     <h2
-      className="font-display text-[#F2F2F0] uppercase leading-[0.93] tracking-[-0.02em] max-w-[18ch]"
-      style={{ fontSize: 'clamp(2.05rem, 5.9vw, 5.6rem)' }}
+      className="font-display w-full max-w-full min-w-0 text-[#F2F2F0] uppercase leading-[0.98] sm:leading-[0.93] tracking-tight sm:tracking-[-0.02em] text-balance"
+      style={{ fontSize: 'clamp(2.05rem, 5.9vw, 5.6rem)', wordSpacing: 'normal' }}
     >
       {lines.map((line, lineIdx) => (
-        <span key={lineIdx} className="block">
-          {line.split(' ').map((word) => {
+        <span
+          key={lineIdx}
+          className="flex flex-wrap items-baseline gap-x-[0.35em] gap-y-1 sm:gap-x-[0.42em] sm:gap-y-0 justify-start w-full min-w-0"
+        >
+          {line.split(/\s+/).filter(Boolean).map((word) => {
             const currentIndex = wordIndex++;
             return (
               <AnimatedWord 
-                key={currentIndex} 
+                key={`${lineIdx}-${word}-${currentIndex}`} 
                 word={word} 
                 delay={0.1 + currentIndex * 0.08}
               />
