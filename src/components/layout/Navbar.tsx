@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { Search } from 'lucide-react';
+import { usePathname } from 'next/navigation';
 import { siteConfig } from '@/config/site.config';
 import { useCursor } from '@/context/CursorContext';
 import { MenuOverlay } from './MenuOverlay';
@@ -283,6 +284,8 @@ export const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const { setCursorState } = useCursor();
+  const pathname = usePathname();
+  const isHomePage = pathname === '/';
   
   // Physical scroll coupling refs
   const navRef = useRef<HTMLElement>(null);
@@ -300,6 +303,24 @@ export const Navbar = () => {
       const currentScrollY = window.scrollY;
       const delta = currentScrollY - lastScrollY.current;
       lastScrollY.current = currentScrollY;
+
+      // Homepage: keep header hidden on initial load, reveal after first scroll-down.
+      if (isHomePage && currentScrollY < 24) {
+        scrollOffset.current = navHeight.current;
+        if (navRef.current) {
+          navRef.current.style.transform = `translateY(-${navHeight.current}px)`;
+        }
+        return;
+      }
+
+      // Homepage: once user scrolls past threshold, reveal immediately.
+      if (isHomePage && scrollOffset.current >= navHeight.current && currentScrollY >= 24) {
+        scrollOffset.current = 0;
+        if (navRef.current) {
+          navRef.current.style.transform = 'translateY(0px)';
+        }
+        return;
+      }
       
       // At top of page: always fully visible
       if (currentScrollY <= 0) {
@@ -336,7 +357,7 @@ export const Navbar = () => {
     return () => {
       window.removeEventListener('scroll', handleScroll);
     };
-  }, []);
+  }, [isHomePage]);
   
   // Scroll-based backdrop
   useEffect(() => {
@@ -364,7 +385,7 @@ export const Navbar = () => {
         className="fixed top-0 left-0 right-0 z-[110]"
         style={{ 
           willChange: 'transform',
-          transform: 'translateY(0px)',
+          transform: isHomePage ? 'translateY(-100%)' : 'translateY(0px)',
           transition: 'transform 80ms linear',
         }}
       >
