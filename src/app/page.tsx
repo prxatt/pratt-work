@@ -15,10 +15,6 @@ const FeaturedWork = dynamic(() => import("@/components/sections/FeaturedWork").
   loading: () => <div className="h-[50vh] bg-[#0a0a0a]" />,
 });
 
-const AICredentials = dynamic(() => import("@/components/sections/AICredentials").then(mod => ({ default: mod.AICredentials })), {
-  loading: () => <div className="h-[30vh] bg-[#0a0a0a]" />,
-});
-
 const VenturesSection = dynamic(() => import("@/components/sections/VenturesSection").then(mod => ({ default: mod.VenturesSection })), {
   loading: () => <div className="h-[60vh] bg-[#0a0a0a]" />,
 });
@@ -42,7 +38,6 @@ export default function Home() {
       
       {/* Below the fold - lazy loaded */}
       <FeaturedWork />
-      <AICredentials />
       <VenturesSection />
       {/* <SecondaryContent /> */}
       <HowIWork />

@@ -2,6 +2,7 @@
 
 import React from 'react';
 import dynamic from 'next/dynamic';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 const RecognitionSection = dynamic(
   () => import('@/components/sections/RecognitionSection').then((mod) => mod.RecognitionSection),
@@ -20,7 +21,9 @@ const TypographicCTA = dynamic(
 export function HomeClientSafeTail() {
   return (
     <>
-      <RecognitionSection />
+      <ErrorBoundary fallback={null}>
+        <RecognitionSection />
+      </ErrorBoundary>
       <TypographicCTA />
     </>
   );

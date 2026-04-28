@@ -3,13 +3,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, useInView } from 'framer-motion';
 import Link from 'next/link';
-import dynamic from 'next/dynamic';
 import { useDeviceCapabilities } from '@/hooks/useReducedMotion';
-
-const FaultyTerminal = dynamic(() => import('@/components/ui/FaultyTerminal'), {
-  ssr: false,
-  loading: () => <div className="absolute inset-0 bg-[#0a0a0a]" />,
-});
 
 const HERO_EASE = [0.16, 1, 0.3, 1] as const;
 
@@ -178,8 +172,6 @@ const LetterLockup = ({
 export const Hero = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const { isTouch, isLowEnd, prefersReducedMotion } = useDeviceCapabilities();
-  const [terminalDpr, setTerminalDpr] = useState(1);
-  const [showTerminal, setShowTerminal] = useState(false);
   const [contentReady, setContentReady] = useState(false);
   const [viewport, setViewport] = useState<'mobile' | 'tablet' | 'desktop'>('desktop');
 
@@ -197,63 +189,13 @@ export const Hero = () => {
     return () => window.removeEventListener('resize', compute);
   }, []);
 
-  // Breakpoint-aware shader parameter profile — prevents elongated mobile
-  // field and keeps cohesive editorial rhythm on desktop.
-  const shaderProfile = useMemo(() => {
-    const base =
-      viewport === 'mobile'
-        ? {
-            scale: 1.3,
-            gridMul: [2.44, 2.44] as [number, number],
-            timeScale: prefersReducedMotion ? 0.036 : 0.104,
-            noiseAmp: 0.34,
-            curvature: 0.092,
-            flowJitter: 0.32,
-          }
-        : viewport === 'tablet'
-        ? {
-            scale: 1.48,
-            gridMul: [2.38, 2.36] as [number, number],
-            timeScale: prefersReducedMotion ? 0.038 : 0.112,
-            noiseAmp: 0.32,
-            curvature: 0.078,
-            flowJitter: 0.3,
-          }
-        : {
-            scale: 1.62,
-            gridMul: [2.34, 2.3] as [number, number],
-            timeScale: prefersReducedMotion ? 0.042 : 0.118,
-            noiseAmp: 0.32,
-            curvature: 0.072,
-            flowJitter: 0.3,
-          };
-    if (isLowEnd) {
-      base.timeScale *= 0.85;
-      base.noiseAmp *= 0.9;
-    }
-    return base;
-  }, [viewport, prefersReducedMotion, isLowEnd]);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const raw = window.devicePixelRatio || 1;
-    if (prefersReducedMotion) {
-      setTerminalDpr(1);
-      return;
-    }
-    if (isTouch) setTerminalDpr(Math.min(raw, 0.9));
-    else setTerminalDpr(Math.min(raw, isLowEnd ? 0.9 : 1));
-  }, [isLowEnd, isTouch, prefersReducedMotion]);
-
-  useEffect(() => {
-    const bgDelay = prefersReducedMotion ? 1150 : isTouch ? 900 : 700;
-    const terminalTimer = window.setTimeout(() => setShowTerminal(true), bgDelay);
-    return () => window.clearTimeout(terminalTimer);
-  }, [isTouch, prefersReducedMotion]);
-
   useEffect(() => {
     const contentTimer = window.setTimeout(() => setContentReady(true), 120);
-    return () => window.clearTimeout(contentTimer);
+    const failSafe = window.setTimeout(() => setContentReady(true), 2500);
+    return () => {
+      window.clearTimeout(contentTimer);
+      window.clearTimeout(failSafe);
+    };
   }, []);
 
   const lite = prefersReducedMotion || isLowEnd;
@@ -262,33 +204,6 @@ export const Hero = () => {
     <section className="relative h-[100dvh] w-full overflow-hidden flex flex-col bg-[#0a0a0a]">
       {/* Deep background */}
       <div className="absolute inset-0 z-0 bg-[#0a0a0a]" />
-
-      {/* Shader field */}
-      <div className="absolute inset-0 z-[1] will-change-transform" style={{ contain: 'strict' }}>
-        {showTerminal ? (
-          <FaultyTerminal
-            scale={shaderProfile.scale}
-            gridMul={shaderProfile.gridMul}
-            digitSize={1.0}
-            timeScale={shaderProfile.timeScale}
-            scanlineIntensity={0}
-            glitchAmount={1}
-            flickerAmount={0}
-            noiseAmp={shaderProfile.noiseAmp}
-            curvature={shaderProfile.curvature}
-            chromaticAberration={0}
-            tint="#F5F5F3"
-            mouseReact={false}
-            mouseStrength={0}
-            pageLoadAnimation={false}
-            brightness={0.95}
-            flowJitter={shaderProfile.flowJitter}
-            dpr={terminalDpr}
-          />
-        ) : (
-          <div className="absolute inset-0 bg-[#0a0a0a]" />
-        )}
-      </div>
 
       {/* Directional light plane — upper-right key light for depth */}
       <motion.div
