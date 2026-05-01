@@ -459,18 +459,18 @@ export default function SalesforceContent({ metadata, content, mainDescriptionMd
                       <CornerDraw color={sfBlue} size={16} strokeWidth={1} isHovered={hoveredFrame === 1} />
                     </div>
                     
-                    {/* Image - Class Session (IMG_02): blob primary + same-path fallback if storage key missing) */}
+                    {/* Image - IMG_02: salesforce-lab (blob + origin fallback) */}
                     <motion.div 
                       className="absolute inset-2 z-[1] overflow-hidden"
                       whileHover={{ scale: 1.02 }}
                       transition={{ duration: 0.4 }}
                     >
                       <picture>
-                        <source srcSet={getImageUrl('/work/salesforce-class.webp', 1400, { format: 'webp' })} type="image/webp" />
-                        <source srcSet={getImageUrl('/work/salesforce-class.jpeg', 1400, { format: 'jpg' })} type="image/jpeg" />
+                        <source srcSet={getImageUrl('/work/salesforce-lab.webp', 1400, { format: 'webp' })} type="image/webp" />
+                        <source srcSet={getImageUrl('/work/salesforce-lab.jpeg', 1400, { format: 'jpg' })} type="image/jpeg" />
                         <img 
-                          src={getImageUrl('/work/salesforce-class.jpeg', 1400, { format: 'jpg' })}
-                          alt="Students participating in STEM class activity"
+                          src={getImageUrl('/work/salesforce-lab.jpeg', 1400, { format: 'jpg' })}
+                          alt="Students exploring VR and technology lab"
                           className="h-full w-full object-cover"
                           loading="eager"
                           decoding="async"
@@ -479,7 +479,7 @@ export default function SalesforceContent({ metadata, content, mainDescriptionMd
                             if (el.dataset.fallback === '1') return;
                             el.dataset.fallback = '1';
                             el.removeAttribute('srcset');
-                            el.src = '/work/salesforce-class.jpeg';
+                            el.src = '/work/salesforce-lab.jpeg';
                           }}
                         />
                       </picture>
