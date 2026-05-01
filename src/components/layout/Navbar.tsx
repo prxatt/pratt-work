@@ -292,6 +292,7 @@ export const Navbar = () => {
   const scrollOffset = useRef(0);
   const lastScrollY = useRef(0);
   const navHeight = useRef(64);
+  const hasHomeInitialReveal = useRef(false);
   
   // Physical scroll handler - direct coupling to scroll delta
   useEffect(() => {
@@ -305,9 +306,11 @@ export const Navbar = () => {
 
     if (navRef.current) {
       if (isHomePage) {
+        hasHomeInitialReveal.current = false;
         scrollOffset.current = navHeight.current;
         navRef.current.style.transform = `translateY(-${navHeight.current}px)`;
       } else {
+        hasHomeInitialReveal.current = true;
         scrollOffset.current = 0;
         navRef.current.style.transform = 'translateY(0px)';
       }
@@ -319,7 +322,7 @@ export const Navbar = () => {
       lastScrollY.current = currentScrollY;
 
       // Homepage: keep header hidden on initial load, reveal after first scroll-down.
-      if (isHomePage && currentScrollY < 24) {
+      if (isHomePage && !hasHomeInitialReveal.current && currentScrollY < 24) {
         scrollOffset.current = navHeight.current;
         if (navRef.current) {
           navRef.current.style.transform = `translateY(-${navHeight.current}px)`;
@@ -328,7 +331,8 @@ export const Navbar = () => {
       }
 
       // Homepage: once user scrolls past threshold, reveal immediately.
-      if (isHomePage && scrollOffset.current >= navHeight.current && currentScrollY >= 24) {
+      if (isHomePage && !hasHomeInitialReveal.current && currentScrollY >= 24) {
+        hasHomeInitialReveal.current = true;
         scrollOffset.current = 0;
         if (navRef.current) {
           navRef.current.style.transform = 'translateY(0px)';
@@ -372,7 +376,7 @@ export const Navbar = () => {
 
       if (!navRef.current) return;
 
-      if (isHomePage && window.scrollY < 24) {
+      if (isHomePage && !hasHomeInitialReveal.current && window.scrollY < 24) {
         scrollOffset.current = navHeight.current;
         navRef.current.style.transform = `translateY(-${navHeight.current}px)`;
         return;
@@ -413,7 +417,7 @@ export const Navbar = () => {
     <>
       <nav 
         ref={navRef}
-        className="fixed top-0 left-0 right-0 z-[110]"
+        className={`fixed top-0 left-0 right-0 z-[110] ${isHomePage ? '-translate-y-full' : ''}`}
         style={{ 
           willChange: 'transform',
         }}
