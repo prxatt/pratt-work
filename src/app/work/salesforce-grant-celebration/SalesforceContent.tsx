@@ -182,7 +182,7 @@ export default function SalesforceContent({ metadata, content, mainDescriptionMd
 
               {/* Bold stacked title - SALESFORCE one word, two colors */}
               <motion.div className="space-y-0" variants={fadeInUp}>
-                <h1 className="font-display text-[clamp(2.85rem,19vw,15rem)] uppercase leading-[0.9] tracking-tight break-words">
+                <h1 className="font-display text-[clamp(2.8rem,18.5vw,15rem)] uppercase leading-[0.9] tracking-tight">
                   <span className="inline-flex whitespace-nowrap">
                     <span className="text-white">SALES</span>
                     <span style={{ color: sfBlue }}>FORCE</span>

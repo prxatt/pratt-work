@@ -129,12 +129,7 @@ function DotGrid({ isMobile }: { isMobile: boolean }) {
   return (
     <points ref={pointsRef}>
       <bufferGeometry>
-        <bufferAttribute
-          attach="attributes-position"
-          count={count}
-          itemSize={3}
-          array={positions}
-        />
+        <bufferAttribute attach="attributes-position" args={[positions, 3]} count={count} itemSize={3} />
       </bufferGeometry>
       <pointsMaterial color="#DDE5FF" size={isMobile ? 0.016 : 0.012} transparent opacity={0.08} />
     </points>
@@ -301,11 +296,11 @@ function Scene({
         <meshBasicMaterial color="#FFB86E" />
       </mesh>
 
-      {!isMobile && !reducedMotion && (
+      {!isMobile && !reducedMotion && sunRef.current && (
         <EffectComposer multisampling={0}>
           <Bloom luminanceThreshold={0.05} luminanceSmoothing={0.2} intensity={1.3} />
           <GodRays
-            sun={sunRef}
+            sun={sunRef.current}
             blendFunction={BlendFunction.NORMAL}
             samples={52}
             density={0.95}

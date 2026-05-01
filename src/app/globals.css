@@ -538,12 +538,9 @@ img {
   hyphens: auto;
 }
 
-/* Legacy utility: keep whole words whenever possible */
+/* Break all for extreme cases (long hashes/URLs) */
 .break-all {
-  overflow-wrap: break-word;
-  word-wrap: break-word;
-  word-break: normal;
-  hyphens: none;
+  word-break: break-all;
 }
 
 /* Shrink utility - prevent flex items from overflowing */
