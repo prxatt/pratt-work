@@ -445,17 +445,7 @@ export default function TheCryptPage() {
     sec.addEventListener('mousemove', onMove);
     return () => sec.removeEventListener('mousemove', onMove);
   }, [enableParallax, mouseX, mouseY]);
-  
-  // Memoized animation variants for performance
-  const fadeInUp = useMemo(() => ({
-    hidden: { opacity: 0, y: prefersReducedMotion ? 0 : 40 },
-    visible: { 
-      opacity: 1, 
-      y: 0,
-      transition: { duration: prefersReducedMotion ? 0 : 0.8, ease: [0.16, 1, 0.3, 1] }
-    }
-  }), [prefersReducedMotion]);
-  
+
   // Accurate technical specs - 4 depth sensors only (numeric for AnimatedCounter)
   const technicalSpecs = useMemo(() => [
     { label: 'Depth Sensors', value: 4, displayValue: '4', unit: 'units', prefix: '', suffix: '' },

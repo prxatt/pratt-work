@@ -143,8 +143,6 @@ export default function CryptVolumetric3D({
   const [isFullscreen, setIsFullscreen] = useState(false);
   /** iOS / browsers without element fullscreen: fixed-viewport fallback */
   const [pseudoFullscreen, setPseudoFullscreen] = useState(false);
-  /** Bumps after WebGL canvas mounts so touch-action can sync */
-  const [viewerReadyTick, setViewerReadyTick] = useState(0);
 
   const immersive = isFullscreen || pseudoFullscreen;
 
@@ -525,11 +523,12 @@ export default function CryptVolumetric3D({
     };
   }, []);
 
+  // Sync touch-action when fullscreen changes (initial pan-y is set in initScene after OrbitControls).
   useEffect(() => {
     const canvas = canvasElRef.current;
     if (!canvas) return;
     canvas.style.touchAction = immersive ? 'none' : 'pan-y';
-  }, [immersive, viewerReadyTick]);
+  }, [immersive]);
 
   useEffect(() => {
     if (!pseudoFullscreen) return;
