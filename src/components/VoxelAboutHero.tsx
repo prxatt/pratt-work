@@ -32,13 +32,6 @@ const PALETTE = [
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
-function detectLowPowerClient(): boolean {
-  if (typeof navigator === 'undefined') return false;
-  const cores = navigator.hardwareConcurrency ?? 8;
-  const memory = (navigator as Navigator & { deviceMemory?: number }).deviceMemory ?? 8;
-  return cores <= 4 || memory <= 4;
-}
-
 function generateVoxelData(text: string, isMobile: boolean): Voxel[] {
   const map: Record<string, string[]> = {
     M: ['10001', '11011', '10101', '10001', '10001', '10001', '10001'],
@@ -148,12 +141,14 @@ function VoxelText({
   const meshRef = useRef<THREE.InstancedMesh>(null);
   const streakRef = useRef<THREE.InstancedMesh>(null);
   const tempObj = useMemo(() => new THREE.Object3D(), []);
+  const tempColor = useMemo(() => new THREE.Color(), []);
 
   useEffect(() => {
     if (!meshRef.current) return;
     voxels.forEach((voxel, index) => {
       meshRef.current?.setColorAt(index, voxel.color);
-      streakRef.current?.setColorAt(index, voxel.color);
+      tempColor.copy(voxel.color).multiplyScalar(0.65 + voxel.streakOpacity);
+      streakRef.current?.setColorAt(index, tempColor);
     });
     meshRef.current.instanceColor!.needsUpdate = true;
     if (streakRef.current?.instanceColor) {
@@ -322,7 +317,6 @@ export function VoxelAboutHero() {
   const [ready, setReady] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(false);
-  const [lowPower, setLowPower] = useState(false);
 
   useEffect(() => {
     gsap.registerPlugin(ScrollTrigger);
@@ -332,7 +326,6 @@ export function VoxelAboutHero() {
     const syncFlags = () => {
       setIsMobile(mq.matches);
       setReducedMotion(rmq.matches);
-      setLowPower(detectLowPowerClient());
     };
 
     syncFlags();
@@ -346,7 +339,7 @@ export function VoxelAboutHero() {
   }, []);
 
   const voxels = useMemo(() => generateVoxelData(HERO_TEXT, isMobile), [isMobile]);
-  const useFallback = reducedMotion || lowPower;
+  const useFallback = reducedMotion;
 
   useEffect(() => {
     if (!containerRef.current || useFallback) return undefined;
