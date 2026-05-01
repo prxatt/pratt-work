@@ -393,7 +393,7 @@ OUR APPROACH COMBINED CUTTING-EDGE 360° SPHERICAL VIDEO CAPTURE WITH ENTERPRISE
                       transition={{ delay: prefersReducedMotion ? 0 : 0.5 + i * 0.1, duration: prefersReducedMotion ? 0 : 0.4 }}
                     >
                       <span className="font-mono text-xs text-[#666] uppercase">{item.label}</span>
-                      <span className="font-display text-sm text-[#F2F2F0] break-all">{item.value}</span>
+                      <span className="font-display text-sm text-[#F2F2F0] break-words">{item.value}</span>
                     </motion.div>
                   ))}
                 </div>

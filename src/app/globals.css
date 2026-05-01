@@ -538,9 +538,12 @@ img {
   hyphens: auto;
 }
 
-/* Break all for extreme cases (like long stats) */
+/* Legacy utility: keep whole words whenever possible */
 .break-all {
-  word-break: break-all;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  word-break: normal;
+  hyphens: none;
 }
 
 /* Shrink utility - prevent flex items from overflowing */

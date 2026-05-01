@@ -182,10 +182,11 @@ export default function SalesforceContent({ metadata, content, mainDescriptionMd
 
               {/* Bold stacked title - SALESFORCE one word, two colors */}
               <motion.div className="space-y-0" variants={fadeInUp}>
-                <h1 className="font-display text-[clamp(2.85rem,19vw,15rem)] uppercase leading-[0.9] tracking-tight break-words text-balance">
-                  <span className="text-white">SALES</span>
-                  <wbr />
-                  <span style={{ color: sfBlue }}>FORCE</span>
+                <h1 className="font-display text-[clamp(2.5rem,17vw,15rem)] uppercase leading-[0.9] tracking-tight break-words">
+                  <span className="inline-flex whitespace-nowrap">
+                    <span className="text-white">SALES</span>
+                    <span style={{ color: sfBlue }}>FORCE</span>
+                  </span>
                 </h1>
               </motion.div>
 
@@ -220,7 +221,7 @@ export default function SalesforceContent({ metadata, content, mainDescriptionMd
                   animate={heroInView ? { scale: 1, rotate: 45 } : { scale: 0, rotate: 0 }}
                   transition={{ duration: 0.4, delay: 0.8, type: "spring" }}
                 />
-                <span className="font-mono text-[10px] md:text-[11px] tracking-[0.2em] md:tracking-[0.25em] uppercase text-white break-all">
+                <span className="font-mono text-[10px] md:text-[11px] tracking-[0.2em] md:tracking-[0.25em] uppercase text-white break-words">
                   {metadata.role}
                 </span>
                 <span className="font-mono text-[9px] md:text-[10px] text-[#555] uppercase shrink-0">{metadata.year}</span>
@@ -267,7 +268,7 @@ export default function SalesforceContent({ metadata, content, mainDescriptionMd
                       transition={{ delay: 0.3 + i * 0.15, duration: 0.5 }}
                     >
                       <div className="min-w-0">
-                        <span className="font-display text-3xl md:text-4xl lg:text-5xl text-white block break-all">
+                        <span className="font-display text-3xl md:text-4xl lg:text-5xl text-white block break-words">
                           <AnimatedCounter
                             value={stat.value}
                             prefix={stat.prefix}
