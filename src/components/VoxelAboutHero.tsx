@@ -2,8 +2,7 @@
 
 import React, { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { EffectComposer, Bloom, GodRays } from '@react-three/postprocessing';
-import { BlendFunction } from 'postprocessing';
+import { EffectComposer, Bloom } from '@react-three/postprocessing';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import * as THREE from 'three';
@@ -187,11 +186,11 @@ function VoxelText({
         voxel.position.y - 0.2 - voxel.streakLen * 0.35,
         -0.55,
       );
-      const stretch = voxel.streakLen * (0.6 + eased * 1.4);
+      const stretch = voxel.streakLen * (1.2 + eased * 2.2);
       tempObj.scale.set(
-        isMobile ? 0.045 : 0.05,
+        isMobile ? 0.035 : 0.04,
         stretch,
-        0.01,
+        0.008,
       );
       tempObj.rotation.set(0, 0, voxel.streakAngle);
       tempObj.updateMatrix();
@@ -211,7 +210,7 @@ function VoxelText({
         <meshBasicMaterial
           vertexColors
           transparent
-          opacity={0.22}
+          opacity={0.28}
           blending={THREE.AdditiveBlending}
           depthWrite={false}
           toneMapped={false}
@@ -223,12 +222,12 @@ function VoxelText({
           vertexColors
           transparent
           opacity={0.95}
-          roughness={0.16}
-          metalness={0.08}
-          transmission={0.36}
-          thickness={0.8}
+          roughness={0.1}
+          metalness={0.05}
+          transmission={0.25}
+          thickness={0.6}
           emissive="#ffffff"
-          emissiveIntensity={0.6}
+          emissiveIntensity={1.4}
         />
       </instancedMesh>
     </group>
@@ -283,11 +282,11 @@ function Scene({
   return (
     <>
       <color attach="background" args={['#020202']} />
-      <fog attach="fog" args={['#030303', 8, 18]} />
+      <fog attach="fog" args={['#000000', 14, 28]} />
 
       <DotGrid isMobile={isMobile} />
 
-      <ambientLight intensity={0.35} />
+      <ambientLight intensity={0.08} />
       <directionalLight position={[-3, 3, 5]} intensity={0.75} color="#C9D4FF" />
       <directionalLight position={[4, 2, 3]} intensity={1.2} color="#FFB36D" />
 
@@ -295,24 +294,17 @@ function Scene({
         <VoxelText voxels={voxels} progress={progress} isMobile={isMobile} />
       </group>
 
-      <mesh ref={sunRef} position={[4, 1.5, 2]}>
+      {/* <mesh ref={sunRef} position={[4, 1.5, 2]}>
         <sphereGeometry args={[0.3, 24, 24]} />
         <meshBasicMaterial color="#FFB86E" />
-      </mesh>
+      </mesh> */}
 
-      {!isMobile && !reducedMotion && sunRef.current && (
+      {!isMobile && !reducedMotion && (
         <EffectComposer multisampling={0}>
-          <Bloom luminanceThreshold={0.08} luminanceSmoothing={0.25} intensity={1.8} />
-          <GodRays
-            sun={sunRef.current}
-            blendFunction={BlendFunction.NORMAL}
-            samples={52}
-            density={0.95}
-            decay={0.96}
-            weight={0.72}
-            exposure={0.42}
-            clampMax={1}
-            blur
+          <Bloom
+            luminanceThreshold={0.02}
+            luminanceSmoothing={0.18}
+            intensity={2.4}
           />
         </EffectComposer>
       )}
