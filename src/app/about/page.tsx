@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import dynamic from 'next/dynamic';
-import { AboutHero } from '@/components/about/AboutHero';
+import { VoxelAboutHero } from '@/components/VoxelAboutHero';
 import { CapabilitiesSection } from '@/components/about/CapabilitiesSection';
 import { StatsSection } from '@/components/about/StatsSection';
 import { NarrativeStatements } from '@/components/about/NarrativeStatements';
@@ -19,7 +19,7 @@ export const metadata: Metadata = {
 export default function AboutPage() {
   return (
     <main className="min-h-screen bg-[#0D0D0D]">
-      <AboutHero />
+      <VoxelAboutHero />
       <CapabilitiesSection />
       <StatsSection />
       <NarrativeStatements />
