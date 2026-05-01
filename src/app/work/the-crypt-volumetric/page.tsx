@@ -1,159 +1,17 @@
 'use client';
 
 import { useEffect, useRef, useState, useMemo } from 'react';
-import { motion, useScroll, useTransform, useSpring, useMotionValue, AnimatePresence, useInView, useReducedMotion } from 'framer-motion';
+import { motion, useSpring, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import { AnimatedCounter } from '@/components/micro-animations/AnimatedCounter';
-import { ArrowUpRight, Play, Pause, ChevronRight, Zap, Eye, Layers, Crosshair, Scan, Box } from 'lucide-react';
+import { ArrowUpRight, Play, Pause, ChevronRight, Layers, Crosshair, Scan } from 'lucide-react';
 import CryptVolumetric3D from '@/components/work/crypt-volumetric/CryptVolumetric3D';
+import { HeroAmbientScreen } from '@/components/sections/HeroAmbientScreen';
+import { useDeviceCapabilities, useReducedMotion } from '@/hooks/useReducedMotion';
 import { getImageUrl, getVideoUrl } from '@/lib/media';
 
-// Advanced particle system with depth layers
-const DepthField = () => {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    
-    const resize = () => {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
-    };
-    resize();
-    window.addEventListener('resize', resize);
-    
-    interface Particle {
-      x: number;
-      y: number;
-      z: number;
-      vx: number;
-      vy: number;
-      vz: number;
-      size: number;
-      pulse: number;
-      pulseSpeed: number;
-    }
-    
-    const particles: Particle[] = [];
-    const particleCount = 200;
-    
-    for (let i = 0; i < particleCount; i++) {
-      particles.push({
-        x: Math.random() * canvas.width,
-        y: Math.random() * canvas.height,
-        z: Math.random() * 2000,
-        vx: (Math.random() - 0.5) * 0.2,
-        vy: (Math.random() - 0.5) * 0.2,
-        vz: (Math.random() - 0.5) * 1.5,
-        size: Math.random() * 3 + 0.5,
-        pulse: 0,
-        pulseSpeed: Math.random() * 0.02 + 0.01,
-      });
-    }
-    
-    let animationId: number;
-    
-    const animate = () => {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      
-      particles.sort((a, b) => b.z - a.z);
-      
-      particles.forEach((particle, index) => {
-        particle.x += particle.vx;
-        particle.y += particle.vy;
-        particle.z += particle.vz;
-        particle.pulse += particle.pulseSpeed;
-        
-        if (particle.z < 0) {
-          particle.z = 2000;
-          particle.x = Math.random() * canvas.width;
-          particle.y = Math.random() * canvas.height;
-        }
-        if (particle.z > 2000) particle.z = 0;
-        if (particle.x < -100) particle.x = canvas.width + 100;
-        if (particle.x > canvas.width + 100) particle.x = -100;
-        if (particle.y < -100) particle.y = canvas.height + 100;
-        if (particle.y > canvas.height + 100) particle.y = -100;
-        
-        const scale = 2000 / (2000 + particle.z);
-        const alpha = (1 - particle.z / 2000) * 0.6;
-        const pulseAlpha = alpha * (0.7 + 0.3 * Math.sin(particle.pulse));
-        
-        const x = particle.x;
-        const y = particle.y;
-        const r = particle.size * scale;
-        
-        const gradient = ctx.createRadialGradient(x, y, 0, x, y, r * 3);
-        gradient.addColorStop(0, `rgba(200, 180, 255, ${pulseAlpha})`);
-        gradient.addColorStop(0.5, `rgba(150, 120, 200, ${pulseAlpha * 0.5})`);
-        gradient.addColorStop(1, 'rgba(150, 120, 200, 0)');
-        
-        ctx.beginPath();
-        ctx.arc(x, y, r * 3, 0, Math.PI * 2);
-        ctx.fillStyle = gradient;
-        ctx.fill();
-        
-        ctx.beginPath();
-        ctx.arc(x, y, r, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(255, 255, 255, ${pulseAlpha * 0.8})`;
-        ctx.fill();
-        
-        if (index % 3 === 0) {
-          particles.slice(index + 1, index + 8).forEach((other) => {
-            if (Math.abs(particle.z - other.z) < 300) {
-              const dx = particle.x - other.x;
-              const dy = particle.y - other.y;
-              const dist = Math.sqrt(dx * dx + dy * dy);
-              
-              if (dist < 150 * scale) {
-                ctx.beginPath();
-                ctx.moveTo(particle.x, particle.y);
-                ctx.lineTo(other.x, other.y);
-                ctx.strokeStyle = `rgba(180, 160, 220, ${0.15 * scale})`;
-                ctx.lineWidth = 0.5 * scale;
-                ctx.stroke();
-              }
-            }
-          });
-        }
-      });
-      
-      animationId = requestAnimationFrame(animate);
-    };
-    
-    animate();
-    
-    return () => {
-      window.removeEventListener('resize', resize);
-      cancelAnimationFrame(animationId);
-    };
-  }, []);
-  
-  return (
-    <canvas
-      ref={canvasRef}
-      className="fixed inset-0 pointer-events-none z-0"
-      style={{ opacity: 0.7 }}
-    />
-  );
-};
-
-// Cinematic grain overlay
-const CinematicGrain = () => (
-  <div 
-    className="fixed inset-0 pointer-events-none z-[1] opacity-[0.04]"
-    style={{
-      backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`,
-    }}
-  />
-);
-
 // Sensor visualization component - 4 depth sensors
-const SensorArray = () => {
+const SensorArray = ({ reduceMotion = false }: { reduceMotion?: boolean }) => {
   const sensors = [
     { angle: 45, label: 'S1' },
     { angle: 135, label: 'S2' },
@@ -166,8 +24,12 @@ const SensorArray = () => {
       {/* Outer ring */}
       <motion.div 
         className="absolute inset-0 rounded-full border-2 border-white/10"
-        animate={{ rotate: 360 }}
-        transition={{ duration: 60, repeat: Infinity, ease: 'linear' }}
+        animate={reduceMotion ? { rotate: 0 } : { rotate: 360 }}
+        transition={
+          reduceMotion
+            ? { duration: 0 }
+            : { duration: 60, repeat: Infinity, ease: 'linear' }
+        }
       />
       
       {/* Inner rings */}
@@ -180,8 +42,8 @@ const SensorArray = () => {
         style={{
           background: 'radial-gradient(circle, rgba(200,180,255,0.15) 0%, transparent 70%)',
         }}
-        animate={{ scale: [1, 1.1, 1], opacity: [0.5, 0.8, 0.5] }}
-        transition={{ duration: 2, repeat: Infinity }}
+        animate={reduceMotion ? { scale: 1, opacity: 0.65 } : { scale: [1, 1.1, 1], opacity: [0.5, 0.8, 0.5] }}
+        transition={{ duration: 2, repeat: reduceMotion ? 0 : Infinity }}
       />
       
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center">
@@ -207,10 +69,18 @@ const SensorArray = () => {
           >
             <motion.div
               className="w-full h-full rounded-full bg-white/10 border border-white/20 flex items-center justify-center"
-              animate={{ 
-                boxShadow: ['0 0 0 0 rgba(255,255,255,0)', '0 0 20px 2px rgba(255,255,255,0.3)', '0 0 0 0 rgba(255,255,255,0)']
-              }}
-              transition={{ duration: 2, repeat: Infinity, delay: i * 0.5 }}
+              animate={
+                reduceMotion
+                  ? { boxShadow: '0 0 0 0 rgba(255,255,255,0)' }
+                  : {
+                      boxShadow: [
+                        '0 0 0 0 rgba(255,255,255,0)',
+                        '0 0 20px 2px rgba(255,255,255,0.3)',
+                        '0 0 0 0 rgba(255,255,255,0)',
+                      ],
+                    }
+              }
+              transition={{ duration: 2, repeat: reduceMotion ? 0 : Infinity, delay: i * 0.5 }}
             >
               <span className="font-mono text-[9px] text-white/60">{sensor.label}</span>
             </motion.div>
@@ -239,8 +109,8 @@ const SensorArray = () => {
       {/* Scan line */}
       <motion.div
         className="absolute top-0 left-1/2 w-[1px] h-full bg-gradient-to-b from-transparent via-white/40 to-transparent"
-        animate={{ left: ['0%', '100%', '0%'] }}
-        transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
+        animate={reduceMotion ? { left: '50%' } : { left: ['0%', '100%', '0%'] }}
+        transition={{ duration: 4, repeat: reduceMotion ? 0 : Infinity, ease: 'easeInOut' }}
       />
     </div>
   );
@@ -550,45 +420,31 @@ const VideoModal = ({ onClose }: { onClose: () => void }) => {
 
 // Main page component
 export default function TheCryptPage() {
-  const { scrollYProgress } = useScroll();
-  const heroRef = useRef<HTMLElement>(null);
-  const systemRef = useRef<HTMLElement>(null);
   const pioneerRef = useRef<HTMLElement>(null);
-  const experienceRef = useRef<HTMLElement>(null);
-  const [activeSection, setActiveSection] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [showVideoModal, setShowVideoModal] = useState(false);
-  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
-  const [heroInView, setHeroInView] = useState(false);
-  
+
   const prefersReducedMotion = useReducedMotion();
-  
+  const { enableParallax } = useDeviceCapabilities();
+
   const springConfig = { damping: 30, stiffness: 200 };
   const mouseX = useSpring(0, springConfig);
   const mouseY = useSpring(0, springConfig);
-  
-  // Memoized animation variants for performance
-  const fadeInUp = useMemo(() => ({
-    hidden: { opacity: 0, y: prefersReducedMotion ? 0 : 40 },
-    visible: { 
-      opacity: 1, 
-      y: 0,
-      transition: { duration: prefersReducedMotion ? 0 : 0.8, ease: [0.16, 1, 0.3, 1] }
-    }
-  }), [prefersReducedMotion]);
-  
-  // Volumetric pulse animation for depth sensors
-  const sensorPulseVariants = useMemo(() => ({
-    pulse: {
-      boxShadow: [
-        '0 0 0 0 rgba(255,255,255,0)',
-        '0 0 20px 2px rgba(255,255,255,0.3)',
-        '0 0 0 0 rgba(255,255,255,0)'
-      ],
-      transition: { duration: 2, repeat: Infinity }
-    }
-  }), []);
-  
+
+  useEffect(() => {
+    if (!enableParallax) return;
+    const sec = pioneerRef.current;
+    if (!sec) return;
+    const onMove = (e: MouseEvent) => {
+      const r = sec.getBoundingClientRect();
+      const cx = r.left + r.width / 2;
+      const cy = r.top + r.height / 2;
+      mouseX.set((e.clientX - cx) * 0.022);
+      mouseY.set((e.clientY - cy) * 0.022);
+    };
+    sec.addEventListener('mousemove', onMove);
+    return () => sec.removeEventListener('mousemove', onMove);
+  }, [enableParallax, mouseX, mouseY]);
 
   // Accurate technical specs - 4 depth sensors only (numeric for AnimatedCounter)
   const technicalSpecs = useMemo(() => [
@@ -600,143 +456,147 @@ export default function TheCryptPage() {
 
   return (
     <div className="min-h-screen bg-[#030303] text-white overflow-x-hidden selection:bg-white/20">
-      <DepthField />
-      <CinematicGrain />
-      
-      {/* HERO SECTION */}
-      <section ref={heroRef} className="relative min-h-[100dvh] flex flex-col items-stretch justify-start pt-24 md:pt-28 pb-[min(42vh,340px)] sm:pb-[360px] md:pb-28 px-6 overflow-x-hidden">
-        {/* Ambient glow */}
-        <motion.div 
-          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1000px] h-[1000px] rounded-full pointer-events-none"
-          style={{
-            background: 'radial-gradient(circle, rgba(255,255,255,0.03) 0%, transparent 60%)',
-          }}
-          animate={{ scale: [1, 1.1, 1] }}
-          transition={{ duration: 8, repeat: Infinity }}
-        />
+      <HeroAmbientScreen variant="global" baseBgClass="bg-[#030303]" />
 
-        <div className="relative z-10 max-w-7xl mx-auto w-full flex-1 md:flex-none">
-          {/* Top Label */}
+      <div className="relative z-[1]">
+      {/* HERO SECTION — document flow on small screens so stats never overlap copy */}
+      <section className="relative flex min-h-0 flex-col px-6 pb-10 pt-24 sm:pb-12 md:min-h-[100dvh] md:pb-28 md:pt-28">
+        {!prefersReducedMotion && (
+          <motion.div
+            className="pointer-events-none absolute top-1/3 left-1/2 h-[min(1000px,140vw)] w-[min(1000px,140vw)] -translate-x-1/2 -translate-y-1/2 rounded-full will-change-transform md:top-1/2"
+            style={{
+              background: 'radial-gradient(circle, rgba(255,255,255,0.03) 0%, transparent 60%)',
+            }}
+            animate={{ scale: [1, 1.06, 1] }}
+            transition={{ duration: 10, repeat: Infinity, ease: 'easeInOut' }}
+          />
+        )}
+
+        <div className="relative z-10 mx-auto w-full max-w-7xl flex-1 xl:pb-32 2xl:pb-36">
           <motion.div 
-            initial={{ opacity: 0, y: 30 }}
+            initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.3 }}
-            className="flex items-center gap-4 mb-16"
+            className="mb-8 flex items-center gap-3 sm:mb-10 sm:gap-4 md:mb-14"
           >
             <motion.div 
-              className="w-16 h-[1px] bg-white/40"
+              className="h-px w-12 shrink-0 bg-white/40 sm:w-16"
               initial={{ scaleX: 0 }}
               animate={{ scaleX: 1 }}
               transition={{ duration: 0.8, delay: 0.5 }}
             />
-            <span className="font-mono text-[10px] tracking-[0.4em] text-white/50 uppercase">
+            <span className="min-w-0 font-mono text-[9px] uppercase tracking-[0.28em] text-white/50 sm:text-[10px] sm:tracking-[0.35em] md:tracking-[0.4em]">
               Private Research / 2026
             </span>
           </motion.div>
 
-          {/* Main Title with staggered animation */}
-          <div className="overflow-hidden mb-8">
+          <div className="mb-5 overflow-visible sm:mb-6 md:mb-8">
             <motion.h1 
-              className="font-display text-[clamp(4rem,14vw,12rem)] leading-[0.8] tracking-tighter uppercase"
-              initial={{ y: '100%' }}
-              animate={{ y: 0 }}
-              transition={{ duration: 1, delay: 0.5, ease: [0.16, 1, 0.3, 1] }}
+              className="font-display text-[clamp(2.75rem,12vw,12rem)] uppercase leading-[0.92] tracking-tighter"
+              initial={{ opacity: 0, y: 28 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.85, delay: 0.45, ease: [0.16, 1, 0.3, 1] }}
             >
               THE CRYPT
             </motion.h1>
           </div>
           
-          <div className="overflow-hidden mb-16">
+          <div className="mb-8 sm:mb-10 md:mb-12">
             <motion.p 
-              className="font-mono text-[clamp(0.8rem,1.5vw,1rem)] tracking-[0.3em] text-white/40 uppercase max-w-2xl"
-              initial={{ y: '100%', opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              transition={{ duration: 1, delay: 0.7, ease: [0.16, 1, 0.3, 1] }}
+              className="font-mono max-w-2xl text-[clamp(0.7rem,3.2vw,1rem)] uppercase leading-snug tracking-[0.18em] text-white/40 sm:tracking-[0.26em] md:tracking-[0.3em]"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.85, delay: 0.58, ease: [0.16, 1, 0.3, 1] }}
             >
               Volumetric Video in Spatial Computing
             </motion.p>
           </div>
 
-          {/* CTA Button - positioned above manifesto to avoid metric overlap */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.9 }}
-            className="mb-12"
+            transition={{ duration: 0.75, delay: 0.72 }}
+            className="mb-8 sm:mb-10"
           >
-            {/* Watch Experience Button - GPU optimized, responsive sizing */}
             <motion.button
+              type="button"
               onClick={() => setShowVideoModal(true)}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
-              className="group flex items-center gap-3 bg-white/10 hover:bg-white/15 backdrop-blur-sm px-5 py-3 rounded-full border border-white/20 transition-all will-change-transform"
+              className="group flex items-center gap-3 rounded-full border border-white/20 bg-white/10 px-5 py-3 backdrop-blur-sm transition-all will-change-transform hover:bg-white/15"
               style={{ transform: 'translateZ(0)' }}
             >
               <motion.div
-                animate={{ scale: [1, 1.1, 1] }}
+                animate={{ scale: [1, 1.08, 1] }}
                 transition={{ duration: 2, repeat: Infinity }}
               >
-                <Play className="w-4 h-4 text-white fill-white" />
+                <Play className="h-4 w-4 fill-white text-white" />
               </motion.div>
               <span className="font-mono text-[11px] uppercase tracking-wider text-white">Watch</span>
             </motion.button>
           </motion.div>
 
-          {/* Manifesto text */}
           <motion.div
-            initial={{ opacity: 0, y: 40 }}
+            initial={{ opacity: 0, y: 28 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 1, delay: 1.1 }}
-            className="max-w-4xl mb-8 md:mb-16"
+            transition={{ duration: 0.9, delay: 0.88 }}
+            className="max-w-4xl pb-2"
           >
-            <p className="font-sans text-base sm:text-lg md:text-xl lg:text-2xl leading-relaxed md:leading-[1.7] text-white/60">
+            <p className="font-sans text-base leading-[1.65] text-white/60 sm:text-lg sm:leading-relaxed md:text-xl md:leading-[1.7] lg:text-2xl">
               We captured a single moment from multiple angles using only depth sensors and a proprietary algorithm. 
               No green screen. No manual intervention. Just pure real-time volumetric presence.
             </p>
           </motion.div>
         </div>
 
-        {/* Hero Stats Grid - Volumetric depth animations with AnimatedCounter */}
+        {/* Capture zone / stats — in flow below manifesto; md+ also anchored to bottom for cinematic layout */}
         <motion.div
-          initial={{ opacity: 0, y: 40 }}
+          initial={{ opacity: 0, y: 28 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 1, delay: 1.3 }}
-          className="absolute bottom-6 sm:bottom-10 left-4 right-4 sm:left-6 sm:right-6 md:bottom-12 md:left-12 lg:left-20 md:right-12 lg:right-20"
+          transition={{ duration: 0.85, delay: 1.05 }}
+          className="relative z-20 mx-auto mt-8 w-full max-w-7xl sm:mt-10 md:mt-auto md:pt-10 lg:pt-12 xl:absolute xl:bottom-10 xl:left-1/2 xl:mt-0 xl:w-[min(100%,calc(100%-5rem))] xl:max-w-7xl xl:-translate-x-1/2 xl:px-6"
         >
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-px bg-white/10 rounded-sm overflow-hidden shadow-[0_12px_40px_rgba(0,0,0,0.45)]">
+          <div className="grid grid-cols-1 gap-px overflow-hidden rounded-sm bg-white/10 shadow-[0_12px_40px_rgba(0,0,0,0.45)] sm:grid-cols-2 md:grid-cols-4">
             {technicalSpecs.map((spec, i) => (
               <motion.div 
                 key={spec.label}
-                className="bg-[#030303] p-4 sm:p-6 md:p-8 group min-w-0 relative"
-                initial={{ opacity: 0, y: prefersReducedMotion ? 0 : 20 }}
+                className="group relative min-w-0 bg-[#030303] p-3 sm:p-5 md:p-8"
+                initial={{ opacity: 0, y: prefersReducedMotion ? 0 : 16 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: prefersReducedMotion ? 0 : 1.4 + i * 0.1 }}
+                transition={{ delay: prefersReducedMotion ? 0 : 1.12 + i * 0.06 }}
                 whileHover={{ backgroundColor: 'rgba(255,255,255,0.03)' }}
               >
-                {/* Depth sensor pulse effect on hover */}
                 <motion.div
-                  className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                  className="pointer-events-none absolute inset-0 opacity-0 transition-opacity group-hover:opacity-100"
                   style={{
                     background: 'radial-gradient(circle at center, rgba(255,255,255,0.05) 0%, transparent 70%)',
                   }}
                   animate={!prefersReducedMotion ? {
-                    scale: [1, 1.2, 1],
-                    opacity: [0, 0.3, 0],
+                    scale: [1, 1.15, 1],
+                    opacity: [0, 0.25, 0],
                   } : {}}
-                  transition={{ duration: 2, repeat: Infinity, delay: i * 0.3 }}
+                  transition={{ duration: 2, repeat: Infinity, delay: i * 0.25 }}
                 />
-                <span className="font-mono text-[9px] md:text-[10px] tracking-[0.2em] md:tracking-[0.25em] text-white/30 uppercase block mb-3">
+                <span className="mb-2 block font-mono text-[8px] uppercase tracking-[0.18em] text-white/30 sm:mb-3 sm:text-[9px] sm:tracking-[0.2em] md:text-[10px] md:tracking-[0.25em]">
                   {spec.label}
                 </span>
-                <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 min-w-0">
+                <div
+                  className={`flex min-w-0 items-baseline gap-x-1.5 gap-y-0.5 sm:gap-x-2 ${spec.isText ? 'flex-col items-stretch gap-1 sm:flex-row sm:items-end sm:gap-x-2' : 'flex-row flex-wrap'}`}
+                >
                   <motion.span 
-                    className={`font-display text-xl sm:text-2xl md:text-3xl lg:text-4xl text-white uppercase block min-w-0 ${spec.isText ? 'break-words leading-tight' : 'truncate'}`}
+                    className={`min-w-0 uppercase leading-tight text-white ${
+                      spec.isText
+                        ? 'font-display max-w-full text-sm tracking-[0.08em] sm:text-base md:text-lg lg:text-xl'
+                        : 'font-display text-lg whitespace-nowrap sm:text-2xl md:text-3xl lg:text-4xl'
+                    }`}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
-                    transition={{ delay: prefersReducedMotion ? 0 : 1.6 + i * 0.1 }}
+                    transition={{ delay: prefersReducedMotion ? 0 : 1.2 + i * 0.06 }}
                   >
                     {spec.isText ? (
-                      spec.displayValue
+                      <span className="block hyphens-none [overflow-wrap:anywhere]">
+                        {spec.displayValue}
+                      </span>
                     ) : (
                       <AnimatedCounter
                         value={spec.value}
@@ -748,7 +608,7 @@ export default function TheCryptPage() {
                       />
                     )}
                   </motion.span>
-                  <span className="font-mono text-[9px] md:text-[10px] text-white/30 uppercase">
+                  <span className="shrink-0 font-mono text-[8px] uppercase leading-normal text-white/30 sm:text-[9px] md:text-[10px]">
                     {spec.unit}
                   </span>
                 </div>
@@ -759,7 +619,7 @@ export default function TheCryptPage() {
       </section>
 
       {/* SYSTEM VISUALIZATION SECTION */}
-      <section ref={systemRef} className="relative min-h-screen flex items-center px-6 md:px-12 lg:px-20 py-32">
+      <section className="relative min-h-screen flex items-center px-6 md:px-12 lg:px-20 py-32">
         <div className="max-w-7xl mx-auto w-full">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-20 items-center">
             {/* Left: 4 Sensor Array Visualization */}
@@ -770,7 +630,7 @@ export default function TheCryptPage() {
               viewport={{ once: true }}
               className="flex justify-center"
             >
-              <SensorArray />
+              <SensorArray reduceMotion={prefersReducedMotion} />
             </motion.div>
 
             {/* Right: Content */}
@@ -908,7 +768,7 @@ export default function TheCryptPage() {
       </section>
 
       {/* CAPTURE EXPERIENCE SECTION */}
-      <section ref={experienceRef} className="relative py-32 px-6 md:px-12 lg:px-20">
+      <section className="relative py-32 px-6 md:px-12 lg:px-20">
         <div className="max-w-7xl mx-auto">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
@@ -1003,15 +863,16 @@ export default function TheCryptPage() {
                 viewport={{ once: true }}
               />
 
-              {/* Content area */}
-              <div className="relative aspect-[21/9] bg-gradient-to-b from-[#050505] via-[#080808] to-[#050505] flex items-center justify-center overflow-hidden">
-                {/* Interactive 3D volumetric capture - drag to orbit */}
+              {/* Content area — min height on small screens; cinematic 21:9 from md up */}
+              <div className="relative flex h-[min(68vh,92vw)] w-full items-center justify-center overflow-hidden bg-gradient-to-b from-[#050505] via-[#080808] to-[#050505] md:aspect-[21/9] md:h-auto md:min-h-[min(24rem,52vh)] lg:min-h-[min(28rem,56vh)]">
+                {/* Interactive 3D volumetric capture - drag to orbit; fullscreen control top-right */}
                 <CryptVolumetric3D
                   webmSrc={getVideoUrl('/work/crypt-demo.webm')}
                   mp4Src={getVideoUrl('/work/crypt-demo.mp4')}
                   posterSrc={getImageUrl('/work/the-crypt.jpg', 1920)}
-                  depthIntensity={0.38}
-                  height="70vh"
+                  depthIntensity={0.54}
+                  depthV2Strength={1}
+                  height="100%"
                 />
                 
                 {/* Subtle overlay to ensure UI readability */}
@@ -1026,49 +887,60 @@ export default function TheCryptPage() {
                   }}
                 />
                 
-                {/* Animated scanlines */}
+                {/* Animated scanlines — static offset when reduced motion */}
                 <motion.div 
-                  className="absolute inset-0 z-[2] pointer-events-none"
+                  className="pointer-events-none absolute inset-0 z-[2]"
                   style={{
                     background: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,0.02) 2px, rgba(255,255,255,0.02) 4px)',
                   }}
-                  animate={{ backgroundPosition: ['0px 0px', '0px 100px'] }}
-                  transition={{ duration: 10, repeat: Infinity, ease: 'linear' }}
+                  animate={
+                    prefersReducedMotion
+                      ? { backgroundPosition: '0px 0px' }
+                      : { backgroundPosition: ['0px 0px', '0px 100px'] }
+                  }
+                  transition={
+                    prefersReducedMotion
+                      ? { duration: 0 }
+                      : { duration: 10, repeat: Infinity, ease: 'linear' }
+                  }
                 />
 
-                {/* Warping distortion effect - subtle glitch/heat wave */}
-                <svg className="absolute inset-0 w-full h-full z-[1] pointer-events-none opacity-[0.08]" style={{ mixBlendMode: 'overlay' }}>
-                  <defs>
-                    <filter id="warp" x="0" y="0" width="100%" height="100%">
-                      <feTurbulence type="fractalNoise" baseFrequency="0.004 0.008" numOctaves="2" result="noise">
-                        <animate attributeName="baseFrequency" dur="20s" values="0.004 0.008;0.008 0.004;0.004 0.008" repeatCount="indefinite" />
-                      </feTurbulence>
-                      <feDisplacementMap in="SourceGraphic" in2="noise" scale="8" xChannelSelector="R" yChannelSelector="G" />
-                    </filter>
-                  </defs>
-                  <rect width="100%" height="100%" filter="url(#warp)" fill="rgba(255,255,255,0.1)" />
-                </svg>
+                {/* Warping distortion — omitted when reduced motion (GPU-heavy SVG filter) */}
+                {!prefersReducedMotion && (
+                  <svg className="pointer-events-none absolute inset-0 z-[1] h-full w-full opacity-[0.08]" style={{ mixBlendMode: 'overlay' }}>
+                    <defs>
+                      <filter id="crypt-warp" x="0" y="0" width="100%" height="100%">
+                        <feTurbulence type="fractalNoise" baseFrequency="0.004 0.008" numOctaves="2" result="noise">
+                          <animate attributeName="baseFrequency" dur="20s" values="0.004 0.008;0.008 0.004;0.004 0.008" repeatCount="indefinite" />
+                        </feTurbulence>
+                        <feDisplacementMap in="SourceGraphic" in2="noise" scale="8" xChannelSelector="R" yChannelSelector="G" />
+                      </filter>
+                    </defs>
+                    <rect width="100%" height="100%" filter="url(#crypt-warp)" fill="rgba(255,255,255,0.1)" />
+                  </svg>
+                )}
 
-                {/* Additional chromatic aberration warp layer */}
-                <motion.div
-                  className="absolute inset-0 z-[1] pointer-events-none opacity-[0.03]"
-                  style={{
-                    background: 'linear-gradient(45deg, rgba(255,0,0,0.1), transparent, rgba(0,255,255,0.1))',
-                    mixBlendMode: 'screen',
-                  }}
-                  animate={{
-                    backgroundPosition: ['0% 0%', '100% 100%', '0% 0%'],
-                  }}
-                  transition={{
-                    duration: 15,
-                    repeat: Infinity,
-                    ease: 'linear',
-                  }}
-                />
+                {!prefersReducedMotion && (
+                  <motion.div
+                    className="pointer-events-none absolute inset-0 z-[1] opacity-[0.03]"
+                    style={{
+                      background: 'linear-gradient(45deg, rgba(255,0,0,0.1), transparent, rgba(0,255,255,0.1))',
+                      mixBlendMode: 'screen',
+                    }}
+                    animate={{
+                      backgroundPosition: ['0% 0%', '100% 100%', '0% 0%'],
+                    }}
+                    transition={{
+                      duration: 15,
+                      repeat: Infinity,
+                      ease: 'linear',
+                    }}
+                  />
+                )}
 
                 {/* HUD Elements - moved to corners away from button */}
-                <div className="absolute top-2 left-2 md:top-4 md:left-4 font-mono text-[9px] md:text-[10px] tracking-wider text-white/30 uppercase pointer-events-none">
-                  <div className="flex items-center gap-2">
+                <div className="pointer-events-none absolute left-2 top-2 max-w-[45%] font-mono text-[9px] uppercase tracking-wider text-white/30 md:left-4 md:top-4 md:max-w-none md:text-[10px] [overflow-wrap:anywhere]">
+                  <div className="flex flex-wrap items-center gap-2">
                     <motion.div 
                       className="w-2 h-2 rounded-full bg-white"
                       animate={{ opacity: [1, 0.3, 1] }}
@@ -1079,7 +951,7 @@ export default function TheCryptPage() {
                   <div className="mt-1 text-white/20">DEPTH: 4.2M</div>
                 </div>
                 
-                <div className="absolute top-2 right-2 md:top-4 md:right-4 font-mono text-[9px] md:text-[10px] tracking-wider text-white/30 uppercase text-right pointer-events-none">
+                <div className="pointer-events-none absolute right-2 top-2 max-w-[45%] text-right font-mono text-[9px] uppercase tracking-wider text-white/30 md:right-4 md:top-4 md:max-w-none md:text-[10px] [overflow-wrap:anywhere]">
                   <div>60 FPS</div>
                   <div className="text-white/20">&lt;100ms LATENCY</div>
                 </div>
@@ -1219,16 +1091,16 @@ export default function TheCryptPage() {
             whileInView={{ opacity: 1 }}
             transition={{ delay: 0.3 }}
             viewport={{ once: true }}
-            className="font-mono text-[10px] tracking-[0.4em] text-white/30 uppercase mb-8"
+            className="mb-8 font-mono text-[10px] uppercase tracking-[0.4em] text-white/30 [overflow-wrap:anywhere]"
           >
             Private Research Initiative
           </motion.p>
           
-          <h2 className="font-display text-[clamp(3rem,10vw,8rem)] leading-[0.85] tracking-tighter uppercase mb-8">
+          <h2 className="font-display mb-8 text-[clamp(3rem,10vw,8rem)] uppercase leading-[0.9] tracking-tighter [overflow-wrap:anywhere]">
             THE CRYPT
           </h2>
           
-          <p className="font-sans text-xl md:text-2xl leading-[1.8] text-white/40 max-w-3xl mx-auto mb-16">
+          <p className="mx-auto mb-16 max-w-3xl font-sans text-xl leading-[1.8] text-white/40 text-pretty [overflow-wrap:anywhere] md:text-2xl">
             A resurrection of the moment. Not a recording, but a navigable reality where 
             one can relive the exact moment captured, from any perspective, at any time.
           </p>
@@ -1287,6 +1159,7 @@ export default function TheCryptPage() {
           </div>
         </div>
       </footer>
+      </div>
     </div>
   );
 }

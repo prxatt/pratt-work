@@ -228,6 +228,7 @@ export function VideoPlayer({ webmSrc, mp4Src, poster, accentColor, title, subti
         ref={videoRef}
         className="w-full aspect-video sm:aspect-[21/9] object-cover"
         poster={poster}
+        preload="metadata"
         muted={isMuted}
         playsInline
         onClick={togglePlay}
@@ -242,7 +243,14 @@ export function VideoPlayer({ webmSrc, mp4Src, poster, accentColor, title, subti
           <motion.div
             initial={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="absolute inset-0 flex items-center justify-center bg-black/50 cursor-pointer"
+            className="absolute inset-0 flex cursor-pointer items-center justify-center bg-cover bg-center"
+            style={
+              poster
+                ? {
+                    backgroundImage: `linear-gradient(rgba(0,0,0,0.45), rgba(0,0,0,0.45)), url(${poster})`,
+                  }
+                : { backgroundColor: 'rgba(0,0,0,0.5)' }
+            }
             onClick={togglePlay}
           >
             <div className="text-center">

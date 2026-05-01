@@ -721,7 +721,7 @@ export default function WeightsBiasesContent({
             <VideoPlayer
               webmSrc={getVideoUrl('/work/wb-teaser.webm')}
               mp4Src={getVideoUrl('/work/wb-teaser.mp4')}
-              poster={getImageUrl('/work/conference-wb.jpg', 1600)}
+              poster={getImageUrl('/work/weights-biases-thumb.jpeg', 1600, { format: 'jpg' })}
               accentColor={accentColor}
               deckLabel="FULLY_CONNECTED_2023"
               title="Conference Recap"
