@@ -29,6 +29,47 @@ const PALETTE = [
   '#F9B36E',
 ];
 
+const StreakMaterial = new THREE.ShaderMaterial({
+  transparent: true,
+  depthWrite: false,
+  blending: THREE.AdditiveBlending,
+  vertexColors: true,
+  uniforms: {
+    uOpacity: { value: 0.35 },
+  },
+  vertexShader: `
+    varying vec2 vUv;
+    varying vec3 vColor;
+
+    void main() {
+      vUv = uv;
+      vColor = color;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  `,
+  fragmentShader: `
+    varying vec2 vUv;
+    varying vec3 vColor;
+
+    uniform float uOpacity;
+
+    void main() {
+      // vertical fade (top = bright, bottom = transparent)
+      float fade = smoothstep(0.0, 0.25, vUv.y);
+      fade *= 1.0 - smoothstep(0.7, 1.0, vUv.y);
+
+      // stronger core glow
+      float core = smoothstep(0.0, 0.4, vUv.y);
+
+      float alpha = fade * uOpacity;
+
+      vec3 color = vColor * (0.8 + core * 0.8);
+
+      gl_FragColor = vec4(color, alpha);
+    }
+  `,
+});
+
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
 function generateVoxelData(text: string, isMobile: boolean): Voxel[] {
@@ -186,11 +227,11 @@ function VoxelText({
         voxel.position.y - 0.2 - voxel.streakLen * 0.35,
         -0.55,
       );
-      const stretch = voxel.streakLen * (1.2 + eased * 2.2);
+      const stretch = voxel.streakLen * (1.4 + eased * 2.6);
       tempObj.scale.set(
-        isMobile ? 0.035 : 0.04,
+        isMobile ? 0.03 : 0.035,
         stretch,
-        0.008,
+        0.006,
       );
       tempObj.rotation.set(0, 0, voxel.streakAngle);
       tempObj.updateMatrix();
@@ -207,14 +248,7 @@ function VoxelText({
     <group>
       <instancedMesh ref={streakRef} args={[undefined, undefined, voxels.length]}>
         <boxGeometry args={[1, 1, 1]} />
-        <meshBasicMaterial
-          vertexColors
-          transparent
-          opacity={0.28}
-          blending={THREE.AdditiveBlending}
-          depthWrite={false}
-          toneMapped={false}
-        />
+        <primitive object={StreakMaterial} attach="material" />
       </instancedMesh>
       <instancedMesh ref={meshRef} args={[undefined, undefined, voxels.length]}>
         <boxGeometry args={[1, 1, 1]} />
