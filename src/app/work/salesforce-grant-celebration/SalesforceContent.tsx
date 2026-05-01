@@ -459,18 +459,18 @@ export default function SalesforceContent({ metadata, content, mainDescriptionMd
                       <CornerDraw color={sfBlue} size={16} strokeWidth={1} isHovered={hoveredFrame === 1} />
                     </div>
                     
-                    {/* Image - IMG_02: salesforce-lab (blob + origin fallback) */}
+                    {/* Image - IMG_02: salesforce-students (blob + origin fallback) */}
                     <motion.div 
                       className="absolute inset-2 z-[1] overflow-hidden"
                       whileHover={{ scale: 1.02 }}
                       transition={{ duration: 0.4 }}
                     >
                       <picture>
-                        <source srcSet={getImageUrl('/work/salesforce-lab.webp', 1400, { format: 'webp' })} type="image/webp" />
-                        <source srcSet={getImageUrl('/work/salesforce-lab.jpeg', 1400, { format: 'jpg' })} type="image/jpeg" />
+                        <source srcSet={getImageUrl('/work/salesforce-students.webp', 1400, { format: 'webp' })} type="image/webp" />
+                        <source srcSet={getImageUrl('/work/salesforce-students.jpeg', 1400, { format: 'jpg' })} type="image/jpeg" />
                         <img 
-                          src={getImageUrl('/work/salesforce-lab.jpeg', 1400, { format: 'jpg' })}
-                          alt="Students exploring VR and technology lab"
+                          src={getImageUrl('/work/salesforce-students.jpeg', 1400, { format: 'jpg' })}
+                          alt="Students participating at the Salesforce grant celebration"
                           className="h-full w-full object-cover"
                           loading="eager"
                           decoding="async"
@@ -479,7 +479,7 @@ export default function SalesforceContent({ metadata, content, mainDescriptionMd
                             if (el.dataset.fallback === '1') return;
                             el.dataset.fallback = '1';
                             el.removeAttribute('srcset');
-                            el.src = '/work/salesforce-lab.jpeg';
+                            el.src = '/work/salesforce-students.jpeg';
                           }}
                         />
                       </picture>
@@ -549,18 +549,18 @@ export default function SalesforceContent({ metadata, content, mainDescriptionMd
                       <CornerDraw color={sfBlue} size={24} strokeWidth={2} isHovered={hoveredFrame === 3} />
                     </div>
                     
-                    {/* Image - Lab/VR Experience - Lazy loaded */}
+                    {/* Image - Students - Lazy loaded */}
                     <motion.div 
                       className="absolute inset-2 overflow-hidden"
                       whileHover={{ scale: 1.02 }}
                       transition={{ duration: 0.4 }}
                     >
                       <picture>
-                        <source srcSet={getImageUrl('/work/salesforce-lab.webp', 1400, { format: 'webp' })} type="image/webp" />
-                        <source srcSet={getImageUrl('/work/salesforce-lab.jpeg', 1400, { format: 'jpg' })} type="image/jpeg" />
+                        <source srcSet={getImageUrl('/work/salesforce-students.webp', 1400, { format: 'webp' })} type="image/webp" />
+                        <source srcSet={getImageUrl('/work/salesforce-students.jpeg', 1400, { format: 'jpg' })} type="image/jpeg" />
                         <img 
-                          src={getImageUrl('/work/salesforce-lab.jpeg', 1400, { format: 'jpg' })}
-                          alt="Students exploring VR and technology lab"
+                          src={getImageUrl('/work/salesforce-students.jpeg', 1400, { format: 'jpg' })}
+                          alt="Students participating at the Salesforce grant celebration"
                           className="w-full h-full object-cover"
                           loading="lazy"
                           decoding="async"
