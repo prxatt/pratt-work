@@ -295,8 +295,22 @@ export const Navbar = () => {
   
   // Physical scroll handler - direct coupling to scroll delta
   useEffect(() => {
-    if (navRef.current) {
+    const syncNavHeight = () => {
+      if (!navRef.current) return;
       navHeight.current = navRef.current.getBoundingClientRect().height;
+    };
+
+    syncNavHeight();
+    lastScrollY.current = window.scrollY;
+
+    if (navRef.current) {
+      if (isHomePage) {
+        scrollOffset.current = navHeight.current;
+        navRef.current.style.transform = `translateY(-${navHeight.current}px)`;
+      } else {
+        scrollOffset.current = 0;
+        navRef.current.style.transform = 'translateY(0px)';
+      }
     }
     
     const handleScroll = () => {
@@ -352,10 +366,27 @@ export const Navbar = () => {
         navRef.current.style.transform = `translateY(-${scrollOffset.current}px)`;
       }
     };
+
+    const handleResize = () => {
+      syncNavHeight();
+
+      if (!navRef.current) return;
+
+      if (isHomePage && window.scrollY < 24) {
+        scrollOffset.current = navHeight.current;
+        navRef.current.style.transform = `translateY(-${navHeight.current}px)`;
+        return;
+      }
+
+      scrollOffset.current = Math.min(scrollOffset.current, navHeight.current);
+      navRef.current.style.transform = `translateY(-${scrollOffset.current}px)`;
+    };
     
     window.addEventListener('scroll', handleScroll, { passive: true });
+    window.addEventListener('resize', handleResize);
     return () => {
       window.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('resize', handleResize);
     };
   }, [isHomePage]);
   
@@ -385,8 +416,6 @@ export const Navbar = () => {
         className="fixed top-0 left-0 right-0 z-[110]"
         style={{ 
           willChange: 'transform',
-          transform: isHomePage ? 'translateY(-100%)' : 'translateY(0px)',
-          transition: 'transform 80ms linear',
         }}
       >
         <div className="px-4 sm:px-6 md:px-12 lg:px-20 pt-[max(1rem,env(safe-area-inset-top))] pb-4 sm:pb-6 flex items-center justify-between gap-3">
