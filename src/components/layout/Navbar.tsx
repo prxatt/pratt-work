@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { Search } from 'lucide-react';
+import { usePathname } from 'next/navigation';
 import { siteConfig } from '@/config/site.config';
 import { useCursor } from '@/context/CursorContext';
 import { MenuOverlay } from './MenuOverlay';
@@ -283,23 +284,61 @@ export const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const { setCursorState } = useCursor();
+  const pathname = usePathname();
+  const isHomePage = pathname === '/';
   
   // Physical scroll coupling refs
   const navRef = useRef<HTMLElement>(null);
   const scrollOffset = useRef(0);
   const lastScrollY = useRef(0);
   const navHeight = useRef(64);
+  const hasHomeInitialReveal = useRef(false);
   
   // Physical scroll handler - direct coupling to scroll delta
   useEffect(() => {
-    if (navRef.current) {
+    const syncNavHeight = () => {
+      if (!navRef.current) return;
       navHeight.current = navRef.current.getBoundingClientRect().height;
+    };
+
+    syncNavHeight();
+    lastScrollY.current = window.scrollY;
+
+    if (navRef.current) {
+      if (isHomePage) {
+        hasHomeInitialReveal.current = false;
+        scrollOffset.current = navHeight.current;
+        navRef.current.style.transform = `translateY(-${navHeight.current}px)`;
+      } else {
+        hasHomeInitialReveal.current = true;
+        scrollOffset.current = 0;
+        navRef.current.style.transform = 'translateY(0px)';
+      }
     }
     
     const handleScroll = () => {
       const currentScrollY = window.scrollY;
       const delta = currentScrollY - lastScrollY.current;
       lastScrollY.current = currentScrollY;
+
+      // Homepage: keep header hidden on initial load, reveal after first scroll-down.
+      if (isHomePage && !hasHomeInitialReveal.current && currentScrollY < 24) {
+        scrollOffset.current = navHeight.current;
+        if (navRef.current) {
+          navRef.current.style.transform = `translateY(-${navHeight.current}px)`;
+        }
+        return;
+      }
+
+      // Homepage: once user scrolls past threshold, reveal immediately.
+      if (isHomePage && !hasHomeInitialReveal.current && currentScrollY >= 24) {
+        hasHomeInitialReveal.current = true;
+        scrollOffset.current = 0;
+        if (navRef.current) {
+          navRef.current.style.transform = 'translateY(0px)';
+        }
+        return;
+      }
       
       // At top of page: always fully visible
       if (currentScrollY <= 0) {
@@ -331,12 +370,29 @@ export const Navbar = () => {
         navRef.current.style.transform = `translateY(-${scrollOffset.current}px)`;
       }
     };
+
+    const handleResize = () => {
+      syncNavHeight();
+
+      if (!navRef.current) return;
+
+      if (isHomePage && !hasHomeInitialReveal.current && window.scrollY < 24) {
+        scrollOffset.current = navHeight.current;
+        navRef.current.style.transform = `translateY(-${navHeight.current}px)`;
+        return;
+      }
+
+      scrollOffset.current = Math.min(scrollOffset.current, navHeight.current);
+      navRef.current.style.transform = `translateY(-${scrollOffset.current}px)`;
+    };
     
     window.addEventListener('scroll', handleScroll, { passive: true });
+    window.addEventListener('resize', handleResize);
     return () => {
       window.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('resize', handleResize);
     };
-  }, []);
+  }, [isHomePage]);
   
   // Scroll-based backdrop
   useEffect(() => {
@@ -361,11 +417,9 @@ export const Navbar = () => {
     <>
       <nav 
         ref={navRef}
-        className="fixed top-0 left-0 right-0 z-[110]"
+        className={`fixed top-0 left-0 right-0 z-[110] ${isHomePage ? '-translate-y-full' : ''}`}
         style={{ 
           willChange: 'transform',
-          transform: 'translateY(0px)',
-          transition: 'transform 80ms linear',
         }}
       >
         <div className="px-4 sm:px-6 md:px-12 lg:px-20 pt-[max(1rem,env(safe-area-inset-top))] pb-4 sm:pb-6 flex items-center justify-between gap-3">

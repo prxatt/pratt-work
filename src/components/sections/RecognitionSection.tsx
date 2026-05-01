@@ -2085,8 +2085,8 @@ export const RecognitionSection = () => {
                       <TimelineConnector position={position} index={index} />
 
                       {/* Card positioned */}
-                      <div className={`w-full flex ${position === 'left' ? 'justify-start md:pl-6 lg:pl-10' : 'justify-end md:pr-6 lg:pr-10'}`}>
-                        <div className="relative z-20 max-w-[20rem]" style={{ width: 'calc(50% - 84px)' }}>
+                      <div className={`flex w-1/2 ${position === 'left' ? 'justify-end md:pr-2 lg:pr-4' : 'ml-auto justify-start md:pl-2 lg:pl-4'}`}>
+                        <div className="relative z-20 w-full max-w-[20rem]">
                           <RecognitionCard
                             award={award}
                             index={index}

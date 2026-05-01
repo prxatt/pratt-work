@@ -29,35 +29,6 @@ function readClientLowEnd(): boolean {
 }
 
 // ============================================
-// CORNER BRACKETS — editorial viewport markers
-// (mirrors homepage hero grammar; locked to the sticky viewport container)
-// ============================================
-const CornerBrackets = ({ visible }: { visible: boolean }) => {
-  const common =
-    'absolute w-6 h-6 md:w-8 md:h-8 pointer-events-none border-[#F2F2F0]/22';
-  const positions = [
-    { key: 'tl', className: 'top-4 left-4 md:top-6 md:left-8 border-t border-l', delay: 0.1 },
-    { key: 'tr', className: 'top-4 right-4 md:top-6 md:right-8 border-t border-r', delay: 0.16 },
-    { key: 'bl', className: 'bottom-4 left-4 md:bottom-6 md:left-8 border-b border-l', delay: 0.22 },
-    { key: 'br', className: 'bottom-4 right-4 md:bottom-6 md:right-8 border-b border-r', delay: 0.28 },
-  ] as const;
-  return (
-    <>
-      {positions.map((p) => (
-        <motion.div
-          key={p.key}
-          className={`${common} ${p.className}`}
-          style={{ borderWidth: 1 }}
-          initial={{ opacity: 0, scale: 0.82 }}
-          animate={visible ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.82 }}
-          transition={{ duration: 0.7, delay: p.delay, ease: HERO_EASE }}
-        />
-      ))}
-    </>
-  );
-};
-
-// ============================================
 // EDITORIAL COLUMN RULE — thin left rail with three baseline ticks
 // ============================================
 const ColumnRule = ({ visible }: { visible: boolean }) => {
@@ -306,9 +277,8 @@ export const AboutHero = () => {
         style={{ opacity, scale }}
         className="sticky top-0 h-[100dvh] min-h-[100dvh] flex flex-col justify-center items-center w-full z-20 bg-transparent"
       >
-        {/* Editorial overlay — corner brackets + left column rule */}
+        {/* Editorial overlay — left column rule */}
         <div className="absolute inset-0 z-[21] pointer-events-none">
-          <CornerBrackets visible={veilLifted} />
           <ColumnRule visible={veilLifted} />
         </div>
 
