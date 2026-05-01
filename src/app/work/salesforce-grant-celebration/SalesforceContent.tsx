@@ -182,10 +182,11 @@ export default function SalesforceContent({ metadata, content, mainDescriptionMd
 
               {/* Bold stacked title - SALESFORCE one word, two colors */}
               <motion.div className="space-y-0" variants={fadeInUp}>
-                <h1 className="font-display text-[clamp(2.85rem,19vw,15rem)] uppercase leading-[0.9] tracking-tight break-words text-balance">
-                  <span className="text-white">SALES</span>
-                  <wbr />
-                  <span style={{ color: sfBlue }}>FORCE</span>
+                <h1 className="font-display text-[clamp(2.8rem,18.5vw,15rem)] uppercase leading-[0.9] tracking-tight">
+                  <span className="inline-flex whitespace-nowrap">
+                    <span className="text-white">SALES</span>
+                    <span style={{ color: sfBlue }}>FORCE</span>
+                  </span>
                 </h1>
               </motion.div>
 
@@ -465,10 +466,10 @@ export default function SalesforceContent({ metadata, content, mainDescriptionMd
                       transition={{ duration: 0.4 }}
                     >
                       <picture>
-                        <source srcSet={getImageUrl('/work/salesforce-learn.webp', 1400, { format: 'webp' })} type="image/webp" />
-                        <source srcSet={getImageUrl('/work/salesforce-learn.jpeg', 1400, { format: 'jpg' })} type="image/jpeg" />
+                        <source srcSet={getImageUrl('/work/salesforce-class.webp', 1400, { format: 'webp' })} type="image/webp" />
+                        <source srcSet={getImageUrl('/work/salesforce-class.jpeg', 1400, { format: 'jpg' })} type="image/jpeg" />
                         <img 
-                          src={getImageUrl('/work/salesforce-learn.jpeg', 1400, { format: 'jpg' })}
+                          src={getImageUrl('/work/salesforce-class.jpeg', 1400, { format: 'jpg' })}
                           alt="Students participating in STEM class activity"
                           className="w-full h-full object-cover"
                           loading="lazy"
