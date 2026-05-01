@@ -549,18 +549,18 @@ export default function SalesforceContent({ metadata, content, mainDescriptionMd
                       <CornerDraw color={sfBlue} size={24} strokeWidth={2} isHovered={hoveredFrame === 3} />
                     </div>
                     
-                    {/* Image - Students - Lazy loaded */}
+                    {/* Image - IMG_04: Lab / VR - Lazy loaded */}
                     <motion.div 
                       className="absolute inset-2 overflow-hidden"
                       whileHover={{ scale: 1.02 }}
                       transition={{ duration: 0.4 }}
                     >
                       <picture>
-                        <source srcSet={getImageUrl('/work/salesforce-students.webp', 1400, { format: 'webp' })} type="image/webp" />
-                        <source srcSet={getImageUrl('/work/salesforce-students.jpeg', 1400, { format: 'jpg' })} type="image/jpeg" />
+                        <source srcSet={getImageUrl('/work/salesforce-lab.webp', 1400, { format: 'webp' })} type="image/webp" />
+                        <source srcSet={getImageUrl('/work/salesforce-lab.jpeg', 1400, { format: 'jpg' })} type="image/jpeg" />
                         <img 
-                          src={getImageUrl('/work/salesforce-students.jpeg', 1400, { format: 'jpg' })}
-                          alt="Students participating at the Salesforce grant celebration"
+                          src={getImageUrl('/work/salesforce-lab.jpeg', 1400, { format: 'jpg' })}
+                          alt="Students exploring VR and technology lab"
                           className="w-full h-full object-cover"
                           loading="lazy"
                           decoding="async"
