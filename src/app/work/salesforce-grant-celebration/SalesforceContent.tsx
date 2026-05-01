@@ -459,9 +459,9 @@ export default function SalesforceContent({ metadata, content, mainDescriptionMd
                       <CornerDraw color={sfBlue} size={16} strokeWidth={1} isHovered={hoveredFrame === 1} />
                     </div>
                     
-                    {/* Image - Class Session - Lazy loaded */}
+                    {/* Image - Class Session (IMG_02): blob primary + same-path fallback if storage key missing) */}
                     <motion.div 
-                      className="absolute inset-2 overflow-hidden"
+                      className="absolute inset-2 z-[1] overflow-hidden"
                       whileHover={{ scale: 1.02 }}
                       transition={{ duration: 0.4 }}
                     >
@@ -471,9 +471,16 @@ export default function SalesforceContent({ metadata, content, mainDescriptionMd
                         <img 
                           src={getImageUrl('/work/salesforce-class.jpeg', 1400, { format: 'jpg' })}
                           alt="Students participating in STEM class activity"
-                          className="w-full h-full object-cover"
-                          loading="lazy"
+                          className="h-full w-full object-cover"
+                          loading="eager"
                           decoding="async"
+                          onError={(e) => {
+                            const el = e.currentTarget;
+                            if (el.dataset.fallback === '1') return;
+                            el.dataset.fallback = '1';
+                            el.removeAttribute('srcset');
+                            el.src = '/work/salesforce-class.jpeg';
+                          }}
                         />
                       </picture>
                     </motion.div>
