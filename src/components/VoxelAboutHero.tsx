@@ -35,7 +35,8 @@ const StreakMaterial = new THREE.ShaderMaterial({
   blending: THREE.AdditiveBlending,
   vertexColors: true,
   uniforms: {
-    uOpacity: { value: 0.35 },
+    uOpacity: { value: 0.38 },
+    uTime: { value: 0 },
   },
   vertexShader: `
     varying vec2 vUv;
@@ -52,18 +53,52 @@ const StreakMaterial = new THREE.ShaderMaterial({
     varying vec3 vColor;
 
     uniform float uOpacity;
+    uniform float uTime;
+
+    // simple hash noise (cheap + stable)
+    float hash(vec2 p) {
+      return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
+    }
+
+    float noise(vec2 p) {
+      vec2 i = floor(p);
+      vec2 f = fract(p);
+
+      float a = hash(i);
+      float b = hash(i + vec2(1.0, 0.0));
+      float c = hash(i + vec2(0.0, 1.0));
+      float d = hash(i + vec2(1.0, 1.0));
+
+      vec2 u = f * f * (3.0 - 2.0 * f);
+
+      return mix(a, b, u.x) +
+             (c - a) * u.y * (1.0 - u.x) +
+             (d - b) * u.x * u.y;
+    }
 
     void main() {
-      // vertical fade (top = bright, bottom = transparent)
-      float fade = smoothstep(0.0, 0.25, vUv.y);
-      fade *= 1.0 - smoothstep(0.7, 1.0, vUv.y);
+      vec2 uv = vUv;
 
-      // stronger core glow
-      float core = smoothstep(0.0, 0.4, vUv.y);
+      // 🔥 heat shimmer (subtle horizontal distortion)
+      float n = noise(vec2(uv.y * 8.0, uTime * 0.6));
+      uv.x += (n - 0.5) * 0.08;
+
+      // 🎯 vertical fade (core look)
+      float fade = smoothstep(0.0, 0.25, uv.y);
+      fade *= 1.0 - smoothstep(0.65, 1.0, uv.y);
+
+      // 🌈 gradient shift along streak
+      vec3 warm = vec3(1.0, 0.6, 0.25);
+      vec3 cool = vColor;
+
+      vec3 grad = mix(warm, cool, uv.y);
+
+      // 🔆 core intensity boost
+      float core = smoothstep(0.0, 0.4, uv.y);
+
+      vec3 color = grad * (0.7 + core * 0.9);
 
       float alpha = fade * uOpacity;
-
-      vec3 color = vColor * (0.8 + core * 0.8);
 
       gl_FragColor = vec4(color, alpha);
     }
@@ -200,6 +235,10 @@ function VoxelText({
     const mesh = meshRef.current;
     const streakMesh = streakRef.current;
     if (!mesh || !streakMesh) return;
+    const streakMaterial = streakMesh.material as THREE.ShaderMaterial;
+    if (streakMaterial.uniforms?.uTime) {
+      streakMaterial.uniforms.uTime.value = state.clock.elapsedTime;
+    }
 
     const t = progress.current;
     const pulse = 0.96 + Math.sin(state.clock.elapsedTime * 0.9) * 0.04;
@@ -280,7 +319,6 @@ function Scene({
   reducedMotion: boolean;
 }) {
   const groupRef = useRef<THREE.Group>(null);
-  const sunRef = useRef<THREE.Mesh>(null);
   const { camera, pointer } = useThree();
 
   useFrame((state, delta) => {
@@ -307,10 +345,6 @@ function Scene({
       groupRef.current.rotation.z = Math.sin(state.clock.elapsedTime * 0.2) * 0.02;
     }
 
-    if (sunRef.current && !reducedMotion) {
-      sunRef.current.position.x = 4 + Math.sin(state.clock.elapsedTime * 0.45) * 0.8 + pointer.x * 0.6;
-      sunRef.current.position.y = 1.3 + Math.cos(state.clock.elapsedTime * 0.35) * 0.5 + pointer.y * 0.35;
-    }
   });
 
   return (
@@ -327,11 +361,6 @@ function Scene({
       <group ref={groupRef}>
         <VoxelText voxels={voxels} progress={progress} isMobile={isMobile} />
       </group>
-
-      {/* <mesh ref={sunRef} position={[4, 1.5, 2]}>
-        <sphereGeometry args={[0.3, 24, 24]} />
-        <meshBasicMaterial color="#FFB86E" />
-      </mesh> */}
 
       {!isMobile && !reducedMotion && (
         <EffectComposer multisampling={0}>
@@ -404,7 +433,7 @@ export function VoxelAboutHero() {
   return (
     <section
       ref={containerRef}
-      className="relative min-h-[100dvh] w-full overflow-hidden bg-[#0D0D0D]"
+      className="relative min-h-[100dvh] w-full shrink-0 overflow-hidden bg-[#0D0D0D]"
       aria-label="More about me voxel hero"
     >
       {useFallback ? (
@@ -434,6 +463,7 @@ export function VoxelAboutHero() {
           )}
 
           <Canvas
+            style={{ position: 'absolute', inset: 0 }}
             dpr={[1, isMobile ? 1.2 : 1.5]}
             camera={{ position: [0, 0.1, 6.2], fov: 42 }}
             gl={{ antialias: !isMobile, powerPreference: 'high-performance' }}
