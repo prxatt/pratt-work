@@ -146,8 +146,8 @@ function VoxelText({
   useEffect(() => {
     if (!meshRef.current) return;
     voxels.forEach((voxel, index) => {
-      meshRef.current?.setColorAt(index, voxel.color);
-      tempColor.copy(voxel.color).multiplyScalar(0.65 + voxel.streakOpacity);
+      tempColor.copy(voxel.color).multiplyScalar(1.35);
+      meshRef.current?.setColorAt(index, tempColor);
       streakRef.current?.setColorAt(index, tempColor);
     });
     meshRef.current.instanceColor!.needsUpdate = true;
@@ -187,7 +187,12 @@ function VoxelText({
         voxel.position.y - 0.2 - voxel.streakLen * 0.35,
         -0.55,
       );
-      tempObj.scale.set(isMobile ? 0.06 : 0.07, voxel.streakLen * (0.2 + eased * 0.8), 0.018);
+      const stretch = voxel.streakLen * (0.6 + eased * 1.4);
+      tempObj.scale.set(
+        isMobile ? 0.045 : 0.05,
+        stretch,
+        0.01,
+      );
       tempObj.rotation.set(0, 0, voxel.streakAngle);
       tempObj.updateMatrix();
       streakMesh.setMatrixAt(i, tempObj.matrix);
@@ -206,9 +211,10 @@ function VoxelText({
         <meshBasicMaterial
           vertexColors
           transparent
-          opacity={0.18}
+          opacity={0.22}
           blending={THREE.AdditiveBlending}
           depthWrite={false}
+          toneMapped={false}
         />
       </instancedMesh>
       <instancedMesh ref={meshRef} args={[undefined, undefined, voxels.length]}>
@@ -221,6 +227,8 @@ function VoxelText({
           metalness={0.08}
           transmission={0.36}
           thickness={0.8}
+          emissive="#ffffff"
+          emissiveIntensity={0.6}
         />
       </instancedMesh>
     </group>
@@ -263,6 +271,7 @@ function Scene({
         3,
         delta,
       );
+      groupRef.current.rotation.z = Math.sin(state.clock.elapsedTime * 0.2) * 0.02;
     }
 
     if (sunRef.current && !reducedMotion) {
@@ -293,7 +302,7 @@ function Scene({
 
       {!isMobile && !reducedMotion && sunRef.current && (
         <EffectComposer multisampling={0}>
-          <Bloom luminanceThreshold={0.05} luminanceSmoothing={0.2} intensity={1.3} />
+          <Bloom luminanceThreshold={0.08} luminanceSmoothing={0.25} intensity={1.8} />
           <GodRays
             sun={sunRef.current}
             blendFunction={BlendFunction.NORMAL}
@@ -400,7 +409,7 @@ export function VoxelAboutHero() {
 
           <Canvas
             dpr={[1, isMobile ? 1.2 : 1.5]}
-            camera={{ position: [0, 0, 7], fov: 44 }}
+            camera={{ position: [0, 0.1, 6.2], fov: 42 }}
             gl={{ antialias: !isMobile, powerPreference: 'high-performance' }}
             onCreated={() => setReady(true)}
           >
