@@ -1,7 +1,9 @@
 'use client';
 
 import { useEffect, useRef, useCallback, useState } from 'react';
+import { Maximize2, Minimize2 } from 'lucide-react';
 import { getVideoUrl } from '@/lib/media';
+import { useDeviceCapabilities } from '@/hooks/useReducedMotion';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -13,8 +15,14 @@ interface CryptVolumetric3DProps {
   mp4Src?: string;
   /** Optional poster frame shown before video loads */
   posterSrc?: string;
-  /** Displacement intensity: 0 = flat, 1 = max depth. Default: 0.38 */
+  /** Displacement intensity: 0 = flat, 1 = max depth. */
   depthIntensity?: number;
+  /**
+   * DepthTransformer v2–style fusion in the vertex shader: edge-aware + multi-scale
+   * neighborhood depth (inspired by monocular transformer depth, e.g. DA-V2 family).
+   * 0 = raw luminance only; 1 = full fusion.
+   */
+  depthV2Strength?: number;
   /** Height of the component. Default: '70vh' */
   height?: string;
 }
@@ -33,28 +41,45 @@ const VERTEX_SHADER = /* glsl */ `
   uniform float uDisplacement;
   uniform float uScanLine;
   uniform float uTime;
+  uniform float uDepthV2Strength;
 
   varying vec2 vUv;
   varying float vLuminance;
   varying float vScanEffect;
 
+  float lumAt(vec2 tuv) {
+    return dot(texture2D(uVideoTexture, tuv).rgb, vec3(0.2126, 0.7152, 0.0722));
+  }
+
   void main() {
     vUv = uv;
 
-    // Sample the video texture at this vertex position
     vec4 texel = texture2D(uVideoTexture, uv);
-
-    // Compute perceptual luminance (ITU-R BT.709)
     float lum = dot(texel.rgb, vec3(0.2126, 0.7152, 0.0722));
     vLuminance = lum;
 
-    // Scan-line ripple effect (subtle, adds temporal energy)
     float scanDist = abs(uv.y - uScanLine);
-    float scan = smoothstep(0.12, 0.0, scanDist) * 0.08;
+    float scan = smoothstep(0.16, 0.0, scanDist) * 0.1;
     vScanEffect = scan;
 
-    // Displace vertex along its normal (Z axis for a flat plane)
-    vec3 displaced = position + normal * (lum * uDisplacement + scan * uDisplacement * 0.3);
+    // DepthTransformer v2–style proxy: Sobel-like edges + neighborhood fusion (multi-scale cue)
+    float d = 1.15 / 128.0;
+    vec2 cuv = clamp(uv, vec2(d), vec2(1.0 - d));
+    float L = lumAt(cuv + vec2(-d, 0.0));
+    float R = lumAt(cuv + vec2(d, 0.0));
+    float T = lumAt(cuv + vec2(0.0, d));
+    float B = lumAt(cuv + vec2(0.0, -d));
+    float edge = abs(lum - L) + abs(lum - R) + abs(lum - T) + abs(lum - B);
+    edge = smoothstep(0.028, 0.2, edge);
+    float neighborAvg = (L + R + T + B) * 0.25;
+    float fused = mix(lum, neighborAvg, 0.2 * uDepthV2Strength);
+    fused *= 1.0 + 0.58 * edge * uDepthV2Strength;
+    fused = pow(clamp(fused, 0.0, 1.0), mix(1.0, 0.8, uDepthV2Strength * 0.42));
+    float depthScalar = mix(lum, fused, uDepthV2Strength);
+
+    float breath = 1.0 + 0.09 * sin(uTime * 0.72);
+    float disp = depthScalar * uDisplacement * breath + scan * uDisplacement * 0.38;
+    vec3 displaced = position + normal * disp;
 
     gl_Position = projectionMatrix * modelViewMatrix * vec4(displaced, 1.0);
   }
@@ -78,13 +103,14 @@ const FRAGMENT_SHADER = /* glsl */ `
   void main() {
     vec4 color = texture2D(uVideoTexture, vUv);
 
-    // Emissive boost on bright (wireframe/glow) pixels
-    float emissive = smoothstep(0.3, 0.9, vLuminance) * 0.25;
-    color.rgb += color.rgb * emissive;
+    // Emissive boost + gentle temporal pulse on highlights
+    float emissive = smoothstep(0.28, 0.88, vLuminance) * 0.32;
+    float pulse = 0.92 + 0.08 * sin(uTime * 1.05);
+    color.rgb += color.rgb * emissive * pulse;
 
     // Scan line glow (cyan tint to match volumetric aesthetic)
-    float scanGlow = vScanEffect * 2.0;
-    color.rgb += vec3(0.0, scanGlow * 0.6, scanGlow * 0.8);
+    float scanGlow = vScanEffect * 2.35;
+    color.rgb += vec3(0.0, scanGlow * 0.62, scanGlow * 0.85);
 
     // Subtle edge vignette per-fragment (secondary to the CSS vignette)
     vec2 uvCenter = vUv - 0.5;
@@ -102,41 +128,81 @@ export default function CryptVolumetric3D({
   webmSrc = getVideoUrl('/work/crypt-demo.webm'),
   mp4Src = getVideoUrl('/work/crypt-demo.mp4'),
   posterSrc,
-  depthIntensity = 0.38,
+  depthIntensity = 0.5,
+  depthV2Strength = 1,
   height = '70vh',
 }: CryptVolumetric3DProps) {
   const mountRef = useRef<HTMLDivElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
+  const canvasElRef = useRef<HTMLCanvasElement | null>(null);
+  const perfRef = useRef({ lite: false });
+  const { prefersReducedMotion, isLowEnd } = useDeviceCapabilities();
+  perfRef.current.lite = prefersReducedMotion || isLowEnd;
   // We store a cleanup fn returned from the effect
   const cleanupRef = useRef<(() => void) | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  /** iOS / browsers without element fullscreen: fixed-viewport fallback */
+  const [pseudoFullscreen, setPseudoFullscreen] = useState(false);
+  /** Bumps after WebGL canvas mounts so touch-action can sync */
+  const [viewerReadyTick, setViewerReadyTick] = useState(0);
+
+  const immersive = isFullscreen || pseudoFullscreen;
 
   const toggleFullscreen = useCallback(async () => {
     const root = rootRef.current;
     if (!root) return;
+
     const doc = document as Document & {
       webkitFullscreenElement?: Element | null;
+      msFullscreenElement?: Element | null;
       webkitExitFullscreen?: () => Promise<void> | void;
+      msExitFullscreen?: () => Promise<void> | void;
     };
     const el = root as HTMLElement & {
       webkitRequestFullscreen?: () => Promise<void> | void;
+      msRequestFullscreen?: () => Promise<void> | void;
     };
 
-    const fullscreenElement = doc.fullscreenElement ?? doc.webkitFullscreenElement ?? null;
-    if (fullscreenElement) {
-      if (document.exitFullscreen) await document.exitFullscreen();
-      else if (doc.webkitExitFullscreen) await doc.webkitExitFullscreen();
+    const nativeActive = Boolean(
+      doc.fullscreenElement ?? doc.webkitFullscreenElement ?? doc.msFullscreenElement
+    );
+
+    if (pseudoFullscreen) {
+      setPseudoFullscreen(false);
+      document.body.style.overflow = '';
+      requestAnimationFrame(() => window.dispatchEvent(new Event('resize')));
       return;
     }
 
-    if (el.requestFullscreen) await el.requestFullscreen();
-    else if (el.webkitRequestFullscreen) await el.webkitRequestFullscreen();
-  }, []);
+    if (nativeActive) {
+      try {
+        if (document.exitFullscreen) await document.exitFullscreen();
+        else if (doc.webkitExitFullscreen) await doc.webkitExitFullscreen();
+        else if (doc.msExitFullscreen) await doc.msExitFullscreen();
+      } finally {
+        requestAnimationFrame(() => window.dispatchEvent(new Event('resize')));
+      }
+      return;
+    }
+
+    try {
+      if (el.requestFullscreen) await el.requestFullscreen();
+      else if (el.webkitRequestFullscreen) await el.webkitRequestFullscreen();
+      else if (el.msRequestFullscreen) await el.msRequestFullscreen();
+      else throw new Error('fullscreen unavailable');
+    } catch {
+      setPseudoFullscreen(true);
+      document.body.style.overflow = 'hidden';
+    }
+    requestAnimationFrame(() => window.dispatchEvent(new Event('resize')));
+  }, [pseudoFullscreen]);
 
   // Stable callback — avoids linter warnings while keeping empty dep array
   const initScene = useCallback(() => {
     const container = mountRef.current;
     if (!container) return;
+
+    let aborted = false;
 
     // Dynamically import Three.js to avoid SSR issues in Next.js
     // All Three.js logic lives inside this async block
@@ -145,19 +211,23 @@ export default function CryptVolumetric3D({
       // Lazy imports — Next.js will bundle Three.js client-side only
       // -----------------------------------------------------------------------
       const THREE = await import('three');
+      if (aborted) return;
       // @ts-ignore — OrbitControls is in three/examples, types exist if installed
       const { OrbitControls } = await import(
         'three/examples/jsm/controls/OrbitControls.js'
       );
+      if (aborted) return;
 
       // -----------------------------------------------------------------------
       // Renderer
       // -----------------------------------------------------------------------
+      const lite = perfRef.current.lite;
       const renderer = new THREE.WebGLRenderer({
-        antialias: true,
+        antialias: !lite,
         alpha: true,           // transparent background — page bg shows through
+        powerPreference: 'high-performance',
       });
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, lite ? 1.25 : 2));
       renderer.setSize(container.clientWidth, container.clientHeight);
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
       renderer.toneMappingExposure = 1.1;
@@ -193,9 +263,14 @@ export default function CryptVolumetric3D({
       controls.enablePan = false;           // no panning — keeps subject centered
       // Touch: one-finger orbit, two-finger zoom
       controls.touches = {
-        ONE: (THREE as any).TOUCH?.ROTATE ?? 0,
-        TWO: (THREE as any).TOUCH?.DOLLY_ROTATE ?? 2,
+        ONE: THREE.TOUCH.ROTATE,
+        TWO: THREE.TOUCH.DOLLY_ROTATE,
       };
+      // OrbitControls sets touch-action:none, which blocks vertical page scroll on
+      // phones/tablets when the canvas is under the finger. pan-y restores scroll;
+      // we switch to none in fullscreen (see useEffect on immersive).
+      canvasElRef.current = renderer.domElement as HTMLCanvasElement;
+      renderer.domElement.style.touchAction = 'pan-y';
       // Stop auto-rotate when user interacts, resume after 3s idle
       let autoRotateTimeout: ReturnType<typeof setTimeout> | null = null;
       const pauseAutoRotate = () => {
@@ -248,20 +323,20 @@ export default function CryptVolumetric3D({
       // -----------------------------------------------------------------------
       // Displaced Video Mesh
       // -----------------------------------------------------------------------
-      // High subdivision count for smooth displacement. 200x200 segments
-      // gives 40,000 quads — sufficient resolution for the displacement without
-      // destroying mobile performance (tested on iPhone 13).
+      const planeSeg = lite ? 72 : 140;
       const planeGeo = new THREE.PlaneGeometry(
         3.2,    // width  — 16:9 ratio
         1.8,    // height
-        200,    // widthSegments
-        200     // heightSegments
+        planeSeg,
+        planeSeg
       );
 
+      const v2 = Math.min(1, Math.max(0, depthV2Strength)) * (lite ? 0.62 : 1);
       const planeMat = new THREE.ShaderMaterial({
         uniforms: {
           uVideoTexture: { value: videoTexture },
           uDisplacement:  { value: depthIntensity },
+          uDepthV2Strength: { value: v2 },
           uTime:          { value: 0 },
           uScanLine:      { value: 0.5 },
         },
@@ -276,9 +351,7 @@ export default function CryptVolumetric3D({
       // -----------------------------------------------------------------------
       // Ambient Particle Field
       // -----------------------------------------------------------------------
-      // 1,200 particles distributed in a sphere around the scene.
-      // Mirrors the point-cloud aesthetic visible in the original footage
-      const particleCount = 1200;
+      const particleCount = lite ? 420 : 900;
       const pPositions = new Float32Array(particleCount * 3);
       const pSizes = new Float32Array(particleCount);
 
@@ -345,8 +418,8 @@ export default function CryptVolumetric3D({
 
         // Update shader uniforms
         (planeMat.uniforms.uTime as any).value = elapsed;
-        // Scan-line travels down the mesh over ~4 seconds
-        (planeMat.uniforms.uScanLine as any).value = (elapsed * 0.25) % 1.0;
+        // Scan-line travels down the mesh
+        (planeMat.uniforms.uScanLine as any).value = (elapsed * 0.32) % 1.0;
 
         // Gentle particle rotation
         particles.rotation.y = elapsed * 0.04;
@@ -410,12 +483,15 @@ export default function CryptVolumetric3D({
         if (container.contains(renderer.domElement)) {
           container.removeChild(renderer.domElement);
         }
+        canvasElRef.current = null;
       };
     })();
 
     // Return synchronous cleanup that calls the async-populated ref
     return () => {
+      aborted = true;
       cleanupRef.current?.();
+      cleanupRef.current = null;
     };
   }, []); // intentionally empty — Three.js scene initializes once
 
@@ -426,24 +502,64 @@ export default function CryptVolumetric3D({
 
   useEffect(() => {
     const handleChange = () => {
-      const doc = document as Document & { webkitFullscreenElement?: Element | null };
-      const fullscreenElement = doc.fullscreenElement ?? doc.webkitFullscreenElement ?? null;
-      setIsFullscreen(Boolean(fullscreenElement));
+      const doc = document as Document & {
+        webkitFullscreenElement?: Element | null;
+        msFullscreenElement?: Element | null;
+      };
+      const fs = Boolean(
+        doc.fullscreenElement ?? doc.webkitFullscreenElement ?? doc.msFullscreenElement
+      );
+      setIsFullscreen(fs);
+      if (fs) {
+        setPseudoFullscreen(false);
+        document.body.style.overflow = '';
+      }
     };
     document.addEventListener('fullscreenchange', handleChange);
     document.addEventListener('webkitfullscreenchange', handleChange as EventListener);
+    document.addEventListener('MSFullscreenChange', handleChange as EventListener);
     return () => {
       document.removeEventListener('fullscreenchange', handleChange);
       document.removeEventListener('webkitfullscreenchange', handleChange as EventListener);
+      document.removeEventListener('MSFullscreenChange', handleChange as EventListener);
+    };
+  }, []);
+
+  useEffect(() => {
+    const canvas = canvasElRef.current;
+    if (!canvas) return;
+    canvas.style.touchAction = immersive ? 'none' : 'pan-y';
+  }, [immersive, viewerReadyTick]);
+
+  useEffect(() => {
+    if (!pseudoFullscreen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setPseudoFullscreen(false);
+        document.body.style.overflow = '';
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [pseudoFullscreen]);
+
+  useEffect(() => {
+    return () => {
+      document.body.style.overflow = '';
     };
   }, []);
 
   return (
     <div
-         ref={rootRef}
-         onDoubleClick={toggleFullscreen}
-         className="relative w-full overflow-hidden rounded-xl bg-black group"
-         style={{ height }}>
+      ref={rootRef}
+      onDoubleClick={() => {
+        void toggleFullscreen();
+      }}
+      className={`relative w-full overflow-hidden rounded-xl bg-black group ${
+        pseudoFullscreen ? 'fixed inset-0 z-[99999] rounded-none' : ''
+      }`}
+      style={{ height: pseudoFullscreen ? '100dvh' : height }}
+    >
 
       {/* Three.js canvas mounts here */}
       <div
@@ -454,7 +570,9 @@ export default function CryptVolumetric3D({
 
       {/* CSS vignette */}
       <div
-        className="absolute inset-0 pointer-events-none rounded-xl"
+        className={`absolute inset-0 pointer-events-none ${
+          pseudoFullscreen ? 'rounded-none' : 'rounded-xl'
+        }`}
         style={{
           background:
             'radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,0.65) 100%)',
@@ -487,12 +605,20 @@ export default function CryptVolumetric3D({
       {/* Fullscreen toggle */}
       <button
         type="button"
-        onClick={toggleFullscreen}
-        className="absolute top-3 right-3 z-10 px-3 py-1.5 rounded-full border border-white/20 bg-black/45 backdrop-blur-sm text-white/80 hover:text-white hover:border-white/40 transition-colors"
-        aria-label={isFullscreen ? 'Exit fullscreen volumetric viewer' : 'Enter fullscreen volumetric viewer'}
+        onClick={(e) => {
+          e.stopPropagation();
+          void toggleFullscreen();
+        }}
+        className="absolute top-3 right-3 z-50 flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/20 bg-black/55 backdrop-blur-md text-white/80 hover:text-white hover:border-white/40 transition-colors shadow-lg shadow-black/40"
+        aria-label={immersive ? 'Exit fullscreen volumetric viewer' : 'Enter fullscreen volumetric viewer'}
       >
+        {immersive ? (
+          <Minimize2 className="h-3.5 w-3.5 shrink-0 opacity-90" aria-hidden />
+        ) : (
+          <Maximize2 className="h-3.5 w-3.5 shrink-0 opacity-90" aria-hidden />
+        )}
         <span className="font-mono text-[10px] tracking-[0.14em] uppercase">
-          {isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
+          {immersive ? 'Exit Fullscreen' : 'Fullscreen'}
         </span>
       </button>
     </div>
