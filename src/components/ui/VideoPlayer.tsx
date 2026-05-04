@@ -24,7 +24,8 @@ export function VideoPlayer({ webmSrc, mp4Src, poster, accentColor, title, subti
   const [volume, setVolume] = useState(0.8);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showControls, setShowControls] = useState(true);
-  const [isLoaded, setIsLoaded] = useState(false);
+  /** Once true, the large poster/play overlay stays dismissed (paused mid-video shows the frame + controls). */
+  const [hasStartedPlayback, setHasStartedPlayback] = useState(false);
   const [showVolumeSlider, setShowVolumeSlider] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -44,7 +45,10 @@ export function VideoPlayer({ webmSrc, mp4Src, poster, accentColor, title, subti
 
     const handleLoadedMetadata = () => {
       setDuration(video.duration);
-      setIsLoaded(true);
+    };
+
+    const handlePlay = () => {
+      setHasStartedPlayback(true);
     };
 
     const handleEnded = () => {
@@ -53,11 +57,13 @@ export function VideoPlayer({ webmSrc, mp4Src, poster, accentColor, title, subti
 
     video.addEventListener('timeupdate', handleTimeUpdate);
     video.addEventListener('loadedmetadata', handleLoadedMetadata);
+    video.addEventListener('play', handlePlay);
     video.addEventListener('ended', handleEnded);
 
     return () => {
       video.removeEventListener('timeupdate', handleTimeUpdate);
       video.removeEventListener('loadedmetadata', handleLoadedMetadata);
+      video.removeEventListener('play', handlePlay);
       video.removeEventListener('ended', handleEnded);
     };
   }, []);
@@ -239,7 +245,7 @@ export function VideoPlayer({ webmSrc, mp4Src, poster, accentColor, title, subti
 
       {/* Initial play overlay */}
       <AnimatePresence>
-        {!isPlaying && !isLoaded && (
+        {!isPlaying && !hasStartedPlayback && (
           <motion.div
             initial={{ opacity: 1 }}
             exit={{ opacity: 0 }}
