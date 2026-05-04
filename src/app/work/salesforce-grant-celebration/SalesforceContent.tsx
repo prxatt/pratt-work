@@ -472,7 +472,7 @@ export default function SalesforceContent({ metadata, content, mainDescriptionMd
                           src={getImageUrl('/work/salesforce-students.jpeg', 1400, { format: 'jpg' })}
                           alt="Students participating at the Salesforce grant celebration"
                           className="h-full w-full object-cover"
-                          loading="eager"
+                          loading="lazy"
                           decoding="async"
                           onError={(e) => {
                             const el = e.currentTarget;
