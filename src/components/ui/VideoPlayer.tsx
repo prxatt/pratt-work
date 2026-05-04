@@ -253,7 +253,7 @@ export function VideoPlayer({ webmSrc, mp4Src, poster, accentColor, title, subti
             style={
               poster
                 ? {
-                    backgroundImage: `linear-gradient(rgba(0,0,0,0.45), rgba(0,0,0,0.45)), url(${poster})`,
+                    backgroundImage: `linear-gradient(rgba(0,0,0,0.45), rgba(0,0,0,0.45)), url(${JSON.stringify(poster)})`,
                   }
                 : { backgroundColor: 'rgba(0,0,0,0.5)' }
             }

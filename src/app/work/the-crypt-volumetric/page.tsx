@@ -7,7 +7,7 @@ import { AnimatedCounter } from '@/components/micro-animations/AnimatedCounter';
 import { ArrowUpRight, Play, Pause, ChevronRight, Layers, Crosshair, Scan } from 'lucide-react';
 import CryptVolumetric3D from '@/components/work/crypt-volumetric/CryptVolumetric3D';
 import { HeroAmbientScreen } from '@/components/sections/HeroAmbientScreen';
-import { useDeviceCapabilities, useReducedMotion } from '@/hooks/useReducedMotion';
+import { useDeviceCapabilities } from '@/hooks/useReducedMotion';
 import { getImageUrl, getVideoUrl } from '@/lib/media';
 
 // Sensor visualization component - 4 depth sensors
@@ -424,8 +424,7 @@ export default function TheCryptPage() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [showVideoModal, setShowVideoModal] = useState(false);
 
-  const prefersReducedMotion = useReducedMotion();
-  const { enableParallax } = useDeviceCapabilities();
+  const { enableParallax, prefersReducedMotion } = useDeviceCapabilities();
 
   const springConfig = { damping: 30, stiffness: 200 };
   const mouseX = useSpring(0, springConfig);
