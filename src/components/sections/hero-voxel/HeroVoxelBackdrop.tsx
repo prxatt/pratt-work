@@ -119,8 +119,8 @@ export function HeroVoxelBackdrop() {
       setSceneReady(false);
       stopCameraRef.current();
       sceneApiRef.current = null;
+      /** Mount `.then` above already calls `api.dispose()` when `cancelled`; avoid a second `pending.then` that would double-dispose. */
       if (dispose) dispose();
-      else void pending.then((api) => api.dispose());
     };
   }, [tier, prefersReducedMotion]);
 
@@ -147,6 +147,7 @@ export function HeroVoxelBackdrop() {
         'position:fixed;width:1px;height:1px;opacity:0;pointer-events:none;left:-9999px;top:0';
       document.body.appendChild(video);
       video.srcObject = stream;
+      videoRef.current = video;
       try {
         await video.play();
       } catch {

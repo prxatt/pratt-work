@@ -42,15 +42,18 @@ export function createDepthInference(opts: {
   void (async () => {
     try {
       const { pipeline, env } = await import('@huggingface/transformers');
+      if (cancelled) return;
       env.allowLocalModels = false;
       env.useBrowserCache = true;
-      depthPipeline = await pipeline('depth-estimation', 'onnx-community/depth-anything-v2-small', {
+      const pipe = await pipeline('depth-estimation', 'onnx-community/depth-anything-v2-small', {
         device: 'wasm',
         dtype: 'fp32',
       });
+      if (cancelled) return;
+      depthPipeline = pipe;
       depthReady = true;
     } catch {
-      depthReady = false;
+      if (!cancelled) depthReady = false;
     }
   })();
 
@@ -123,6 +126,7 @@ export function createDepthInference(opts: {
     dispose: () => {
       cancelled = true;
       depthPipeline = null;
+      depthReady = false;
     },
   };
 }
