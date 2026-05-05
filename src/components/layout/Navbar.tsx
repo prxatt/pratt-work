@@ -292,10 +292,12 @@ export const Navbar = () => {
   const scrollOffset = useRef(0);
   const lastScrollY = useRef(0);
   const navHeight = useRef(64);
+  /** Tracks hero zone on / so leaving it reveals the bar once before scroll-hide applies. */
+  const prevInHeroRef = useRef(false);
 
   // Physical scroll handler - direct coupling to scroll delta
   useEffect(() => {
-    /** Home only: hide nav in first ~88vh (hero); past that, keep bar visible (avoid hide-on-scroll trap in lower sections). */
+    /** Home only: hide nav in first ~88vh (hero). Past that, same scroll-hide loop as other pages. */
     const heroExitPx = () => Math.round(window.innerHeight * 0.88);
 
     const syncNavHeight = () => {
@@ -305,6 +307,7 @@ export const Navbar = () => {
 
     syncNavHeight();
     lastScrollY.current = window.scrollY;
+    prevInHeroRef.current = isHomePage && window.scrollY < heroExitPx();
 
     if (navRef.current) {
       if (isHomePage) {
@@ -327,7 +330,9 @@ export const Navbar = () => {
       const delta = currentScrollY - lastScrollY.current;
       lastScrollY.current = currentScrollY;
 
-      if (isHomePage && currentScrollY < heroExitPx()) {
+      const inHero = isHomePage && currentScrollY < heroExitPx();
+      if (inHero) {
+        prevInHeroRef.current = true;
         scrollOffset.current = navHeight.current;
         if (navRef.current) {
           navRef.current.style.transform = `translateY(-${navHeight.current}px)`;
@@ -335,7 +340,8 @@ export const Navbar = () => {
         return;
       }
 
-      if (isHomePage) {
+      if (isHomePage && prevInHeroRef.current) {
+        prevInHeroRef.current = false;
         scrollOffset.current = 0;
         if (navRef.current) {
           navRef.current.style.transform = 'translateY(0px)';
@@ -372,15 +378,11 @@ export const Navbar = () => {
       syncNavHeight();
       if (!navRef.current) return;
 
+      prevInHeroRef.current = isHomePage && window.scrollY < heroExitPx();
+
       if (isHomePage && window.scrollY < heroExitPx()) {
         scrollOffset.current = navHeight.current;
         navRef.current.style.transform = `translateY(-${navHeight.current}px)`;
-        return;
-      }
-
-      if (isHomePage) {
-        scrollOffset.current = 0;
-        navRef.current.style.transform = 'translateY(0px)';
         return;
       }
 

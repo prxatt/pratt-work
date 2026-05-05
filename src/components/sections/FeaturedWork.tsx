@@ -115,15 +115,26 @@ const MagneticWrapper = ({
 // ─────────────────────────────────────────────────────────────────────────────
 
 const LazyVideo = ({
-  src, poster, caps, eagerRootMargin = '100px 0px 100px 0px',
+  src,
+  poster,
+  caps,
+  eagerRootMargin = '100px 0px 100px 0px',
+  priority = false,
 }: {
-  src: { webm: string; mp4: string }; poster?: string; caps: DeviceCaps; eagerRootMargin?: string;
+  src: { webm: string; mp4: string };
+  poster?: string;
+  caps: DeviceCaps;
+  eagerRootMargin?: string;
+  priority?: boolean;
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [load, setLoad] = useState(false);
-  const [vis,  setVis]  = useState(false);
+  const [load, setLoad] = useState(priority);
+  const [vis, setVis] = useState(false);
 
   useEffect(() => {
+    if (priority) {
+      setLoad(true);
+    }
     const video = videoRef.current;
     if (!video) return;
     const obs = new IntersectionObserver(
@@ -136,17 +147,18 @@ const LazyVideo = ({
     );
     obs.observe(video);
     return () => obs.disconnect();
-  }, [eagerRootMargin]);
+  }, [eagerRootMargin, priority]);
 
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
-    if (vis) { 
-      video.muted = true; 
-      video.playsInline = true; 
-      video.play().catch(() => {}); 
+    if (vis) {
+      video.muted = true;
+      video.playsInline = true;
+      video.play().catch(() => {});
+    } else {
+      video.pause();
     }
-    else { video.pause(); }
   }, [vis]);
 
   // Low-end devices: show gradient only, no video overhead
@@ -154,27 +166,31 @@ const LazyVideo = ({
     return <div className="w-full h-full" style={{ background: 'linear-gradient(135deg, #0f1f12, #0a0a0a)' }} />;
   }
 
+  const fadeMs = priority ? 280 : 500;
+
   return (
     <div className="relative w-full h-full">
-      {/* Poster image - immediately visible */}
       {poster && (
-        <img 
+        <img
           src={getImageUrl(poster, 1400)}
           alt=""
           className="absolute inset-0 w-full h-full object-cover"
-          loading="eager"
+          loading={priority ? 'eager' : 'lazy'}
           decoding="async"
+          fetchPriority={priority ? 'high' : 'auto'}
         />
       )}
-      {/* Video loads over poster with crossfade */}
-      <video 
-        ref={videoRef} 
-        muted 
-        loop 
-        playsInline 
-        preload="metadata"
-        className="absolute inset-0 w-full h-full object-cover opacity-0 transition-opacity duration-500"
-        style={{ opacity: vis ? 1 : 0 }}
+      <video
+        ref={videoRef}
+        muted
+        loop
+        playsInline
+        preload={priority ? 'auto' : 'metadata'}
+        className="absolute inset-0 w-full h-full object-cover gpu-accelerated"
+        style={{
+          opacity: vis ? 1 : 0,
+          transition: `opacity ${fadeMs}ms ease-out`,
+        }}
       >
         {load && (
           <>
@@ -362,7 +378,8 @@ const BoubyanCard = ({
                 src={{ webm: '/work/boubyan-bank-card.webm', mp4: '/work/boubyan-bank-card.mp4' }}
                 poster="/work/boubyan-bank-thumb.webp"
                 caps={caps}
-                eagerRootMargin="200px"
+                eagerRootMargin="480px 0px 75vh 0px"
+                priority
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/35 via-black/5 to-transparent" />
               <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_40%,rgba(0,0,0,0.15)_100%)]" />
