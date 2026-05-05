@@ -183,7 +183,7 @@ export async function mountHeroVoxelScene(
   }
 
   renderer.setPixelRatio(
-    Math.min(window.devicePixelRatio || 1, tier === 'medium' ? 1.1 : 1.5)
+    Math.min(window.devicePixelRatio || 1, tier === 'medium' ? 1 : 1.25)
   );
   renderer.setSize(cw, ch);
   renderer.setClearColor(0x000000, 0);
@@ -229,6 +229,8 @@ export async function mountHeroVoxelScene(
 
   const dummy = new THREE.Object3D();
   let lastTime = performance.now();
+  // Mutable idle reference camera pose; updated on resize/aspect changes.
+  const idleCameraBase = camera.position.clone();
 
   const frameLerp = (base: number, dt: number, floor: number) =>
     Math.min(1, base * (dt / (1 / 60)) + floor);
@@ -313,11 +315,12 @@ export async function mountHeroVoxelScene(
     camera.aspect = aspect;
     camera.updateProjectionMatrix();
     if (!cameraMode) {
-      camera.position.set(0, 0, cameraDistanceForAspect(aspect));
+      idleCameraBase.set(0, 0, cameraDistanceForAspect(aspect));
+      camera.position.copy(idleCameraBase);
       controls.target.set(0, 0, 0);
     }
     renderer.setSize(w, h);
-    const cap = cameraMode ? 1 : tier === 'medium' ? 1.1 : 1.5;
+    const cap = cameraMode ? 1 : tier === 'medium' ? 1 : 1.25;
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, cap));
   };
 
@@ -328,15 +331,15 @@ export async function mountHeroVoxelScene(
   }
 
   // Subtle idle camera drift adds life without exposing the back of the grid.
-  const idleCameraStart = camera.position.clone();
+  // Keep this mutable so resize/aspect changes don't restore stale distance.
   const updateIdleCameraDrift = (t: number) => {
     if (cameraMode || reducedMotion) return;
     const sweepX = Math.sin(t * 0.16) * 0.9;
     const sweepY = Math.sin(t * 0.13 + 1.1) * 0.45;
     camera.position.set(
-      idleCameraStart.x + sweepX,
-      idleCameraStart.y + sweepY,
-      idleCameraStart.z
+      idleCameraBase.x + sweepX,
+      idleCameraBase.y + sweepY,
+      idleCameraBase.z
     );
     camera.lookAt(0, 0, 0);
   };
@@ -379,7 +382,8 @@ export async function mountHeroVoxelScene(
     } else {
       extrusionBoost = 1;
       depthBuffer = null;
-      camera.position.copy(idleCameraStart);
+      idleCameraBase.set(0, 0, cameraDistanceForAspect(camera.aspect));
+      camera.position.copy(idleCameraBase);
       controls.target.set(0, 0, 0);
       controls.minDistance = 22;
       controls.maxDistance = 60;
@@ -501,19 +505,19 @@ function createVoxelGrid(
 
 function createLights(scene: THREE.Scene) {
   // Hemisphere — soft sky/ground fill rooted in brand palette
-  scene.add(new THREE.HemisphereLight(0x2c3640, 0x05080c, 0.62));
+  scene.add(new THREE.HemisphereLight(0x2b3945, 0x05080c, 0.54));
   // Ambient — bottom-floor light so deep shadows don't crush
-  scene.add(new THREE.AmbientLight(0x141a20, 0.42));
+  scene.add(new THREE.AmbientLight(0x131922, 0.34));
   // Key — bright warm-white from upper-right, drives primary specular
-  const key = new THREE.DirectionalLight(0xe2eafa, 1.18);
+  const key = new THREE.DirectionalLight(0xe9efff, 1.28);
   key.position.set(8, 26, 22);
   scene.add(key);
   // Fill — cool blue from upper-left, opens shadows without crushing contrast
-  const fill = new THREE.DirectionalLight(0x6f8aaa, 0.46);
+  const fill = new THREE.DirectionalLight(0x6b86ab, 0.42);
   fill.position.set(-18, 12, 14);
   scene.add(fill);
   // Rim — teal-cyan from behind, etches voxel silhouettes against dark void
-  const rim = new THREE.DirectionalLight(0x3aa9b8, 0.55);
+  const rim = new THREE.DirectionalLight(0x45bdd0, 0.68);
   rim.position.set(0, 8, -36);
   scene.add(rim);
   // Warm accent point — adds occasional sparkle to clearcoat reflections

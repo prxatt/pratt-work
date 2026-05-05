@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
-import { motion, useReducedMotion } from 'framer-motion';
+import { useEffect, useRef, useState, useMemo } from 'react';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import Link from 'next/link';
 import { ArrowUpRight, ChevronRight } from 'lucide-react';
 import { AnimatedCounter } from '@/components/micro-animations/AnimatedCounter';
@@ -223,9 +223,11 @@ interface PhotoFrameProps {
   webp: string;
   jpeg: string;
   alt: string;
+  isTouchDevice: boolean;
+  onOpen?: () => void;
 }
 
-const PhotoFrame = ({ label, index, webp, jpeg, alt }: PhotoFrameProps) => (
+const PhotoFrame = ({ label, index, webp, jpeg, alt, isTouchDevice, onOpen }: PhotoFrameProps) => (
   <motion.div 
     className="relative group h-full flex flex-col min-w-0"
     initial={{ opacity: 0, y: 40 }}
@@ -233,6 +235,10 @@ const PhotoFrame = ({ label, index, webp, jpeg, alt }: PhotoFrameProps) => (
     viewport={{ once: true }}
     transition={{ duration: 0.6, delay: index * 0.15 }}
     style={{ willChange: 'transform', transform: 'translateZ(0)' }}
+    whileTap={{ scale: 0.99 }}
+    onClick={() => {
+      if (isTouchDevice && onOpen) onOpen();
+    }}
   >
     {/* Full-bleed image container - fixed aspect ratio for consistency */}
     <div className="relative aspect-[4/3] w-full overflow-hidden bg-[#0A0A0A]">
@@ -242,7 +248,7 @@ const PhotoFrame = ({ label, index, webp, jpeg, alt }: PhotoFrameProps) => (
         <img 
           src={jpeg}
           alt={alt}
-          className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"
+          className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-105 active:scale-[1.02]"
           loading={index === 0 ? "eager" : "lazy"}
           decoding="async"
           style={{ minHeight: '100%', minWidth: '100%' }}
@@ -259,7 +265,7 @@ const PhotoFrame = ({ label, index, webp, jpeg, alt }: PhotoFrameProps) => (
       transition={{ duration: 0.4, delay: index * 0.15 + 0.3 }}
     >
       <div className="w-2 h-2 rounded-full bg-[#B87333] shrink-0" />
-      <span className="font-mono text-[9px] md:text-[10px] tracking-[0.15em] md:tracking-[0.2em] uppercase text-[#888] break-words">
+      <span className="font-mono text-[9px] md:text-[10px] tracking-[0.15em] md:tracking-[0.2em] uppercase text-[#888] [overflow-wrap:anywhere]">
         {label}
       </span>
     </motion.div>
@@ -525,6 +531,10 @@ const StatCounter = ({ value, label, suffix = '', type = 'default' }: { value: s
 // Main Page Component
 export default function LevisInnovationLabsPage() {
   const [isVideoHovered, setIsVideoHovered] = useState(false);
+  const [isTouchDevice, setIsTouchDevice] = useState(false);
+  const [activeImageIndex, setActiveImageIndex] = useState<number | null>(null);
+  const [activePublicationIndex, setActivePublicationIndex] = useState<number | null>(null);
+  const galleryTouchStartX = useRef<number | null>(null);
   const prefersReducedMotion = useReducedMotion();
   
   // Get memoized animation variants
@@ -555,6 +565,69 @@ export default function LevisInnovationLabsPage() {
     }
   ];
 
+  const galleryImages = [
+    {
+      src: getImageUrl('/work/levis-thumb.jpg', 2200, { format: 'jpg' }),
+      alt: "Levi's rig assembly thumbnail",
+      label: 'RIG ASSEMBLY',
+      id: 'IMG_01',
+    },
+    {
+      src: getImageUrl('/work/levis-lab.jpg', 2200, { format: 'jpg' }),
+      alt: "Levi's live capture lab",
+      label: 'LIVE CAPTURE',
+      id: 'IMG_02',
+    },
+    {
+      src: getImageUrl('/work/levis-collection.jpg', 2200, { format: 'jpg' }),
+      alt: "Levi's collection post production",
+      label: 'POST PRODUCTION',
+      id: 'IMG_03',
+    },
+  ];
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const detectTouch = () => {
+      setIsTouchDevice(('ontouchstart' in window) || navigator.maxTouchPoints > 0);
+    };
+    detectTouch();
+    window.addEventListener('resize', detectTouch);
+    return () => window.removeEventListener('resize', detectTouch);
+  }, []);
+
+  useEffect(() => {
+    if (activeImageIndex === null) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setActiveImageIndex(null);
+      if (e.key === 'ArrowRight') setActiveImageIndex((prev) => (prev === null ? 0 : (prev + 1) % galleryImages.length));
+      if (e.key === 'ArrowLeft') setActiveImageIndex((prev) => (prev === null ? 0 : (prev - 1 + galleryImages.length) % galleryImages.length));
+    };
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.body.style.overflow = '';
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [activeImageIndex, galleryImages.length]);
+
+  const onGalleryTouchStart = (e: React.TouchEvent) => {
+    galleryTouchStartX.current = e.touches[0]?.clientX ?? null;
+  };
+
+  const onGalleryTouchEnd = (e: React.TouchEvent) => {
+    if (galleryTouchStartX.current === null || activeImageIndex === null) return;
+    const endX = e.changedTouches[0]?.clientX ?? galleryTouchStartX.current;
+    const delta = galleryTouchStartX.current - endX;
+    const threshold = 40;
+    if (delta > threshold) {
+      setActiveImageIndex((activeImageIndex + 1) % galleryImages.length);
+    } else if (delta < -threshold) {
+      setActiveImageIndex((activeImageIndex - 1 + galleryImages.length) % galleryImages.length);
+    }
+    galleryTouchStartX.current = null;
+  };
+
   return (
     <main 
       className="min-h-screen bg-[#0F1729] text-[#F2F2F0] relative overflow-x-hidden"
@@ -576,7 +649,7 @@ export default function LevisInnovationLabsPage() {
             transition={{ duration: 0.5, delay: 0.4 }}
           >
             <motion.h1 
-              className="font-display text-[clamp(4rem,15vw,12rem)] text-[#F5F5DC] uppercase leading-[0.85] tracking-[0.02em]"
+              className="font-display text-[clamp(3.2rem,13.5vw,11rem)] text-[#F5F5DC] uppercase leading-[0.85] tracking-[0.02em]"
               style={{
                 textShadow: `
                   0 4px 8px rgba(0,0,0,0.5),
@@ -617,13 +690,13 @@ export default function LevisInnovationLabsPage() {
           
           {/* INNOVATION LABS */}
           <motion.div
-            className="overflow-hidden mb-4"
+            className="overflow-hidden mb-4 px-2"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.5, delay: 0.7 }}
           >
             <motion.p 
-              className="font-display text-[clamp(1rem,4vw,3rem)] uppercase tracking-[0.3em] text-[#B87333]"
+              className="font-display text-[clamp(0.95rem,3.7vw,2.4rem)] uppercase tracking-[0.18em] sm:tracking-[0.24em] md:tracking-[0.3em] text-[#B87333] [overflow-wrap:anywhere]"
               initial={{ y: '100%' }}
               animate={{ y: 0 }}
               transition={{ duration: 0.8, delay: 0.8, ease: [0.16, 1, 0.3, 1] }}
@@ -650,7 +723,7 @@ export default function LevisInnovationLabsPage() {
             transition={{ duration: 0.6, delay: 1.5 }}
             style={{ willChange: 'transform', transform: 'translateZ(0)' }}
           >
-            <span className="text-[#D4A574] break-words">Producer + Editor</span>
+            <span className="text-[#D4A574] [overflow-wrap:anywhere]">Producer + Editor</span>
             <span className="w-1 h-1 rounded-full bg-[#555] shrink-0" />
             <span className="text-[#888] break-words">2023</span>
             <span className="w-1 h-1 rounded-full bg-[#555] shrink-0" />
@@ -691,11 +764,11 @@ export default function LevisInnovationLabsPage() {
               </span>
             </div>
             <div className="hidden md:flex items-center gap-4">
-              <span className="font-mono text-[10px] text-[#666] uppercase">Inc Magazine</span>
+              <span className="font-mono text-[10px] text-[#666] uppercase [overflow-wrap:anywhere]">Inc Magazine</span>
               <span className="font-mono text-[10px] text-[#555]">•</span>
-              <span className="font-mono text-[10px] text-[#666] uppercase">Fast Company</span>
+              <span className="font-mono text-[10px] text-[#666] uppercase [overflow-wrap:anywhere]">Fast Company</span>
               <span className="font-mono text-[10px] text-[#555]">•</span>
-              <span className="font-mono text-[10px] text-[#666] uppercase">YouTube</span>
+              <span className="font-mono text-[10px] text-[#666] uppercase [overflow-wrap:anywhere]">YouTube</span>
             </div>
           </div>
         </motion.div>
@@ -721,22 +794,28 @@ export default function LevisInnovationLabsPage() {
             {['INC Magazine', 'Fast Company', 'YouTube 360'].map((pub, i) => (
               <motion.div
                 key={pub}
-                className="group p-5 md:p-6 border border-[#222] hover:border-[#B87333]/40 transition-all duration-500 min-w-0"
+                className={`group p-5 md:p-6 border transition-all duration-300 min-w-0 touch-manipulation ${
+                  activePublicationIndex === i ? 'border-[#B87333]/60 bg-[#B87333]/10' : 'border-[#222] hover:border-[#B87333]/40'
+                }`}
                 initial={{ opacity: 0, y: 30 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.6, delay: i * 0.1 }}
-                whileHover={{ y: -4, transition: { duration: 0.3 } }}
+                whileHover={isTouchDevice ? {} : { y: -4, transition: { duration: 0.3 } }}
+                whileTap={{ scale: 0.99 }}
+                onTapStart={() => setActivePublicationIndex(i)}
+                onTapCancel={() => setActivePublicationIndex(null)}
+                onTap={() => setActivePublicationIndex(null)}
                 style={{ willChange: 'transform' }}
               >
                 <div className="flex items-center justify-between mb-4 min-w-0">
-                  <span className="font-display text-lg md:text-xl text-[#F2F2F0] uppercase break-words">{pub}</span>
+                  <span className="font-display text-lg md:text-xl text-[#F2F2F0] uppercase [overflow-wrap:anywhere]">{pub}</span>
                   <motion.div
                     initial={{ x: 0, y: 0 }}
-                    whileHover={{ x: 2, y: -2 }}
+                    whileHover={isTouchDevice ? {} : { x: 2, y: -2 }}
                     transition={{ duration: 0.2 }}
                   >
-                    <ArrowUpRight className="w-5 h-5 text-[#444] group-hover:text-[#B87333] transition-colors shrink-0" />
+                    <ArrowUpRight className={`w-5 h-5 transition-colors shrink-0 ${activePublicationIndex === i ? 'text-[#B87333]' : 'text-[#444] group-hover:text-[#B87333]'}`} />
                   </motion.div>
                 </div>
                 <motion.div 
@@ -748,7 +827,7 @@ export default function LevisInnovationLabsPage() {
                 >
                   <StitchLine className="w-full" />
                 </motion.div>
-                <span className="font-mono text-[9px] md:text-[10px] tracking-[0.12em] md:tracking-[0.15em] uppercase text-[#777] break-words">
+                <span className="font-mono text-[9px] md:text-[10px] tracking-[0.12em] md:tracking-[0.15em] uppercase text-[#777] [overflow-wrap:anywhere]">
                   {i === 0 ? 'Official Coverage' : i === 1 ? 'Innovation Spotlight' : 'Platform Launch'}
                 </span>
               </motion.div>
@@ -782,6 +861,8 @@ export default function LevisInnovationLabsPage() {
               webp={getImageUrl('/work/levis-thumb.webp', 1600, { format: 'webp' })}
               jpeg={getImageUrl('/work/levis-thumb.jpg', 1600, { format: 'jpg' })}
               alt="Levi's rig assembly thumbnail"
+              isTouchDevice={isTouchDevice}
+              onOpen={() => setActiveImageIndex(0)}
             />
             <PhotoFrame 
               label="Live Capture" 
@@ -789,6 +870,8 @@ export default function LevisInnovationLabsPage() {
               webp={getImageUrl('/work/levis-lab.webp', 1600, { format: 'webp' })}
               jpeg={getImageUrl('/work/levis-lab.jpg', 1600, { format: 'jpg' })}
               alt="Levi's live capture lab"
+              isTouchDevice={isTouchDevice}
+              onOpen={() => setActiveImageIndex(1)}
             />
             <PhotoFrame 
               label="Post Production" 
@@ -796,6 +879,8 @@ export default function LevisInnovationLabsPage() {
               webp={getImageUrl('/work/levis-collection.webp', 1600, { format: 'webp' })}
               jpeg={getImageUrl('/work/levis-collection.jpg', 1600, { format: 'jpg' })}
               alt="Levi's collection post production"
+              isTouchDevice={isTouchDevice}
+              onOpen={() => setActiveImageIndex(2)}
             />
           </div>
         </div>
@@ -863,10 +948,10 @@ export default function LevisInnovationLabsPage() {
 
                 {/* Content */}
                 <div className="lg:col-span-7 min-w-0">
-                  <h3 className="font-display text-xl md:text-2xl lg:text-3xl text-[#F2F2F0] uppercase tracking-tight mb-3 md:mb-4 break-words">
+                  <h3 className="font-display text-xl md:text-2xl lg:text-3xl text-[#F2F2F0] uppercase tracking-tight mb-3 md:mb-4 [overflow-wrap:anywhere]">
                     {step.title}
                   </h3>
-                  <p className="font-sans text-sm md:text-base text-[#AAA] leading-[1.7] md:leading-[1.8] break-words">
+                  <p className="font-sans text-sm md:text-base text-[#AAA] leading-[1.7] md:leading-[1.8] [overflow-wrap:anywhere] hyphens-none">
                     {step.description}
                   </p>
                 </div>
@@ -920,8 +1005,8 @@ export default function LevisInnovationLabsPage() {
 
             {/* YouTube Video Embed */}
             <div 
-              className="relative bg-[#0A1428] overflow-hidden rounded-sm"
-              style={{ aspectRatio: '16/9', minHeight: '400px' }}
+              className="relative bg-[#0A1428] overflow-hidden rounded-sm aspect-video w-full"
+              style={{ minHeight: 'clamp(220px, 52vw, 680px)' }}
             >
               <iframe
                 src="https://www.youtube.com/embed/ZkxKeUF7G9I?controls=1&rel=0&modestbranding=1&iv_load_policy=3&playsinline=1"
@@ -959,6 +1044,58 @@ export default function LevisInnovationLabsPage() {
           </div>
         </div>
       </section>
+
+      <AnimatePresence>
+        {activeImageIndex !== null && (
+          <motion.div
+            className="fixed inset-0 z-[220] bg-black/95 backdrop-blur-sm p-3 sm:p-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setActiveImageIndex(null)}
+          >
+            <motion.div
+              className="relative w-full h-full max-w-7xl mx-auto"
+              initial={{ opacity: 0, scale: 0.98 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.98 }}
+              transition={{ duration: 0.2 }}
+              onClick={(e) => e.stopPropagation()}
+              onTouchStart={onGalleryTouchStart}
+              onTouchEnd={onGalleryTouchEnd}
+            >
+              <img
+                src={galleryImages[activeImageIndex].src}
+                alt={galleryImages[activeImageIndex].alt}
+                className="w-full h-full object-contain"
+                loading="eager"
+                decoding="async"
+              />
+
+              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-4 md:p-6 pointer-events-none">
+                <p className="font-mono text-[10px] tracking-[0.2em] uppercase text-[#B87333]">
+                  {galleryImages[activeImageIndex].id}
+                </p>
+                <p className="font-mono text-[9px] tracking-[0.12em] uppercase text-white/60 mt-1">
+                  {galleryImages[activeImageIndex].label}
+                </p>
+                <p className="font-mono text-[8px] tracking-[0.1em] uppercase text-white/40 mt-2 sm:hidden">
+                  Swipe left/right
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setActiveImageIndex(null)}
+                className="absolute top-3 right-3 w-9 h-9 rounded-full border border-white/30 bg-black/60 text-white text-lg leading-none"
+                aria-label="Close image"
+              >
+                ×
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* CLOSING STATEMENT */}
       <section className="relative px-6 md:px-12 lg:px-20 py-32">

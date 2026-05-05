@@ -2,7 +2,6 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Lock } from 'lucide-react';
 
 // Status color configurations - distinct for each entity
 const statusColors: Record<string, { bg: string; text: string }> = {
@@ -31,8 +30,8 @@ const StatusBadge = ({ status }: { status: string }) => {
 // Main Ventures Section (Step 2 Optimized)
 export const VenturesSection = () => {
   return (
-    <section id="ventures" className="relative py-16 md:py-20 bg-[#0a0a0a] min-h-screen flex flex-col justify-center overflow-x-hidden">
-      <div className="px-6 md:px-12 lg:px-20 w-full">
+    <section id="ventures" className="relative py-14 md:py-20 lg:py-24 bg-[#0a0a0a] min-h-[85vh] flex flex-col justify-center overflow-x-hidden">
+      <div className="px-6 md:px-12 lg:px-20 w-full max-w-[1600px] mx-auto">
         {/* Section Header */}
         <motion.div
           initial={{ opacity: 0, y: 30 }}
@@ -52,7 +51,7 @@ export const VenturesSection = () => {
         {/* Horizontal Branch Layout */}
         <div className="relative">
           {/* Grid Layout: 55% / 45% split */}
-          <div className="grid grid-cols-1 lg:grid-cols-[55%_45%] gap-8 lg:gap-0 items-center min-h-[60vh]">
+          <div className="grid grid-cols-1 lg:grid-cols-[56%_44%] gap-10 md:gap-12 lg:gap-0 items-center min-h-[52vh] md:min-h-[58vh]">
             
             {/* Left: Surface Tension - Card Visual */}
             <motion.div
@@ -115,7 +114,7 @@ export const VenturesSection = () => {
             </motion.div>
 
             {/* Connector Lines SVG - Centered between columns */}
-            <div className="hidden lg:block absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 pointer-events-none z-10">
+            <div className="hidden lg:block absolute left-[56%] -translate-x-1/2 top-1/2 -translate-y-1/2 pointer-events-none z-10">
               <svg width="180" height="320" viewBox="0 0 180 320" fill="none" className="overflow-visible">
                 {/* Glow filter for lines */}
                 <defs>
@@ -206,11 +205,11 @@ export const VenturesSection = () => {
             </div>
 
             {/* Connecting Node - Bridge between Surface Tension and Products */}
-            <div className="hidden lg:flex absolute left-[55%] top-1/2 -translate-y-1/2 -translate-x-1/2 items-center z-10 pointer-events-none">
+            <div className="hidden lg:flex absolute left-[56%] top-1/2 -translate-y-1/2 -translate-x-1/2 items-center z-10 pointer-events-none">
             </div>
 
             {/* Right: Products Stack */}
-            <div className="flex flex-col gap-24 pl-0 lg:pl-12">
+            <div className="flex flex-col gap-12 md:gap-16 lg:gap-20 pl-0 lg:pl-8 xl:pl-12">
               {/* SOEN — static card, no media or interaction */}
               <motion.div
                 initial={{ opacity: 0, x: 40 }}
@@ -266,10 +265,7 @@ export const VenturesSection = () => {
                     <h4 className="font-display text-3xl md:text-4xl text-[#F2F2F0] uppercase tracking-tight">
                       CULTUREPULSE
                     </h4>
-                    <div className="flex items-center gap-2">
-                      <Lock className="w-4 h-4 text-[#6366f1]" />
-                      <StatusBadge status="ENTERPRISE" />
-                    </div>
+                    <StatusBadge status="ENTERPRISE" />
                   </div>
                   
                   <p className="font-mono text-base text-[#6366f1] tracking-wide mb-2">

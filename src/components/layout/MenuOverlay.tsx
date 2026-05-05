@@ -4,7 +4,7 @@ import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import Link from 'next/link';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { useCursor } from '@/context/CursorContext';
-import { ArrowUpRight, Mail, Quote, RefreshCw, Pin, PinOff } from 'lucide-react';
+import { ArrowUpRight, ExternalLink, Mail, Quote, RefreshCw, Pin, PinOff } from 'lucide-react';
 import { useSocialFeed } from '@/hooks/useSocialFeed';
 import { Update, formatRelativeTime } from '@/config/updates';
 
@@ -112,14 +112,22 @@ export const MenuOverlay: React.FC<MenuOverlayProps> = ({ isOpen, onClose }) => 
 
   // Real-time updates feed
   const { updates, isLoading, isRealtime, refresh } = useSocialFeed();
+  const updateIdSet = useMemo(() => new Set(updates.map((u) => u.id)), [updates]);
+  const validPinnedIds = useMemo(
+    () => pinnedIds.filter((id) => updateIdSet.has(id)),
+    [pinnedIds, updateIdSet]
+  );
+  const validPinnedIdSet = useMemo(() => new Set(validPinnedIds), [validPinnedIds]);
 
   // Check if there are recent updates
   const hasRecentUpdates = updates.length > 0;
-  const websiteUpdates = useMemo(() => updates.filter((u) => u.type === 'website'), [updates]);
-
   const visibleUpdates = useMemo(() => {
-    return websiteUpdates.filter((u) => !readIds.includes(u.id) || pinnedIds.includes(u.id));
-  }, [websiteUpdates, readIds, pinnedIds]);
+    const pinnedItems = updates.filter((u) => validPinnedIdSet.has(u.id));
+    const unreadItems = updates.filter(
+      (u) => !readIds.includes(u.id) && !validPinnedIdSet.has(u.id)
+    );
+    return [...pinnedItems, ...unreadItems];
+  }, [updates, readIds, validPinnedIdSet]);
 
   // Get priority update for featured banner
   const featuredUpdate = useMemo(() => {
@@ -263,6 +271,11 @@ export const MenuOverlay: React.FC<MenuOverlayProps> = ({ isOpen, onClose }) => 
     if (typeof window === 'undefined') return;
     window.localStorage.setItem(PINNED_KEY, JSON.stringify(pinnedIds));
   }, [pinnedIds]);
+
+  useEffect(() => {
+    if (validPinnedIds.length === pinnedIds.length) return;
+    setPinnedIds(validPinnedIds);
+  }, [pinnedIds, validPinnedIds]);
 
   useEffect(() => {
     if (isOpen && showNotifications) {
@@ -492,7 +505,7 @@ export const MenuOverlay: React.FC<MenuOverlayProps> = ({ isOpen, onClose }) => 
                       Real-time updates
                     </span>
                     <span className="font-mono text-[9px] tracking-[0.14em] text-[#6366f1] uppercase">
-                      {pinnedIds.length} pinned
+                      {validPinnedIds.length} pinned
                     </span>
                   </div>
 
@@ -544,6 +557,9 @@ export const MenuOverlay: React.FC<MenuOverlayProps> = ({ isOpen, onClose }) => 
                                   <p className="font-sans text-[13px] text-[#F2F2F0] group-hover:text-[#6366f1] transition-colors leading-snug">
                                     {update.title}
                                   </p>
+                                  {update.external && (
+                                    <ExternalLink className="w-3 h-3 text-[#4d4d4d] shrink-0" aria-hidden />
+                                  )}
                                   {update.badge && (
                                     <span className="font-mono text-[8px] tracking-[0.15em] text-[#6366f1] bg-[#6366f1]/10 px-1.5 py-0.5 rounded uppercase">
                                       {update.badge}
@@ -567,10 +583,10 @@ export const MenuOverlay: React.FC<MenuOverlayProps> = ({ isOpen, onClose }) => 
                                   togglePin(update.id);
                                 }}
                                 className="shrink-0 p-1.5 rounded-full text-[#555] hover:text-[#F2F2F0] hover:bg-[#1a1a1a] transition-colors"
-                                aria-label={pinnedIds.includes(update.id) ? 'Remove pinned update' : 'Pin update'}
-                                title={pinnedIds.includes(update.id) ? 'Unpin' : 'Pin'}
+                                aria-label={validPinnedIdSet.has(update.id) ? 'Remove pinned update' : 'Pin update'}
+                                title={validPinnedIdSet.has(update.id) ? 'Unpin' : 'Pin'}
                               >
-                                {pinnedIds.includes(update.id) ? (
+                                {validPinnedIdSet.has(update.id) ? (
                                   <PinOff className="w-3.5 h-3.5" />
                                 ) : (
                                   <Pin className="w-3.5 h-3.5" />
