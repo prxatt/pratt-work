@@ -32,13 +32,13 @@ const VOXEL_SIZE = 0.22;
 const VOXEL_RADIUS = 0.05;
 const VOXEL_SEGMENTS = 1;
 const VOXEL_SPACING = 0.34;
-const WALL_ROOT_SCALE = 0.74;
+const WALL_ROOT_SCALE = 0.92;
 
 // ── Idle wave field ────────────────────────────────────────────────────────
 const IDLE_HEIGHT = 1.4;
 const IDLE_HEIGHT_BIAS = 0.34; // never fully flatten — keeps grid readable
-const IDLE_Z_SWELL = 0.7;
-const IDLE_LERP_BASE = 0.075;
+const IDLE_Z_SWELL = 0.82;
+const IDLE_LERP_BASE = 0.056;
 
 // ── Live volumetric extrusion ──────────────────────────────────────────────
 const LIVE_Y_RELIEF = 11.0; // peak voxel height (perceived "thickness" toward camera)
@@ -152,7 +152,7 @@ export async function mountHeroVoxelScene(
   let { w: cw, h: ch } = measure();
 
   const camera = new THREE.PerspectiveCamera(58, cw / ch, 0.1, 500);
-  const cameraDistanceForAspect = (aspect: number) => (aspect < 1 ? 30 : 22);
+  const cameraDistanceForAspect = (aspect: number) => (aspect < 1 ? 25.5 : 19.2);
   camera.position.set(0, 0, cameraDistanceForAspect(cw / ch));
   camera.lookAt(0, 0, 0);
 
@@ -505,19 +505,19 @@ function createVoxelGrid(
 
 function createLights(scene: THREE.Scene) {
   // Hemisphere — soft sky/ground fill rooted in brand palette
-  scene.add(new THREE.HemisphereLight(0x2b3945, 0x05080c, 0.54));
+  scene.add(new THREE.HemisphereLight(0x3a4e60, 0x070b10, 0.64));
   // Ambient — bottom-floor light so deep shadows don't crush
-  scene.add(new THREE.AmbientLight(0x131922, 0.34));
+  scene.add(new THREE.AmbientLight(0x18202a, 0.42));
   // Key — bright warm-white from upper-right, drives primary specular
-  const key = new THREE.DirectionalLight(0xe9efff, 1.28);
+  const key = new THREE.DirectionalLight(0xf0f4ff, 1.36);
   key.position.set(8, 26, 22);
   scene.add(key);
   // Fill — cool blue from upper-left, opens shadows without crushing contrast
-  const fill = new THREE.DirectionalLight(0x6b86ab, 0.42);
+  const fill = new THREE.DirectionalLight(0x7f9fc6, 0.54);
   fill.position.set(-18, 12, 14);
   scene.add(fill);
   // Rim — teal-cyan from behind, etches voxel silhouettes against dark void
-  const rim = new THREE.DirectionalLight(0x45bdd0, 0.68);
+  const rim = new THREE.DirectionalLight(0x5fd3e6, 0.78);
   rim.position.set(0, 8, -36);
   scene.add(rim);
   // Warm accent point — adds occasional sparkle to clearcoat reflections
