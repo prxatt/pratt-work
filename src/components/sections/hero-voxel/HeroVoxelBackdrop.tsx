@@ -102,21 +102,28 @@ export function HeroVoxelBackdrop() {
 
   /** Warm the Transformers.js chunk after idle so first camera enable is snappier without blocking paint. */
   useEffect(() => {
-    if (typeof window === 'undefined') return;
+    if (typeof globalThis === 'undefined') return;
     let cancelled = false;
     const load = () => {
       if (!cancelled) void import('@huggingface/transformers');
     };
-    let handle: number;
-    if ('requestIdleCallback' in window) {
-      handle = window.requestIdleCallback(load, { timeout: 4000 });
+    let idleId: number | undefined;
+    let timeoutId: ReturnType<typeof globalThis.setTimeout> | undefined;
+
+    if (typeof globalThis.requestIdleCallback === 'function') {
+      idleId = globalThis.requestIdleCallback(load, { timeout: 4000 });
     } else {
-      handle = window.setTimeout(load, 2500);
+      timeoutId = globalThis.setTimeout(load, 2500);
     }
+
     return () => {
       cancelled = true;
-      if ('cancelIdleCallback' in window) window.cancelIdleCallback(handle);
-      else window.clearTimeout(handle);
+      if (idleId != null && typeof globalThis.cancelIdleCallback === 'function') {
+        globalThis.cancelIdleCallback(idleId);
+      }
+      if (timeoutId != null) {
+        globalThis.clearTimeout(timeoutId);
+      }
     };
   }, []);
 
