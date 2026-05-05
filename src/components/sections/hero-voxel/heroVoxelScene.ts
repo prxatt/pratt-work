@@ -56,9 +56,9 @@ const LIVE_INITIAL_BOOST = 1.32; // extrusion amplifier on activation
 
 // ── Brand palette ──────────────────────────────────────────────────────────
 const COLOR_SHADOW = new THREE.Color('#0d1014');
-const COLOR_TEAL_DEEP = new THREE.Color('#16323a');
-const COLOR_TEAL_BRIGHT = new THREE.Color('#3aa9b8');
-const COLOR_PAPER = new THREE.Color('#e8e2d3');
+const COLOR_MID = new THREE.Color('#1e4250');
+const COLOR_TEAL_BRIGHT = new THREE.Color('#46c4d8');
+const COLOR_HIGHLIGHT = new THREE.Color('#f0e8d8');
 
 const IDLE_COLOR_LO = new THREE.Color('#0c1116');
 const IDLE_COLOR_MID = new THREE.Color('#1a2b32');
@@ -102,14 +102,15 @@ function idleColor(out: THREE.Color, mix01: number) {
 
 function depthColor(out: THREE.Color, depth01: number) {
   const t = THREE.MathUtils.clamp(depth01, 0, 1);
-  if (t < 0.42) {
-    out.copy(COLOR_SHADOW).lerp(COLOR_TEAL_DEEP, smoothstepScalar(0, 0.42, t));
-  } else if (t < 0.78) {
+  // Cinematic tritone separation improves foreground/mid/background legibility.
+  if (t < 0.38) {
+    out.copy(COLOR_SHADOW).lerp(COLOR_MID, smoothstepScalar(0, 0.38, t));
+  } else if (t < 0.76) {
     out
-      .copy(COLOR_TEAL_DEEP)
-      .lerp(COLOR_TEAL_BRIGHT, smoothstepScalar(0.42, 0.78, t));
+      .copy(COLOR_MID)
+      .lerp(COLOR_TEAL_BRIGHT, smoothstepScalar(0.38, 0.76, t));
   } else {
-    out.copy(COLOR_TEAL_BRIGHT).lerp(COLOR_PAPER, smoothstepScalar(0.78, 1, t));
+    out.copy(COLOR_TEAL_BRIGHT).lerp(COLOR_HIGHLIGHT, smoothstepScalar(0.76, 1, t));
   }
 }
 
@@ -465,13 +466,25 @@ function createVoxelGrid(
   const material = new THREE.MeshPhysicalMaterial({
     vertexColors: true,
     metalness: 0.32,
-    roughness: 0.3,
-    clearcoat: 0.5,
-    clearcoatRoughness: 0.24,
+    roughness: 0.26,
+    clearcoat: 0.6,
+    clearcoatRoughness: 0.2,
     reflectivity: 0.56,
     emissive: new THREE.Color('#08161c'),
-    emissiveIntensity: 0.18,
+    emissiveIntensity: 0.2,
   });
+  material.onBeforeCompile = (shader) => {
+    shader.fragmentShader = shader.fragmentShader.replace(
+      '#include <output_fragment>',
+      `
+      // Subtle fresnel rim to separate silhouette layers in motion.
+      float fres = pow(1.0 - max(dot(normalize(vNormal), normalize(vViewPosition)), 0.0), 2.3);
+      vec3 rim = vec3(0.20, 0.52, 0.60) * fres * 0.24;
+      gl_FragColor = vec4( outgoingLight + rim, diffuseColor.a );
+      `
+    );
+  };
+  material.needsUpdate = true;
 
   const mesh = new THREE.InstancedMesh(geometry, material, count);
   mesh.name = 'heroVoxelInstancedGrid';
@@ -529,23 +542,23 @@ function createVoxelGrid(
 
 function createLights(scene: THREE.Scene) {
   // Hemisphere — soft sky/ground fill rooted in brand palette
-  scene.add(new THREE.HemisphereLight(0x314554, 0x06090e, 0.58));
+  scene.add(new THREE.HemisphereLight(0x365163, 0x070a10, 0.62));
   // Ambient — bottom-floor light so deep shadows don't crush
-  scene.add(new THREE.AmbientLight(0x151d27, 0.38));
+  scene.add(new THREE.AmbientLight(0x151d27, 0.32));
   // Key — bright warm-white from upper-right, drives primary specular
-  const key = new THREE.DirectionalLight(0xe9efff, 1.28);
+  const key = new THREE.DirectionalLight(0xf2f5ff, 1.38);
   key.position.set(8, 26, 22);
   scene.add(key);
   // Fill — cool blue from upper-left, opens shadows without crushing contrast
-  const fill = new THREE.DirectionalLight(0x7090bc, 0.5);
+  const fill = new THREE.DirectionalLight(0x6c86a6, 0.4);
   fill.position.set(-18, 12, 14);
   scene.add(fill);
   // Rim — teal-cyan from behind, etches voxel silhouettes against dark void
-  const rim = new THREE.DirectionalLight(0x45bdd0, 0.68);
+  const rim = new THREE.DirectionalLight(0x54d5e8, 0.84);
   rim.position.set(0, 8, -36);
   scene.add(rim);
   // Warm accent point — adds occasional sparkle to clearcoat reflections
-  const warm = new THREE.PointLight(0xf7dfb0, 0.32, 220);
+  const warm = new THREE.PointLight(0xf8e4b8, 0.38, 220);
   warm.position.set(18, 14, 26);
   scene.add(warm);
 }
