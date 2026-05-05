@@ -18,7 +18,7 @@ const csp = [
   "img-src 'self' data: blob: https://*.public.blob.vercel-storage.com",
   "font-src 'self' data:",
   "media-src 'self' blob: https://*.public.blob.vercel-storage.com",
-  "connect-src 'self' https://vitals.vercel-insights.com https://*.vercel-insights.com https://cdn.jsdelivr.net https://vercel.live https://*.vercel.live",
+  "connect-src 'self' https://vitals.vercel-insights.com https://*.vercel-insights.com https://cdn.jsdelivr.net https://huggingface.co https://*.huggingface.co https://vercel.live https://*.vercel.live",
   "worker-src 'self' blob:",
   "upgrade-insecure-requests",
 ].join('; ');
@@ -86,7 +86,7 @@ const nextConfig: NextConfig = {
           // Security: Permissions Policy (disable unnecessary browser features)
           {
             key: 'Permissions-Policy',
-            value: 'accelerometer=(), autoplay=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=(), browsing-topics=()'
+            value: 'accelerometer=(), autoplay=(self), camera=(self), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=(), browsing-topics=()'
           },
           // Security: Strict Transport Security (HSTS)
           { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains; preload' },

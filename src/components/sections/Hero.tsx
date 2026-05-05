@@ -3,8 +3,17 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, useInView } from 'framer-motion';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import { useDeviceCapabilities } from '@/hooks/useReducedMotion';
 import { HeroAmbientScreen } from '@/components/sections/HeroAmbientScreen';
+
+const HeroVoxelBackdrop = dynamic(
+  () =>
+    import('@/components/sections/hero-voxel/HeroVoxelBackdrop').then(
+      (m) => m.HeroVoxelBackdrop
+    ),
+  { ssr: false }
+);
 
 const HERO_EASE = [0.16, 1, 0.3, 1] as const;
 
@@ -166,7 +175,9 @@ export const Hero = () => {
 
   return (
     <section className="relative h-[100dvh] w-full overflow-hidden flex flex-col bg-[#0a0a0a]">
-      <HeroAmbientScreen variant="hero" baseBgClass="bg-[#0a0a0a]" />
+      <HeroVoxelBackdrop />
+      {/* Transparent base so the WebGPU layer stays visible; section keeps `bg-[#0a0a0a]` fallback */}
+      <HeroAmbientScreen variant="hero" baseBgClass="bg-transparent" />
 
       {/* Main content */}
       <motion.div
