@@ -129,7 +129,8 @@ const LazyVideo = ({
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [load, setLoad] = useState(priority);
-  const [vis, setVis] = useState(false);
+  /** Priority card: treat as in-view for opacity so blob-backed video is not stuck at opacity 0 before IO runs. */
+  const [vis, setVis] = useState(priority);
 
   useEffect(() => {
     if (priority) {
@@ -143,7 +144,10 @@ const LazyVideo = ({
         setVis(in_);
         if (in_) setLoad(true);
       },
-      { threshold: 0.08, rootMargin: eagerRootMargin }
+      {
+        threshold: priority ? 0 : 0.08,
+        rootMargin: eagerRootMargin,
+      }
     );
     obs.observe(video);
     return () => obs.disconnect();
@@ -168,14 +172,16 @@ const LazyVideo = ({
 
   const fadeMs = priority ? 280 : 500;
 
-  const resolveVideoSrc = (path: string) =>
-    path.startsWith('/') ? path : getVideoUrl(path);
+  /** Always resolve via blob base (NEXT_PUBLIC_MEDIA_BASE_URL / Vercel Blob) for full-quality delivery. */
+  const resolveVideoSrc = (path: string) => getVideoUrl(path);
+
+  const posterW = priority ? 1920 : 1400;
 
   return (
     <div className="relative w-full h-full">
       {poster && (
         <img
-          src={getImageUrl(poster, 1400)}
+          src={getImageUrl(poster, posterW)}
           alt=""
           className="absolute inset-0 w-full h-full object-cover"
           loading={priority ? 'eager' : 'lazy'}
@@ -356,14 +362,23 @@ const BoubyanCard = ({
 }) => {
   const { setCursorState } = useCursor();
   const ref      = useRef<HTMLDivElement>(null);
-  const isInView = useInView(ref, { once: true, margin: '0px 0px 40% 0px', amount: 0.15 });
+  const isInView = useInView(ref, {
+    once: true,
+    margin: featured ? '25% 0px 60% 0px' : '0px 0px 40% 0px',
+    amount: featured ? 0.02 : 0.15,
+  });
   const aspectClass = featured ? 'aspect-[16/9] sm:aspect-[21/9] md:aspect-[21/8]' : 'aspect-[16/10]';
+
+  const outerDur = featured ? 0.42 : 0.5;
+  const outerDelay = featured ? 0 : index * 0.15;
+  const innerDur = featured ? 0.4 : 1.2;
+  const innerDelay = featured ? 0 : index * 0.15;
 
   return (
     <motion.div
       ref={ref}
       initial={{ opacity: 0 }} animate={isInView ? { opacity: 1 } : { opacity: 0 }}
-      transition={{ duration: 0.5, delay: index * 0.15, ease: [0.16, 1, 0.3, 1] }}
+      transition={{ duration: outerDur, delay: outerDelay, ease: [0.16, 1, 0.3, 1] }}
       className="relative group"
     >
       <Link href={`/work/${project.slug}`} className="block w-full h-full"
@@ -374,7 +389,7 @@ const BoubyanCard = ({
           <motion.div
             className="absolute inset-0"
             initial={{ opacity: 0 }} animate={isInView ? { opacity: 1 } : { opacity: 0 }}
-            transition={{ duration: 1.2, delay: index * 0.15, ease: [0.16, 1, 0.3, 1] }}
+            transition={{ duration: innerDur, delay: innerDelay, ease: [0.16, 1, 0.3, 1] }}
           >
             <div className="absolute inset-0 scale-[1.02]">
               <LazyVideo
