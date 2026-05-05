@@ -115,11 +115,9 @@ export const MenuOverlay: React.FC<MenuOverlayProps> = ({ isOpen, onClose }) => 
 
   // Check if there are recent updates
   const hasRecentUpdates = updates.length > 0;
-  const websiteUpdates = useMemo(() => updates.filter((u) => u.type === 'website'), [updates]);
-
   const visibleUpdates = useMemo(() => {
-    return websiteUpdates.filter((u) => !readIds.includes(u.id) || pinnedIds.includes(u.id));
-  }, [websiteUpdates, readIds, pinnedIds]);
+    return updates.filter((u) => !readIds.includes(u.id) || pinnedIds.includes(u.id));
+  }, [updates, readIds, pinnedIds]);
 
   // Get priority update for featured banner
   const featuredUpdate = useMemo(() => {
