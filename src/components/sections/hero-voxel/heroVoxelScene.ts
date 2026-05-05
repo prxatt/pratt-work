@@ -22,10 +22,12 @@ const IDLE_HEIGHT = 0.86;
 const IDLE_Z_SWELL = 0.62;
 const IDLE_LERP = 0.08;
 
-const LIVE_Y_RELIEF = 2.65;
-const LIVE_Z_RELIEF = 3.9;
-const LIVE_LERP = 0.62;
-const DEPTH_CONTRAST = 1.05;
+const LIVE_Y_RELIEF = 10.8;
+const LIVE_Z_RELIEF = 9.25;
+/** Extra amplification on protruding regions (beyond linear depth). */
+const LIVE_DEPTH_SHAPE = 1.38;
+const LIVE_LERP = 0.55;
+const DEPTH_CONTRAST = 1.18;
 
 function smoothstepScalar(edge0: number, edge1: number, x: number): number {
   const d = edge1 - edge0 || 1;
@@ -203,7 +205,7 @@ export async function mountHeroVoxelScene(
     if (!cameraMode || !e.shiftKey) return;
     e.preventDefault();
     const factor = e.deltaY > 0 ? 0.94 : 1.06;
-    extrusionBoost = Math.max(0.45, Math.min(2.1, extrusionBoost * factor));
+    extrusionBoost = Math.max(0.5, Math.min(3.25, extrusionBoost * factor));
   };
   renderer.domElement.addEventListener('wheel', onWheelExtrusion, { passive: false });
 
@@ -260,21 +262,20 @@ export async function mountHeroVoxelScene(
   ) {
     const lerp = Math.min(1, LIVE_LERP * (dt / (1 / 60)) + 0.08);
     for (let i = 0; i < count; i++) {
-      // Depth Anything's browser tensor is visually inverted for this relief surface: flip near/far here
-      // while keeping sampling left-right aligned with the camera frame.
-      const raw = 1 - buf[i];
+      const raw = buf[i];
       pack.liveDepths[i] += (raw - pack.liveDepths[i]) * lerp;
-      const d = Math.pow(pack.liveDepths[i], DEPTH_CONTRAST);
+      const dn = THREE.MathUtils.clamp(pack.liveDepths[i], 0, 1);
+      const shaped = Math.pow(dn, DEPTH_CONTRAST);
+      const d = THREE.MathUtils.clamp(Math.pow(shaped, LIVE_DEPTH_SHAPE), 0, 1);
       const base = i * 3;
       const y = d * LIVE_Y_RELIEF * extrusionBoost;
-      const z = pack.basePositions[base + 2] + (d - 0.5) * LIVE_Z_RELIEF * extrusionBoost;
+      const z = pack.basePositions[base + 2] + (d - 0.5) * 2 * LIVE_Z_RELIEF * extrusionBoost;
       pack.livePositions[base + 1] = y;
       pack.livePositions[base + 2] = z;
-      writeDepthColor(pack.liveColors, i, pack.liveDepths[i]);
+      writeDepthColor(pack.liveColors, i, dn);
     }
     pack.livePositionAttr.needsUpdate = true;
     pack.liveColorAttr.needsUpdate = true;
-    pack.liveMesh.geometry.computeVertexNormals();
   }
 
   renderer.setAnimationLoop(animate);
@@ -305,10 +306,14 @@ export async function mountHeroVoxelScene(
     controls.enableZoom = active;
     controls.enablePan = false;
     controls.autoRotate = !reducedMotion && !active;
+    controls.mouseButtons.LEFT = THREE.MOUSE.ROTATE;
+    controls.mouseButtons.MIDDLE = THREE.MOUSE.DOLLY;
+    controls.mouseButtons.RIGHT = THREE.MOUSE.ROTATE;
     renderer.domElement.style.pointerEvents = active ? 'auto' : 'none';
+    renderer.domElement.style.touchAction = active ? 'none' : 'auto';
 
     if (active) {
-      extrusionBoost = 1;
+      extrusionBoost = 1.22;
       surface.liveDepths.fill(0.5);
       surface.livePositions.set(surface.basePositions);
       controls.minDistance = 13;
@@ -430,13 +435,14 @@ function createSurface(
 
   const liveMaterial = new THREE.MeshStandardMaterial({
     vertexColors: true,
-    metalness: 0.24,
-    roughness: 0.72,
+    flatShading: true,
+    metalness: 0.26,
+    roughness: 0.62,
     side: THREE.DoubleSide,
     transparent: true,
-    opacity: 0.92,
+    opacity: 0.93,
     emissive: 0x071017,
-    emissiveIntensity: 0.08,
+    emissiveIntensity: 0.1,
   });
   const liveMesh = new THREE.Mesh(liveGeometry, liveMaterial);
   liveMesh.name = 'heroLiveDepthMesh';

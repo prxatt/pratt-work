@@ -6,7 +6,10 @@ import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import { useDeviceCapabilities } from '@/hooks/useReducedMotion';
 import { HeroAmbientScreen } from '@/components/sections/HeroAmbientScreen';
-import { HeroLiveDepthProvider } from '@/components/sections/hero-voxel/HeroLiveDepthContext';
+import {
+  HeroLiveDepthProvider,
+  useHeroLiveDepth,
+} from '@/components/sections/hero-voxel/HeroLiveDepthContext';
 
 const HeroVoxelBackdrop = dynamic(
   () =>
@@ -153,6 +156,7 @@ const LetterLockup = ({
 function HeroInner() {
   const containerRef = useRef<HTMLDivElement>(null);
   const { isTouch, isLowEnd, prefersReducedMotion } = useDeviceCapabilities();
+  const { liveDepthActive } = useHeroLiveDepth();
   const [contentReady, setContentReady] = useState(false);
 
   useEffect(() => {
@@ -179,7 +183,9 @@ function HeroInner() {
     <>
       <motion.div
         ref={containerRef}
-        className="flex-1 flex flex-col items-center justify-center z-10 px-6 relative group"
+        className={`flex-1 flex flex-col items-center justify-center z-10 px-6 relative group ${
+          liveDepthActive ? 'pointer-events-none' : ''
+        }`}
         data-cursor="hover"
         initial={{ opacity: 0 }}
         animate={{ opacity: contentReady ? 1 : 0 }}
@@ -279,7 +285,9 @@ function HeroInner() {
 
       {/* Bottom meta row */}
       <motion.div
-        className="w-full px-6 md:px-12 lg:px-20 py-6 md:py-8 flex flex-row flex-nowrap justify-between items-center gap-3 z-10 relative"
+        className={`w-full px-6 md:px-12 lg:px-20 py-6 md:py-8 flex flex-row flex-nowrap justify-between items-center gap-3 z-10 relative ${
+          liveDepthActive ? 'pointer-events-none' : ''
+        }`}
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: contentReady ? 1 : 0, y: contentReady ? 0 : 20 }}
         transition={{ duration: 0.7, delay: 1.35, ease: HERO_EASE }}

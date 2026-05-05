@@ -233,7 +233,7 @@ export function HeroVoxelBackdrop() {
         ref={containerRef}
         className={
           cameraOn
-            ? 'pointer-events-auto absolute inset-0 z-[4] h-full min-h-[100dvh] w-full overflow-hidden touch-none'
+            ? 'pointer-events-auto absolute inset-0 z-[14] h-full min-h-[100dvh] w-full overflow-hidden [touch-action:none]'
             : 'pointer-events-none absolute inset-0 z-[2] h-full min-h-[100dvh] w-full overflow-hidden'
         }
         aria-hidden
