@@ -31,8 +31,8 @@ import { gridDimensionsForTier, type HeroVoxelTier } from './heroVoxelConfig';
 const VOXEL_SIZE = 0.22;
 const VOXEL_RADIUS = 0.05;
 const VOXEL_SEGMENTS = 1;
-const VOXEL_SPACING = 0.34;
-const WALL_ROOT_SCALE = 0.74;
+const VOXEL_SPACING = 0.315;
+const WALL_ROOT_SCALE = 0.88;
 
 // ── Idle wave field ────────────────────────────────────────────────────────
 const IDLE_HEIGHT = 1.4;
@@ -41,15 +41,15 @@ const IDLE_Z_SWELL = 0.7;
 const IDLE_LERP_BASE = 0.075;
 
 // ── Live volumetric extrusion ──────────────────────────────────────────────
-const LIVE_Y_RELIEF = 11.0; // peak voxel height (perceived "thickness" toward camera)
+const LIVE_Y_RELIEF = 13.4; // peak voxel height (perceived "thickness" toward camera)
 const LIVE_Y_BIAS = 0.22; // minimum height for "far" voxels — avoid invisible cells
-const LIVE_Z_RELIEF = 5.8; // forward/backward parallax range
-const LIVE_DEPTH_CONTRAST = 1.32; // pow exponent — bites mid-tones outward
-const LIVE_DEPTH_SHAPE_LO = 0.18; // smoothstep low edge for shaped curve
-const LIVE_DEPTH_SHAPE_HI = 0.82; // smoothstep high edge for shaped curve
-const LIVE_DEPTH_SHAPE_MIX = 0.55; // mix(d1, d2, blend) — 0 = pure pow, 1 = pure smoothstep
-const LIVE_LERP_BASE = 0.55;
-const LIVE_INITIAL_BOOST = 1.4; // extrusion amplifier on activation
+const LIVE_Z_RELIEF = 7.6; // forward/backward parallax range
+const LIVE_DEPTH_CONTRAST = 1.42; // pow exponent — bites mid-tones outward
+const LIVE_DEPTH_SHAPE_LO = 0.16; // smoothstep low edge for shaped curve
+const LIVE_DEPTH_SHAPE_HI = 0.84; // smoothstep high edge for shaped curve
+const LIVE_DEPTH_SHAPE_MIX = 0.6; // mix(d1, d2, blend) — 0 = pure pow, 1 = pure smoothstep
+const LIVE_LERP_BASE = 0.7;
+const LIVE_INITIAL_BOOST = 1.52; // extrusion amplifier on activation
 
 // ── Brand palette ──────────────────────────────────────────────────────────
 const COLOR_SHADOW = new THREE.Color('#0d1014');
@@ -152,7 +152,7 @@ export async function mountHeroVoxelScene(
   let { w: cw, h: ch } = measure();
 
   const camera = new THREE.PerspectiveCamera(58, cw / ch, 0.1, 500);
-  const cameraDistanceForAspect = (aspect: number) => (aspect < 1 ? 30 : 22);
+  const cameraDistanceForAspect = (aspect: number) => (aspect < 1 ? 25.5 : 18.5);
   camera.position.set(0, 0, cameraDistanceForAspect(cw / ch));
   camera.lookAt(0, 0, 0);
 
@@ -202,8 +202,8 @@ export async function mountHeroVoxelScene(
   controls.enableRotate = false;
   controls.autoRotate = false;
   controls.target.set(0, 0, 0);
-  controls.minDistance = 22;
-  controls.maxDistance = 60;
+    controls.minDistance = 18;
+    controls.maxDistance = 52;
   controls.maxPolarAngle = Math.PI * 0.62;
   controls.minPolarAngle = Math.PI * 0.32;
   controls.mouseButtons.LEFT = THREE.MOUSE.ROTATE;
@@ -386,7 +386,7 @@ export async function mountHeroVoxelScene(
       camera.position.copy(idleCameraBase);
       controls.target.set(0, 0, 0);
       controls.minDistance = 22;
-      controls.maxDistance = 60;
+      controls.maxDistance = 52;
       controls.rotateSpeed = 1;
       controls.zoomSpeed = 1;
     }
@@ -440,13 +440,13 @@ function createVoxelGrid(
 
   const material = new THREE.MeshPhysicalMaterial({
     vertexColors: true,
-    metalness: 0.3,
-    roughness: 0.34,
-    clearcoat: 0.45,
-    clearcoatRoughness: 0.3,
-    reflectivity: 0.5,
+    metalness: 0.32,
+    roughness: 0.3,
+    clearcoat: 0.5,
+    clearcoatRoughness: 0.24,
+    reflectivity: 0.56,
     emissive: new THREE.Color('#08161c'),
-    emissiveIntensity: 0.16,
+    emissiveIntensity: 0.18,
   });
 
   const mesh = new THREE.InstancedMesh(geometry, material, count);

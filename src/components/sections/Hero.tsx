@@ -188,7 +188,7 @@ function HeroInner() {
         }`}
         data-cursor="hover"
         initial={{ opacity: 0 }}
-        animate={{ opacity: contentReady ? 1 : 0 }}
+        animate={{ opacity: contentReady && !liveDepthActive ? 1 : 0 }}
         transition={{ duration: 0.55, ease: HERO_EASE }}
       >
         <div className="flex flex-col items-center text-center">
@@ -289,7 +289,10 @@ function HeroInner() {
           liveDepthActive ? 'pointer-events-none' : ''
         }`}
         initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: contentReady ? 1 : 0, y: contentReady ? 0 : 20 }}
+        animate={{
+          opacity: contentReady && !liveDepthActive ? 1 : 0,
+          y: contentReady && !liveDepthActive ? 0 : 20,
+        }}
         transition={{ duration: 0.7, delay: 1.35, ease: HERO_EASE }}
       >
         <motion.span
