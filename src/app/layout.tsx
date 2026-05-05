@@ -15,6 +15,7 @@ import { ScrollProgress } from '@/components/ui/ScrollProgress';
 import { LcpObserver } from "@/components/dev/LcpObserver";
 import { WebMcpProvider } from "@/components/agent/WebMcpProvider";
 import { SpeedInsights } from "@vercel/speed-insights/next";
+import { workProjects } from "@/data/workProjects";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -43,13 +44,34 @@ export const metadata: Metadata = {
   },
   description:
     "Executive Producer building large-scale experiential productions and AI-powered applications.",
+  keywords: [
+    "Pratt Majmudar",
+    "creative technologist",
+    "executive producer",
+    "experiential design",
+    "immersive production",
+    "AI events",
+    "spatial computing",
+    "volumetric video",
+    "brand activations",
+    "conference production",
+  ],
   applicationName: siteConfig.name,
   authors: [{ name: siteConfig.name, url: siteConfig.url }],
   creator: siteConfig.name,
+  alternates: {
+    canonical: siteConfig.url,
+  },
   robots: {
     index: true,
     follow: true,
-    googleBot: { index: true, follow: true },
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+      "max-video-preview": -1,
+    },
   },
   openGraph: {
     type: "website",
@@ -80,6 +102,11 @@ const structuredData = {
         "Executive Producer building large-scale experiential productions and AI-powered applications.",
       publisher: { "@id": `${siteConfig.url}/#person` },
       inLanguage: "en-US",
+      potentialAction: {
+        "@type": "SearchAction",
+        target: `${siteConfig.url}/work?query={search_term_string}`,
+        "query-input": "required name=search_term_string",
+      },
     },
     {
       "@type": "Person",
@@ -90,6 +117,17 @@ const structuredData = {
       jobTitle: siteConfig.role,
       address: { "@type": "PostalAddress", addressLocality: siteConfig.location },
       sameAs: Object.values(siteConfig.socials),
+    },
+    {
+      "@type": "ItemList",
+      "@id": `${siteConfig.url}/work#featured`,
+      name: "Selected Work",
+      itemListElement: workProjects.map((project, index) => ({
+        "@type": "ListItem",
+        position: index + 1,
+        url: `${siteConfig.url}/work/${project.slug}`,
+        name: project.title,
+      })),
     },
   ],
 };
