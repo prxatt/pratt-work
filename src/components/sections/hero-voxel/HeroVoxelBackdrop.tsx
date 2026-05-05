@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useDeviceCapabilities } from '@/hooks/useReducedMotion';
 import { createDepthInference } from './heroVoxelDepthInference';
+import { useHeroLiveDepth } from './HeroLiveDepthContext';
 
 /** Local only — keep in sync with `heroVoxelScene.ts` exports. */
 type HeroVoxelTier = 'full' | 'medium';
@@ -12,7 +13,6 @@ type HeroVoxelSceneApi = {
   bindDepthBuffer: (buffer: Float32Array | null) => void;
 };
 
-/** Mirrors `./heroVoxelTypes` (logic local so this chunk never depends on that module). */
 function tierForViewport(opts: {
   prefersReducedMotion: boolean;
   isLowEnd: boolean;
@@ -41,14 +41,17 @@ function useViewportWidth(): number {
   return w;
 }
 
-const INFER_INTERVAL_MS = 95;
+const INFER_INTERVAL_MS = 72;
 
 export function HeroVoxelBackdrop() {
+  const { setLiveDepthActive } = useHeroLiveDepth();
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const sceneApiRef = useRef<HeroVoxelSceneApi | null>(null);
   const inferTimerRef = useRef<number | null>(null);
   const depthApiRef = useRef<ReturnType<typeof createDepthInference> | null>(null);
+  /** Bumped on each new start attempt and on stop; in-flight `startCamera` aborts if stale. */
+  const cameraSessionRef = useRef(0);
 
   const { prefersReducedMotion, isLowEnd } = useDeviceCapabilities();
   const width = useViewportWidth();
@@ -68,6 +71,7 @@ export function HeroVoxelBackdrop() {
   );
 
   const stopCamera = useCallback(() => {
+    cameraSessionRef.current += 1;
     const timerId = inferTimerRef.current;
     inferTimerRef.current = null;
     if (timerId !== null && typeof window !== 'undefined') {
@@ -91,7 +95,8 @@ export function HeroVoxelBackdrop() {
     sceneApiRef.current?.setCameraActive(false);
     setCameraOn(false);
     setBusy(false);
-  }, []);
+    setLiveDepthActive(false);
+  }, [setLiveDepthActive]);
 
   const stopCameraRef = useRef(stopCamera);
   stopCameraRef.current = stopCamera;
@@ -134,8 +139,29 @@ export function HeroVoxelBackdrop() {
   const startCamera = useCallback(async () => {
     setCameraError(null);
     setBusy(true);
+    cameraSessionRef.current += 1;
+    const session = cameraSessionRef.current;
+    let stream: MediaStream | null = null;
+    let video: HTMLVideoElement | null = null;
+
+    const abortIfStale = () => {
+      if (session !== cameraSessionRef.current) {
+        if (stream) {
+          stream.getTracks().forEach((t) => t.stop());
+          stream = null;
+        }
+        if (video?.parentElement) {
+          video.parentElement.removeChild(video);
+        }
+        video = null;
+        videoRef.current = null;
+        return true;
+      }
+      return false;
+    };
+
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
+      stream = await navigator.mediaDevices.getUserMedia({
         audio: false,
         video: {
           facingMode: 'user',
@@ -144,8 +170,9 @@ export function HeroVoxelBackdrop() {
           frameRate: { ideal: 30, max: 30 },
         },
       });
+      if (abortIfStale()) return;
 
-      const video = document.createElement('video');
+      video = document.createElement('video');
       videoRef.current = video;
       video.setAttribute('playsinline', '');
       video.muted = true;
@@ -160,6 +187,7 @@ export function HeroVoxelBackdrop() {
       } catch {
         throw new Error('Video playback blocked');
       }
+      if (abortIfStale()) return;
 
       const { gx, gz } = gridDimensionsForTier(tier);
       const depthInf = createDepthInference({
@@ -169,9 +197,16 @@ export function HeroVoxelBackdrop() {
       });
       depthApiRef.current = depthInf;
 
+      if (abortIfStale()) {
+        depthInf.dispose();
+        depthApiRef.current = null;
+        return;
+      }
+
       sceneApiRef.current?.bindDepthBuffer(depthInf.getBuffer());
       sceneApiRef.current?.setCameraActive(true);
       setCameraOn(true);
+      setLiveDepthActive(true);
 
       void depthInf.infer();
 
@@ -185,7 +220,7 @@ export function HeroVoxelBackdrop() {
     } finally {
       setBusy(false);
     }
-  }, [tier, stopCamera]);
+  }, [tier, stopCamera, setLiveDepthActive]);
 
   const toggleCamera = useCallback(() => {
     if (cameraOn) stopCamera();
@@ -196,10 +231,14 @@ export function HeroVoxelBackdrop() {
     <>
       <div
         ref={containerRef}
-        className="pointer-events-none absolute inset-0 z-[2] h-full min-h-[100dvh] w-full overflow-hidden"
+        className={
+          cameraOn
+            ? 'pointer-events-auto absolute inset-0 z-[4] h-full min-h-[100dvh] w-full overflow-hidden touch-none'
+            : 'pointer-events-none absolute inset-0 z-[2] h-full min-h-[100dvh] w-full overflow-hidden'
+        }
         aria-hidden
       />
-      <div className="pointer-events-auto absolute bottom-[7rem] left-1/2 z-[25] -translate-x-1/2 sm:bottom-[7.5rem]">
+      <div className="pointer-events-auto absolute bottom-[7rem] left-1/2 z-[25] -translate-x-1/2 sm:bottom-[7.5rem] max-w-[min(92vw,22rem)]">
         <button
           type="button"
           onClick={() => void toggleCamera()}
@@ -215,6 +254,11 @@ export function HeroVoxelBackdrop() {
         {cameraError ? (
           <p className="mt-2 max-w-[min(90vw,20rem)] text-center font-mono text-[10px] text-red-300/90">
             {cameraError}
+          </p>
+        ) : null}
+        {cameraOn ? (
+          <p className="mt-2 text-center font-mono text-[9px] uppercase tracking-[0.14em] text-[#7A7A75]">
+            Drag to orbit · Scroll to zoom · Shift-scroll depth scale
           </p>
         ) : null}
       </div>
