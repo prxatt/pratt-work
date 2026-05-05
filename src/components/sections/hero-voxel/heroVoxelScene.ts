@@ -43,11 +43,14 @@ const IDLE_LERP_BASE = 0.075;
 // ── Live volumetric extrusion ──────────────────────────────────────────────
 const LIVE_Y_RELIEF = 13.4; // peak voxel height (perceived "thickness" toward camera)
 const LIVE_Y_BIAS = 0.22; // minimum height for "far" voxels — avoid invisible cells
-const LIVE_Z_RELIEF = 7.6; // forward/backward parallax range
-const LIVE_DEPTH_CONTRAST = 1.42; // pow exponent — bites mid-tones outward
-const LIVE_DEPTH_SHAPE_LO = 0.16; // smoothstep low edge for shaped curve
-const LIVE_DEPTH_SHAPE_HI = 0.84; // smoothstep high edge for shaped curve
-const LIVE_DEPTH_SHAPE_MIX = 0.6; // mix(d1, d2, blend) — 0 = pure pow, 1 = pure smoothstep
+const LIVE_Z_RELIEF = 9.8; // forward/backward parallax range
+const LIVE_DEPTH_CONTRAST = 1.58; // pow exponent — deeper midtone push
+const LIVE_DEPTH_SHAPE_LO = 0.12; // smoothstep low edge for shaped curve
+const LIVE_DEPTH_SHAPE_HI = 0.9; // smoothstep high edge for shaped curve
+const LIVE_DEPTH_SHAPE_MIX = 0.7; // mix(d1, d2, blend) — 0 = pure pow, 1 = pure smoothstep
+const LIVE_FOREGROUND_BOOST = 0.36; // selectively amplify near regions
+const LIVE_FOREGROUND_THRESHOLD = 0.58; // start foreground amplification here
+const LIVE_NORMALIZE_BLEND = 0.58; // blend global [0,1] with per-frame min/max remap
 const LIVE_LERP_BASE = 0.7;
 const LIVE_INITIAL_BOOST = 1.52; // extrusion amplifier on activation
 
@@ -269,18 +272,38 @@ export async function mountHeroVoxelScene(
 
   function updateLive(buf: Float32Array, dt: number) {
     const lerp = frameLerp(LIVE_LERP_BASE, dt, 0.08);
+    let depthMin = Infinity;
+    let depthMax = -Infinity;
+    for (let i = 0; i < voxelCount; i++) {
+      const v = THREE.MathUtils.clamp(buf[i], 0, 1);
+      if (v < depthMin) depthMin = v;
+      if (v > depthMax) depthMax = v;
+    }
+    const depthRange = Math.max(0.08, depthMax - depthMin);
+
     for (let i = 0; i < voxelCount; i++) {
       // Canonical "high = near" — orientation handled in inference layer.
       const raw = buf[i];
       voxels.smoothDepths[i] += (raw - voxels.smoothDepths[i]) * lerp;
-      const d0 = THREE.MathUtils.clamp(voxels.smoothDepths[i], 0, 1);
+      const dGlobal = THREE.MathUtils.clamp(voxels.smoothDepths[i], 0, 1);
+      const dLocal = THREE.MathUtils.clamp(
+        (dGlobal - depthMin) / depthRange,
+        0,
+        1
+      );
+      // Hybrid normalization improves face relief in varied lighting/backgrounds.
+      const d0 = THREE.MathUtils.lerp(dGlobal, dLocal, LIVE_NORMALIZE_BLEND);
       const d1 = Math.pow(d0, LIVE_DEPTH_CONTRAST);
       const d2 = smoothstepScalar(LIVE_DEPTH_SHAPE_LO, LIVE_DEPTH_SHAPE_HI, d1);
-      const dFinal = THREE.MathUtils.clamp(
+      let dFinal = THREE.MathUtils.clamp(
         d1 * (1 - LIVE_DEPTH_SHAPE_MIX) + d2 * LIVE_DEPTH_SHAPE_MIX,
         0,
         1
       );
+      if (dFinal > LIVE_FOREGROUND_THRESHOLD) {
+        const fg = smoothstepScalar(LIVE_FOREGROUND_THRESHOLD, 1, dFinal);
+        dFinal = THREE.MathUtils.clamp(dFinal + fg * LIVE_FOREGROUND_BOOST, 0, 1);
+      }
 
       const targetY = LIVE_Y_BIAS + dFinal * LIVE_Y_RELIEF * extrusionBoost;
       const targetZ = (dFinal - 0.5) * 2 * LIVE_Z_RELIEF * extrusionBoost;
