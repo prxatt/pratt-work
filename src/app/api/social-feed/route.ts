@@ -65,8 +65,8 @@ export async function GET() {
     const twitterUpdates = await fetchTwitterUpdates();
     const apiUpdates: Update[] = twitterUpdates;
 
-    // Determine if we're using real-time data
-    const isRealtime = apiUpdates.length > 0;
+    // Update center is treated as live (manual + optional social sources).
+    const isRealtime = true;
 
     // Merge with static updates
     const allUpdates = [...apiUpdates, ...staticUpdates];

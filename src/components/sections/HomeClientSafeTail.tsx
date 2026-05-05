@@ -8,6 +8,7 @@ const RecognitionSection = dynamic(
   () => import('@/components/sections/RecognitionSection').then((mod) => mod.RecognitionSection),
   {
     loading: () => <div className="h-[50vh] bg-[#0a0a0a]" />,
+    ssr: false,
   }
 );
 

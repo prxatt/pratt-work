@@ -23,14 +23,28 @@ export function VideoPlayer({ webmSrc, mp4Src, poster, accentColor, title, subti
   const [isMuted, setIsMuted] = useState(true);
   const [volume, setVolume] = useState(0.8);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [pseudoFullscreen, setPseudoFullscreen] = useState(false);
   const [showControls, setShowControls] = useState(true);
   /** Once true, the large poster/play overlay stays dismissed (paused mid-video shows the frame + controls). */
   const [hasStartedPlayback, setHasStartedPlayback] = useState(false);
   const [showVolumeSlider, setShowVolumeSlider] = useState(false);
+  const [isTouchDevice, setIsTouchDevice] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const controlsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const volumeSliderRef = useRef<HTMLDivElement>(null);
+  const isSeekingRef = useRef(false);
+  const isAdjustingVolumeRef = useRef(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const detectTouch = () => {
+      setIsTouchDevice(('ontouchstart' in window) || navigator.maxTouchPoints > 0);
+    };
+    detectTouch();
+    window.addEventListener('resize', detectTouch);
+    return () => window.removeEventListener('resize', detectTouch);
+  }, []);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -94,12 +108,11 @@ export function VideoPlayer({ webmSrc, mp4Src, poster, accentColor, title, subti
     }
   }, [isMuted, volume]);
 
-  const handleVolumeChange = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+  const updateVolumeFromClientX = useCallback((clientX: number, sliderEl: HTMLDivElement) => {
     const video = videoRef.current;
-    if (!video) return;
-
-    const rect = e.currentTarget.getBoundingClientRect();
-    const clickX = e.clientX - rect.left;
+    if (!video) return 0;
+    const rect = sliderEl.getBoundingClientRect();
+    const clickX = clientX - rect.left;
     const newVolume = Math.max(0, Math.min(1, clickX / rect.width));
     
     setVolume(newVolume);
@@ -112,35 +125,86 @@ export function VideoPlayer({ webmSrc, mp4Src, poster, accentColor, title, subti
       video.muted = false;
       setIsMuted(false);
     }
+    return newVolume;
   }, [isMuted]);
 
-  const handleSeek = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+  const updateSeekFromClientX = useCallback((clientX: number, seekEl: HTMLDivElement) => {
     const video = videoRef.current;
-    if (!video || !video.duration) return;
-
-    const rect = e.currentTarget.getBoundingClientRect();
-    const clickX = e.clientX - rect.left;
+    if (!video || !video.duration) return 0;
+    const rect = seekEl.getBoundingClientRect();
+    const clickX = clientX - rect.left;
     const newProgress = (clickX / rect.width) * 100;
     const newTime = (newProgress / 100) * video.duration;
     
     video.currentTime = newTime;
     setProgress(newProgress);
     setCurrentTime(newTime);
+    return newProgress;
+  }, []);
+
+  const handleVolumeChange = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    updateVolumeFromClientX(e.clientX, e.currentTarget);
+  }, [updateVolumeFromClientX]);
+
+  const handleSeek = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    updateSeekFromClientX(e.clientX, e.currentTarget);
+  }, [updateSeekFromClientX]);
+
+  const beginSeek = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    isSeekingRef.current = true;
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+    updateSeekFromClientX(e.clientX, e.currentTarget);
+  }, [updateSeekFromClientX]);
+
+  const dragSeek = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isSeekingRef.current) return;
+    updateSeekFromClientX(e.clientX, e.currentTarget);
+  }, [updateSeekFromClientX]);
+
+  const endSeek = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    isSeekingRef.current = false;
+    e.currentTarget.releasePointerCapture?.(e.pointerId);
+  }, []);
+
+  const beginVolume = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    isAdjustingVolumeRef.current = true;
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+    updateVolumeFromClientX(e.clientX, e.currentTarget);
+  }, [updateVolumeFromClientX]);
+
+  const dragVolume = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isAdjustingVolumeRef.current) return;
+    updateVolumeFromClientX(e.clientX, e.currentTarget);
+  }, [updateVolumeFromClientX]);
+
+  const endVolume = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    isAdjustingVolumeRef.current = false;
+    e.currentTarget.releasePointerCapture?.(e.pointerId);
   }, []);
 
   const toggleFullscreen = useCallback(async () => {
     const container = containerRef.current;
-    if (!container) return;
+    const video = videoRef.current;
+    if (!container || !video) return;
 
-    if (!isFullscreen) {
+    if (!(isFullscreen || pseudoFullscreen)) {
       try {
         if (container.requestFullscreen) {
           await container.requestFullscreen();
         } else if ((container as any).webkitRequestFullscreen) {
           await (container as any).webkitRequestFullscreen();
+        } else if ((container as any).msRequestFullscreen) {
+          await (container as any).msRequestFullscreen();
+        } else if ((video as any).webkitEnterFullscreen) {
+          (video as any).webkitEnterFullscreen();
+          setIsFullscreen(true);
+        } else {
+          setPseudoFullscreen(true);
+          document.body.style.overflow = 'hidden';
         }
       } catch (err) {
-        console.error('Fullscreen error:', err);
+        setPseudoFullscreen(true);
+        document.body.style.overflow = 'hidden';
       }
     } else {
       try {
@@ -148,16 +212,32 @@ export function VideoPlayer({ webmSrc, mp4Src, poster, accentColor, title, subti
           await document.exitFullscreen();
         } else if ((document as any).webkitExitFullscreen) {
           await (document as any).webkitExitFullscreen();
+        } else if ((document as any).msExitFullscreen) {
+          await (document as any).msExitFullscreen();
+        } else if (pseudoFullscreen) {
+          setPseudoFullscreen(false);
+          document.body.style.overflow = '';
         }
       } catch (err) {
-        console.error('Exit fullscreen error:', err);
+        if (pseudoFullscreen) {
+          setPseudoFullscreen(false);
+          document.body.style.overflow = '';
+        }
       }
     }
-  }, [isFullscreen]);
+  }, [isFullscreen, pseudoFullscreen]);
 
   useEffect(() => {
     const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
+      const nativeFs = !!(
+        document.fullscreenElement ||
+        (document as any).webkitFullscreenElement ||
+        (document as any).msFullscreenElement
+      );
+      setIsFullscreen(nativeFs);
+      if (!nativeFs && !pseudoFullscreen) {
+        document.body.style.overflow = '';
+      }
     };
 
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -184,14 +264,21 @@ export function VideoPlayer({ webmSrc, mp4Src, poster, accentColor, title, subti
 
     document.addEventListener('fullscreenchange', handleFullscreenChange);
     document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    document.addEventListener('MSFullscreenChange', handleFullscreenChange as EventListener);
     document.addEventListener('keydown', handleKeyDown);
+
+    const video = videoRef.current as any;
+    const onWebkitEnd = () => setIsFullscreen(false);
+    video?.addEventListener?.('webkitendfullscreen', onWebkitEnd);
 
     return () => {
       document.removeEventListener('fullscreenchange', handleFullscreenChange);
       document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('MSFullscreenChange', handleFullscreenChange as EventListener);
       document.removeEventListener('keydown', handleKeyDown);
+      video?.removeEventListener?.('webkitendfullscreen', onWebkitEnd);
     };
-  }, [isFullscreen, togglePlay, toggleFullscreen, toggleMute]);
+  }, [isFullscreen, pseudoFullscreen, togglePlay, toggleFullscreen, toggleMute]);
 
   const showControlsTemporarily = useCallback(() => {
     setShowControls(true);
@@ -211,15 +298,22 @@ export function VideoPlayer({ webmSrc, mp4Src, poster, accentColor, title, subti
     return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
   };
 
+  useEffect(() => {
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, []);
+
   return (
     <div
       ref={containerRef}
-      className={`relative bg-[#141414] overflow-hidden group ${isFullscreen ? 'fixed inset-0 z-[100]' : ''}`}
+      className={`relative bg-[#141414] overflow-hidden group ${(isFullscreen || pseudoFullscreen) ? 'fixed inset-0 z-[100]' : ''}`}
       style={{ 
-        clipPath: isFullscreen ? 'none' : 'polygon(0 0, 100% 0, 100% calc(100% - 30px), calc(100% - 30px) 100%, 0 100%)'
+        clipPath: (isFullscreen || pseudoFullscreen) ? 'none' : 'polygon(0 0, 100% 0, 100% calc(100% - 30px), calc(100% - 30px) 100%, 0 100%)'
       }}
       onMouseMove={showControlsTemporarily}
       onMouseLeave={() => isPlaying && setShowControls(false)}
+      onTouchStart={showControlsTemporarily}
     >
       {/* Corner brackets - technical */}
       <div className="absolute top-0 left-0 w-16 h-[2px] z-20" style={{ backgroundColor: accentColor }} />
@@ -253,7 +347,7 @@ export function VideoPlayer({ webmSrc, mp4Src, poster, accentColor, title, subti
             style={
               poster
                 ? {
-                    backgroundImage: `linear-gradient(rgba(0,0,0,0.45), rgba(0,0,0,0.45)), url(${JSON.stringify(poster)})`,
+                    backgroundImage: `linear-gradient(rgba(0,0,0,0.45), rgba(0,0,0,0.45)), url(${poster})`,
                   }
                 : { backgroundColor: 'rgba(0,0,0,0.5)' }
             }
@@ -310,6 +404,10 @@ export function VideoPlayer({ webmSrc, mp4Src, poster, accentColor, title, subti
               {/* Progress bar */}
               <div 
                 className="relative h-1 bg-white/20 rounded-full overflow-hidden mb-3 sm:mb-4 cursor-pointer"
+                onPointerDown={beginSeek}
+                onPointerMove={dragSeek}
+                onPointerUp={endSeek}
+                onPointerCancel={endSeek}
                 onClick={handleSeek}
               >
                 <motion.div
@@ -356,6 +454,7 @@ export function VideoPlayer({ webmSrc, mp4Src, poster, accentColor, title, subti
                   >
                     <motion.button
                       onClick={toggleMute}
+                      onTouchStart={() => setShowVolumeSlider(true)}
                       className="w-10 h-10 rounded-full bg-white/10 border border-white/20 flex items-center justify-center hover:bg-white/20 transition-colors pointer-events-auto"
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
@@ -374,12 +473,16 @@ export function VideoPlayer({ webmSrc, mp4Src, poster, accentColor, title, subti
                       ref={volumeSliderRef}
                       initial={{ width: 0, opacity: 0 }}
                       animate={{ 
-                        width: showVolumeSlider ? 80 : 0, 
-                        opacity: showVolumeSlider ? 1 : 0 
+                        width: (showVolumeSlider || isTouchDevice) ? 80 : 0, 
+                        opacity: (showVolumeSlider || isTouchDevice) ? 1 : 0 
                       }}
                       transition={{ duration: 0.2 }}
                       className="relative h-1 bg-white/20 rounded-full overflow-hidden cursor-pointer pointer-events-auto"
-                      style={{ width: showVolumeSlider ? 80 : 0 }}
+                      style={{ width: (showVolumeSlider || isTouchDevice) ? 80 : 0 }}
+                      onPointerDown={beginVolume}
+                      onPointerMove={dragVolume}
+                      onPointerUp={endVolume}
+                      onPointerCancel={endVolume}
                       onClick={handleVolumeChange}
                     >
                       <motion.div
@@ -412,7 +515,7 @@ export function VideoPlayer({ webmSrc, mp4Src, poster, accentColor, title, subti
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                 >
-                  {isFullscreen ? (
+                  {(isFullscreen || pseudoFullscreen) ? (
                     <Minimize size={18} className="text-white" />
                   ) : (
                     <Maximize size={18} className="text-white" />

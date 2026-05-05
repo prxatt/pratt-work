@@ -863,7 +863,7 @@ export default function TheCryptPage() {
               />
 
               {/* Content area — min height on small screens; cinematic 21:9 from md up */}
-              <div className="relative flex h-[min(68vh,92vw)] w-full items-center justify-center overflow-hidden bg-gradient-to-b from-[#050505] via-[#080808] to-[#050505] md:aspect-[21/9] md:h-auto md:min-h-[min(24rem,52vh)] lg:min-h-[min(28rem,56vh)]">
+              <div className="relative flex h-[min(72vh,100vw)] w-full items-center justify-center overflow-hidden bg-gradient-to-b from-[#050505] via-[#080808] to-[#050505] md:aspect-[21/9] md:h-auto md:min-h-[min(24rem,52vh)] lg:min-h-[min(28rem,56vh)]">
                 {/* Interactive 3D volumetric capture - drag to orbit; fullscreen control top-right */}
                 <CryptVolumetric3D
                   webmSrc={getVideoUrl('/work/crypt-demo.webm')}
@@ -1146,12 +1146,12 @@ export default function TheCryptPage() {
             </span>
           </div>
           
-          <div className="flex items-center gap-4">
-            <span className="font-mono text-[9px] tracking-[0.15em] text-white/20 uppercase">Next</span>
-            <ChevronRight size={14} className="text-white/20" />
+          <div className="flex flex-nowrap items-center gap-2.5 whitespace-nowrap">
+            <span className="font-mono text-[9px] leading-none tracking-[0.15em] text-white/20 uppercase">Next</span>
+            <ChevronRight size={14} className="shrink-0 text-white/20" />
             <Link 
               href="/work/stability-ai"
-              className="font-mono text-[10px] tracking-[0.2em] text-white/40 hover:text-white uppercase transition-colors"
+              className="font-mono text-[10px] leading-none tracking-[0.2em] text-white/40 hover:text-white uppercase transition-colors"
             >
               Stability AI
             </Link>

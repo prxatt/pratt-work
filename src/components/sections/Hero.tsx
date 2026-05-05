@@ -6,6 +6,10 @@ import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import { useDeviceCapabilities } from '@/hooks/useReducedMotion';
 import { HeroAmbientScreen } from '@/components/sections/HeroAmbientScreen';
+import {
+  HeroLiveDepthProvider,
+  useHeroLiveDepth,
+} from '@/components/sections/hero-voxel/HeroLiveDepthContext';
 
 const HeroVoxelBackdrop = dynamic(
   () =>
@@ -149,9 +153,10 @@ const LetterLockup = ({
 // ============================================
 // HERO — Editorial-Tech visual system
 // ============================================
-export const Hero = () => {
+function HeroInner() {
   const containerRef = useRef<HTMLDivElement>(null);
   const { isTouch, isLowEnd, prefersReducedMotion } = useDeviceCapabilities();
+  const { liveDepthActive } = useHeroLiveDepth();
   const [contentReady, setContentReady] = useState(false);
 
   useEffect(() => {
@@ -172,31 +177,25 @@ export const Hero = () => {
   }, []);
 
   const lite = prefersReducedMotion || isLowEnd;
+  const textReveal = contentReady;
 
   return (
-    <section className="relative h-[100dvh] w-full overflow-hidden flex flex-col bg-[#0a0a0a]">
-      {/* Ambient first so the 3D layer can stack above vignettes and stay readable on Vercel / all browsers */}
-      <HeroAmbientScreen
-        variant="hero"
-        baseBgClass="bg-transparent"
-        overlayStrength={0.58}
-      />
-      <HeroVoxelBackdrop />
-
-      {/* Main content */}
+    <>
       <motion.div
         ref={containerRef}
-        className="flex-1 flex flex-col items-center justify-center z-10 px-6 relative group"
+        className={`flex-1 flex flex-col items-center justify-center z-10 px-6 relative group ${
+          liveDepthActive ? 'pointer-events-none' : ''
+        }`}
         data-cursor="hover"
         initial={{ opacity: 0 }}
-        animate={contentReady ? { opacity: 1 } : { opacity: 0 }}
+        animate={{ opacity: contentReady ? 1 : 0 }}
         transition={{ duration: 0.55, ease: HERO_EASE }}
       >
         <div className="flex flex-col items-center text-center">
           {/* Status pill */}
           <motion.div
             initial={{ opacity: 0, y: 10 }}
-            animate={contentReady ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
+            animate={textReveal ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
             transition={{ duration: 0.55, delay: 0.08, ease: HERO_EASE }}
             className="flex items-center gap-1.5 mb-5 md:mb-6 px-3 py-1.5 rounded-full bg-white/[0.03] border border-white/[0.08] group-hover:bg-white/[0.08] group-hover:border-white/[0.15] transition-all duration-500"
           >
@@ -226,7 +225,7 @@ export const Hero = () => {
             <LetterLockup
               text="PRATT"
               ariaLabel="PRATT"
-              reveal={contentReady}
+              reveal={textReveal}
               delay={0.22}
               lite={lite}
             />
@@ -237,7 +236,7 @@ export const Hero = () => {
             aria-hidden
             className="my-1 md:my-1.5 h-px origin-center bg-gradient-to-r from-transparent via-[#F5F5F3]/28 to-transparent"
             initial={{ scaleX: 0, opacity: 0 }}
-            animate={contentReady ? { scaleX: 1, opacity: 1 } : { scaleX: 0, opacity: 0 }}
+            animate={textReveal ? { scaleX: 1, opacity: 1 } : { scaleX: 0, opacity: 0 }}
             transition={{ duration: 0.9, delay: 0.52, ease: HERO_EASE }}
             style={{ width: 'clamp(6rem, 22vw, 16rem)' }}
           />
@@ -257,7 +256,7 @@ export const Hero = () => {
             <LetterLockup
               text="MAJMUDAR"
               ariaLabel="MAJMUDAR"
-              reveal={contentReady}
+              reveal={textReveal}
               delay={0.6}
               lite={lite}
             />
@@ -266,7 +265,7 @@ export const Hero = () => {
           {/* Rotating roles */}
           <motion.div
             initial={{ opacity: 0, y: 10 }}
-            animate={contentReady ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
+            animate={textReveal ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
             transition={{ duration: 0.6, delay: 1.05, ease: HERO_EASE }}
             className="mt-6 md:mt-8"
           >
@@ -277,7 +276,7 @@ export const Hero = () => {
           <motion.div
             className="mt-10 h-px origin-center bg-gradient-to-r from-transparent via-[#F5F5F3]/20 to-transparent"
             initial={{ scaleX: 0, opacity: 0 }}
-            animate={contentReady ? { scaleX: 1, opacity: 1 } : { scaleX: 0, opacity: 0 }}
+            animate={textReveal ? { scaleX: 1, opacity: 1 } : { scaleX: 0, opacity: 0 }}
             transition={{ duration: 0.9, delay: 1.25, ease: HERO_EASE }}
             style={{ width: '8rem' }}
           />
@@ -286,14 +285,16 @@ export const Hero = () => {
 
       {/* Bottom meta row */}
       <motion.div
-        className="w-full px-6 md:px-12 lg:px-20 py-6 md:py-8 flex flex-row flex-nowrap justify-between items-center gap-3 z-10 relative"
+        className={`w-full px-6 md:px-12 lg:px-20 py-6 md:py-8 flex flex-row flex-nowrap justify-between items-center gap-3 z-10 relative ${
+          liveDepthActive ? 'pointer-events-none' : ''
+        }`}
         initial={{ opacity: 0, y: 20 }}
-        animate={contentReady ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
+        animate={{ opacity: contentReady ? 1 : 0, y: contentReady ? 0 : 20 }}
         transition={{ duration: 0.7, delay: 1.35, ease: HERO_EASE }}
       >
         <motion.span
           initial={{ opacity: 0, y: 6 }}
-          animate={contentReady ? { opacity: 1, y: 0 } : { opacity: 0, y: 6 }}
+          animate={textReveal ? { opacity: 1, y: 0 } : { opacity: 0, y: 6 }}
           transition={{ duration: 0.45, delay: 1.46, ease: HERO_EASE }}
           className="font-mono text-[10px] sm:text-[11px] tracking-[0.18em] sm:tracking-[0.2em] uppercase whitespace-nowrap text-[#B5B5B0] shrink-0 min-w-0"
           style={{
@@ -306,7 +307,7 @@ export const Hero = () => {
 
         <motion.div
           initial={{ opacity: 0, y: 6 }}
-          animate={contentReady ? { opacity: 1, y: 0 } : { opacity: 0, y: 6 }}
+          animate={textReveal ? { opacity: 1, y: 0 } : { opacity: 0, y: 6 }}
           transition={{ duration: 0.45, delay: 1.56, ease: HERO_EASE }}
           className="shrink-0"
         >
@@ -337,6 +338,20 @@ export const Hero = () => {
           </Link>
         </motion.div>
       </motion.div>
-    </section>
+    </>
   );
-};
+}
+
+export const Hero = () => (
+  <section className="relative h-[100dvh] w-full overflow-hidden flex flex-col bg-[#0a0a0a]">
+    <HeroLiveDepthProvider>
+      <HeroAmbientScreen
+        variant="hero"
+        baseBgClass="bg-transparent"
+        overlayStrength={0.58}
+      />
+      <HeroVoxelBackdrop />
+      <HeroInner />
+    </HeroLiveDepthProvider>
+  </section>
+);

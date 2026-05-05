@@ -1,12 +1,12 @@
 'use client';
 
-import React, { useEffect, useState, useCallback, memo, useMemo, useRef } from 'react';
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { useCursor } from '@/context/CursorContext';
-import { ArrowUpRight, Mail, Quote, ExternalLink, RefreshCw, Share2, AtSign, Camera, Globe } from 'lucide-react';
+import { ArrowUpRight, Mail, Quote, RefreshCw, Pin, PinOff } from 'lucide-react';
 import { useSocialFeed } from '@/hooks/useSocialFeed';
-import { Update, UpdateType, formatRelativeTime, socialProfiles } from '@/config/updates';
+import { Update, formatRelativeTime } from '@/config/updates';
 
 // Daily quotes for the footer ticker
 const dailyQuotes = [
@@ -31,15 +31,8 @@ const navLinks = [
   { name: 'Playground', href: '/playground', number: '06', hoverColor: '#a855f7' }, // Purple
 ];
 
-// Tab types for updates panel
-type UpdatesTab = 'all' | 'social' | 'website' | 'ventures';
-
-// Social platform icons mapping (using available lucide-react icons)
-const socialIcons = {
-  linkedin: Globe,      // Globe represents professional/network
-  twitter: AtSign,     // AtSign represents social/handles
-  instagram: Camera,     // Camera represents photos/Instagram
-};
+const READ_KEY = 'menu_update_center_read_ids_v1';
+const PINNED_KEY = 'menu_update_center_pinned_ids_v1';
 
 // Animation variants - defined outside component to prevent recreation
 const panelVariants = {
@@ -108,8 +101,9 @@ export const MenuOverlay: React.FC<MenuOverlayProps> = ({ isOpen, onClose }) => 
   const prefersReducedMotion = useReducedMotion();
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const [showNotifications, setShowNotifications] = useState(false);
-  const [activeTab, setActiveTab] = useState<UpdatesTab>('all');
   const [currentQuote, setCurrentQuote] = useState(0);
+  const [readIds, setReadIds] = useState<string[]>([]);
+  const [pinnedIds, setPinnedIds] = useState<string[]>([]);
   
   // Touch gesture state
   const touchStartX = useRef<number | null>(null);
@@ -117,42 +111,20 @@ export const MenuOverlay: React.FC<MenuOverlayProps> = ({ isOpen, onClose }) => 
   const panelRef = useRef<HTMLDivElement>(null);
 
   // Real-time updates feed
-  const { updates, socialProfiles: profiles, isLoading, isRealtime, refresh } = useSocialFeed();
+  const { updates, isLoading, isRealtime, refresh } = useSocialFeed();
 
   // Check if there are recent updates
   const hasRecentUpdates = updates.length > 0;
-  const twitterUpdates = useMemo(
-    () => updates.filter((u) => u.type === 'social' && u.source === 'twitter'),
-    [updates]
-  );
+  const websiteUpdates = useMemo(() => updates.filter((u) => u.type === 'website'), [updates]);
 
-  // Filter updates by active tab
-  const filteredUpdates = useMemo(() => {
-    switch (activeTab) {
-      case 'social':
-        return twitterUpdates;
-      case 'website':
-        return updates.filter(u => u.type === 'website');
-      case 'ventures':
-        return updates.filter(u => u.type === 'venture');
-      default:
-        return updates;
-    }
-  }, [updates, activeTab, twitterUpdates]);
+  const visibleUpdates = useMemo(() => {
+    return websiteUpdates.filter((u) => !readIds.includes(u.id) || pinnedIds.includes(u.id));
+  }, [websiteUpdates, readIds, pinnedIds]);
 
   // Get priority update for featured banner
   const featuredUpdate = useMemo(() => {
-    return updates.find(u => u.priority === 'high') || updates[0];
-  }, [updates]);
-
-  // Memoized callbacks to prevent re-renders
-  const handleNavHover = useCallback((index: number) => {
-    setHoveredIndex(index);
-  }, []);
-
-  const handleNavLeave = useCallback(() => {
-    setHoveredIndex(null);
-  }, []);
+    return visibleUpdates.find(u => u.priority === 'high') || visibleUpdates[0];
+  }, [visibleUpdates]);
 
   const toggleNotifications = useCallback(() => {
     setShowNotifications(prev => !prev);
@@ -162,9 +134,29 @@ export const MenuOverlay: React.FC<MenuOverlayProps> = ({ isOpen, onClose }) => 
     setShowNotifications(false);
   }, []);
 
+  const markUpdateRead = useCallback((id: string) => {
+    setReadIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
+  }, []);
+
+  const togglePin = useCallback((id: string) => {
+    setPinnedIds((prev) => (prev.includes(id) ? prev.filter((v) => v !== id) : [...prev, id]));
+  }, []);
+
+  const clearRead = useCallback(() => {
+    setReadIds([]);
+  }, []);
+
   const handleLinkClick = useCallback(() => {
     onClose();
   }, [onClose]);
+
+  const handleUpdateClick = useCallback(
+    (update: Update) => {
+      markUpdateRead(update.id);
+      if (!update.external) handleLinkClick();
+    },
+    [handleLinkClick, markUpdateRead]
+  );
 
   // Memoized handlers for updates button
   const handleUpdatesEnter = useCallback(() => {
@@ -184,15 +176,6 @@ export const MenuOverlay: React.FC<MenuOverlayProps> = ({ isOpen, onClose }) => 
   const createNavLeaveHandler = useCallback(() => () => {
     setCursorState('default');
     setHoveredIndex(null);
-  }, [setCursorState]);
-
-  // Memoized handlers for notification items
-  const createNotifEnterHandler = useCallback(() => () => {
-    setCursorState('hover');
-  }, [setCursorState]);
-
-  const createNotifLeaveHandler = useCallback(() => () => {
-    setCursorState('default');
   }, [setCursorState]);
 
   // Memoized style getters for nav items
@@ -257,6 +240,35 @@ export const MenuOverlay: React.FC<MenuOverlayProps> = ({ isOpen, onClose }) => 
     window.addEventListener('keydown', handleEscape);
     return () => window.removeEventListener('keydown', handleEscape);
   }, [isOpen, onClose]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const storedRead = window.localStorage.getItem(READ_KEY);
+      const storedPinned = window.localStorage.getItem(PINNED_KEY);
+      if (storedRead) setReadIds(JSON.parse(storedRead));
+      if (storedPinned) setPinnedIds(JSON.parse(storedPinned));
+    } catch {
+      setReadIds([]);
+      setPinnedIds([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem(READ_KEY, JSON.stringify(readIds));
+  }, [readIds]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem(PINNED_KEY, JSON.stringify(pinnedIds));
+  }, [pinnedIds]);
+
+  useEffect(() => {
+    if (isOpen && showNotifications) {
+      void refresh();
+    }
+  }, [isOpen, showNotifications, refresh]);
 
   // Handle click outside to close notifications or menu
   useEffect(() => {
@@ -368,7 +380,7 @@ export const MenuOverlay: React.FC<MenuOverlayProps> = ({ isOpen, onClose }) => 
               <button
                 data-updates-button
                 onClick={toggleNotifications}
-                className="group flex items-center gap-3 px-4 py-2 rounded-full border border-[#1a1a1a] hover:border-[#6366f1]/50 transition-colors duration-200"
+                className="group flex items-center gap-3 rounded-full border border-[#272727] bg-[#121212] px-4 py-2 hover:border-[#6366f1]/50 transition-colors duration-200"
                 onMouseEnter={handleUpdatesEnter}
                 onMouseLeave={handleUpdatesLeave}
               >
@@ -380,7 +392,7 @@ export const MenuOverlay: React.FC<MenuOverlayProps> = ({ isOpen, onClose }) => 
                   Updates
                 </span>
                 <span className="font-mono text-[9px] text-[#6366f1] bg-[#6366f1]/10 px-1.5 py-0.5 rounded">
-                  {updates.length}
+                  {visibleUpdates.length}
                 </span>
               </button>
             </div>
@@ -398,7 +410,7 @@ export const MenuOverlay: React.FC<MenuOverlayProps> = ({ isOpen, onClose }) => 
                   style={{ willChange: 'transform, opacity', transform: 'translateZ(0)' }}
                 >
                   {/* Header with title and actions */}
-                  <div className="px-5 py-4 border-b border-[#1a1a1a] flex items-center justify-between bg-[#0D0D0D]/50">
+                  <div className="px-5 py-4 border-b border-[#1f1f1f] flex items-center justify-between bg-[#0D0D0D]/70">
                     <div className="flex items-center gap-3">
                       <div className="relative">
                         <div className="w-2 h-2 rounded-full bg-[#6366f1] animate-pulse" />
@@ -406,9 +418,18 @@ export const MenuOverlay: React.FC<MenuOverlayProps> = ({ isOpen, onClose }) => 
                           <div className="absolute -top-1 -right-1 w-3 h-3 bg-[#6366f1]/20 rounded-full animate-ping" />
                         )}
                       </div>
-                      <span className="font-mono text-[11px] tracking-[0.2em] text-[#8A8A85] uppercase">Update Center</span>
+                      <span className="font-mono text-[11px] tracking-[0.2em] text-[#B4B4AE] uppercase">Update Center</span>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5">
+                      {readIds.length > 0 && (
+                        <button
+                          onClick={clearRead}
+                          className="text-[#666] hover:text-[#F2F2F0] transition-colors px-2 py-1 rounded text-[9px] uppercase tracking-[0.12em]"
+                          title="Clear read history"
+                        >
+                          Clear read
+                        </button>
+                      )}
                       <button
                         onClick={refresh}
                         disabled={isLoading}
@@ -431,7 +452,7 @@ export const MenuOverlay: React.FC<MenuOverlayProps> = ({ isOpen, onClose }) => 
                     <div className="px-5 py-4 border-b border-[#1a1a1a] bg-gradient-to-r from-[#6366f1]/10 via-transparent to-[#6366f1]/5">
                       <Link
                         href={featuredUpdate.url || '/'}
-                        onClick={featuredUpdate.external ? undefined : handleLinkClick}
+                        onClick={() => handleUpdateClick(featuredUpdate)}
                         target={featuredUpdate.external ? '_blank' : undefined}
                         rel={featuredUpdate.external ? 'noopener noreferrer' : undefined}
                         className="group block"
@@ -466,63 +487,18 @@ export const MenuOverlay: React.FC<MenuOverlayProps> = ({ isOpen, onClose }) => 
                     </div>
                   )}
 
-                  {/* Live social pulse */}
-                  <div className="px-5 py-3 border-b border-[#1a1a1a] bg-[#0D0D0D]/60">
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="font-mono text-[9px] tracking-[0.18em] text-[#666] uppercase">
-                        Twitter activity
-                      </span>
-                      <span className="font-mono text-[9px] tracking-[0.14em] text-[#6366f1] uppercase">
-                        {twitterUpdates.length} live
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Social Cards - Quick Links */}
-                  <div className="px-5 py-4 border-b border-[#1a1a1a]">
-                    <span className="font-mono text-[9px] tracking-[0.2em] text-[#666] uppercase mb-3 block">Connect</span>
-                    <div className="grid grid-cols-3 gap-2">
-                      {profiles.map((profile) => {
-                        const Icon = socialIcons[profile.platform as keyof typeof socialIcons];
-                        return (
-                          <a
-                            key={profile.platform}
-                            href={profile.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="group flex flex-col items-center p-3 rounded-lg border border-[#1a1a1a] hover:border-[#6366f1]/30 transition-all duration-200 hover:bg-[#1a1a1a]/30"
-                            onMouseEnter={() => setCursorState('hover')}
-                            onMouseLeave={() => setCursorState('default')}
-                          >
-                            <Icon className="w-5 h-5 mb-2" style={{ color: profile.color }} />
-                            <span className="font-mono text-[9px] text-[#8A8A85] uppercase tracking-[0.1em]">@{profile.handle}</span>
-                            <ExternalLink className="w-3 h-3 text-[#444] mt-1 opacity-0 group-hover:opacity-100 transition-opacity" />
-                          </a>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {/* Tab Navigation */}
-                  <div className="px-5 py-3 border-b border-[#1a1a1a] flex gap-1">
-                    {(['all', 'social', 'website', 'ventures'] as UpdatesTab[]).map((tab) => (
-                      <button
-                        key={tab}
-                        onClick={() => setActiveTab(tab)}
-                        className={`px-3 py-1.5 rounded-full font-mono text-[9px] uppercase tracking-[0.1em] transition-all duration-200 ${
-                          activeTab === tab
-                            ? 'bg-[#6366f1]/20 text-[#6366f1]'
-                            : 'text-[#555] hover:text-[#8A8A85] hover:bg-[#1a1a1a]/50'
-                        }`}
-                      >
-                        {tab === 'social' ? 'twitter live' : tab}
-                      </button>
-                    ))}
+                  <div className="px-5 py-3 border-b border-[#1f1f1f] bg-[#0D0D0D]/60 flex items-center justify-between gap-3">
+                    <span className="font-mono text-[9px] tracking-[0.18em] text-[#666] uppercase">
+                      Real-time updates
+                    </span>
+                    <span className="font-mono text-[9px] tracking-[0.14em] text-[#6366f1] uppercase">
+                      {pinnedIds.length} pinned
+                    </span>
                   </div>
 
                   {/* Updates List */}
                   <div className="max-h-[280px] overflow-y-auto">
-                    {isLoading && filteredUpdates.length === 0 ? (
+                    {isLoading && visibleUpdates.length === 0 ? (
                       // Skeleton loaders
                       <div className="p-5 space-y-4">
                         {[1, 2, 3].map((i) => (
@@ -535,12 +511,12 @@ export const MenuOverlay: React.FC<MenuOverlayProps> = ({ isOpen, onClose }) => 
                           </div>
                         ))}
                       </div>
-                    ) : filteredUpdates.length === 0 ? (
+                    ) : visibleUpdates.length === 0 ? (
                       <div className="px-5 py-8 text-center">
-                        <span className="font-mono text-[11px] text-[#555] uppercase tracking-[0.15em]">No updates found</span>
+                        <span className="font-mono text-[11px] text-[#555] uppercase tracking-[0.15em]">All caught up</span>
                       </div>
                     ) : (
-                      filteredUpdates.slice(0, 8).map((update, i) => (
+                      visibleUpdates.slice(0, 8).map((update, i) => (
                         <motion.div
                           key={update.id}
                           initial={{ opacity: 0, y: 10 }}
@@ -549,7 +525,7 @@ export const MenuOverlay: React.FC<MenuOverlayProps> = ({ isOpen, onClose }) => 
                         >
                           <Link
                             href={update.url || '/'}
-                            onClick={update.external ? undefined : handleLinkClick}
+                            onClick={() => handleUpdateClick(update)}
                             target={update.external ? '_blank' : undefined}
                             rel={update.external ? 'noopener noreferrer' : undefined}
                             className="block px-5 py-3 border-b border-[#1a1a1a] last:border-b-0 hover:bg-[#1a1a1a]/30 transition-colors group"
@@ -583,6 +559,23 @@ export const MenuOverlay: React.FC<MenuOverlayProps> = ({ isOpen, onClose }) => 
                                   {formatRelativeTime(update.date)}
                                 </span>
                               </div>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  togglePin(update.id);
+                                }}
+                                className="shrink-0 p-1.5 rounded-full text-[#555] hover:text-[#F2F2F0] hover:bg-[#1a1a1a] transition-colors"
+                                aria-label={pinnedIds.includes(update.id) ? 'Remove pinned update' : 'Pin update'}
+                                title={pinnedIds.includes(update.id) ? 'Unpin' : 'Pin'}
+                              >
+                                {pinnedIds.includes(update.id) ? (
+                                  <PinOff className="w-3.5 h-3.5" />
+                                ) : (
+                                  <Pin className="w-3.5 h-3.5" />
+                                )}
+                              </button>
                             </div>
                           </Link>
                         </motion.div>
