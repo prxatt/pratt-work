@@ -7,13 +7,7 @@
 import * as THREE from 'three/webgpu';
 import { WebGLRenderer } from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-
-export type HeroVoxelTier = 'full' | 'medium';
-
-function gridDimensionsForTier(tier: HeroVoxelTier): { gx: number; gz: number } {
-  if (tier === 'medium') return { gx: 96, gz: 72 };
-  return { gx: 144, gz: 108 };
-}
+import { gridDimensionsForTier, type HeroVoxelTier } from './heroVoxelConfig';
 
 const DOT_SPACING = 0.255;
 const WALL_ROOT_SCALE = 1.82;

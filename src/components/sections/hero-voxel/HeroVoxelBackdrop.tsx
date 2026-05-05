@@ -4,30 +4,17 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useDeviceCapabilities } from '@/hooks/useReducedMotion';
 import { createDepthInference } from './heroVoxelDepthInference';
 import { useHeroLiveDepth } from './HeroLiveDepthContext';
+import {
+  gridDimensionsForTier,
+  tierForViewport,
+  type HeroVoxelTier,
+} from './heroVoxelConfig';
 
-/** Local only — keep in sync with `heroVoxelScene.ts` exports. */
-type HeroVoxelTier = 'full' | 'medium';
 type HeroVoxelSceneApi = {
   dispose: () => void;
   setCameraActive: (active: boolean) => void;
   bindDepthBuffer: (buffer: Float32Array | null) => void;
 };
-
-function tierForViewport(opts: {
-  prefersReducedMotion: boolean;
-  isLowEnd: boolean;
-  width: number;
-}): HeroVoxelTier {
-  if (opts.prefersReducedMotion) return 'medium';
-  const w = opts.width > 0 ? opts.width : 1200;
-  if (opts.isLowEnd || w < 520) return 'medium';
-  return 'full';
-}
-
-function gridDimensionsForTier(tier: HeroVoxelTier): { gx: number; gz: number } {
-  if (tier === 'medium') return { gx: 96, gz: 72 };
-  return { gx: 144, gz: 108 };
-}
 
 function useViewportWidth(): number {
   const [w, setW] = useState(0);
