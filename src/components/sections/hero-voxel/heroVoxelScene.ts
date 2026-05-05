@@ -19,10 +19,10 @@
  *     mesh's static bounding sphere.
  *   - `instanceMatrix` set to DynamicDrawUsage for cheap GPU re-uploads.
  *   - dt-compensated lerp keeps motion identical at 60 / 90 / 120 Hz.
+ *   - WebGLRenderer only (no WebGPU probe) for faster mount and a smaller module graph.
  */
 
-import * as THREE from 'three/webgpu';
-import { WebGLRenderer } from 'three';
+import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { gridDimensionsForTier, type HeroVoxelTier } from './heroVoxelConfig';
@@ -130,10 +130,9 @@ export type HeroVoxelSceneApi = {
 export async function mountHeroVoxelScene(
   container: HTMLElement,
   tier: HeroVoxelTier,
-  opts?: { reducedMotion?: boolean; tryWebGpuFirst?: boolean }
+  opts?: { reducedMotion?: boolean }
 ): Promise<HeroVoxelSceneApi> {
   const reducedMotion = opts?.reducedMotion ?? false;
-  const tryWebGpuFirst = opts?.tryWebGpuFirst !== false;
   const { gx: GRID_X, gz: GRID_Z } = gridDimensionsForTier(tier);
   const voxelCount = GRID_X * GRID_Z;
 
@@ -159,31 +158,13 @@ export async function mountHeroVoxelScene(
   camera.position.set(0, 0, cameraDistanceForAspect(cw / ch));
   camera.lookAt(0, 0, 0);
 
-  let renderer: THREE.WebGPURenderer | WebGLRenderer;
-  if (tryWebGpuFirst) {
-    const wr = new THREE.WebGPURenderer({
-      antialias: true,
-      alpha: true,
-      powerPreference: 'high-performance',
-    });
-    try {
-      await wr.init();
-      renderer = wr;
-    } catch {
-      wr.dispose();
-      renderer = new WebGLRenderer({
-        antialias: true,
-        alpha: true,
-        powerPreference: 'high-performance',
-      });
-    }
-  } else {
-    renderer = new WebGLRenderer({
-      antialias: true,
-      alpha: true,
-      powerPreference: 'high-performance',
-    });
-  }
+  // WebGL only: avoids WebGPU init latency on every load and keeps the hero
+  // voxel path on the well-supported MeshPhysicalMaterial pipeline.
+  const renderer = new THREE.WebGLRenderer({
+    antialias: true,
+    alpha: true,
+    powerPreference: 'high-performance',
+  });
 
   renderer.setPixelRatio(
     Math.min(window.devicePixelRatio || 1, tier === 'medium' ? 1 : 1.25)
@@ -343,7 +324,14 @@ export async function mountHeroVoxelScene(
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, cap));
   };
 
-  const ro = new ResizeObserver(() => applySize());
+  let resizeRaf = 0;
+  const ro = new ResizeObserver(() => {
+    if (resizeRaf) cancelAnimationFrame(resizeRaf);
+    resizeRaf = requestAnimationFrame(() => {
+      resizeRaf = 0;
+      applySize();
+    });
+  });
   ro.observe(container);
   if (typeof window !== 'undefined' && window.visualViewport) {
     window.visualViewport.addEventListener('resize', applySize);
@@ -418,6 +406,7 @@ export async function mountHeroVoxelScene(
   };
 
   const dispose = () => {
+    if (resizeRaf) cancelAnimationFrame(resizeRaf);
     renderer.domElement.removeEventListener('wheel', onWheelExtrusion);
     ro.disconnect();
     if (typeof window !== 'undefined' && window.visualViewport) {

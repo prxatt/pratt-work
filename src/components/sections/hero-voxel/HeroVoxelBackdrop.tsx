@@ -20,10 +20,20 @@ function useViewportWidth(): number {
   const [w, setW] = useState(0);
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    const set = () => setW(window.innerWidth);
-    set();
-    window.addEventListener('resize', set);
-    return () => window.removeEventListener('resize', set);
+    let raf = 0;
+    const schedule = () => {
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        raf = 0;
+        setW(window.innerWidth);
+      });
+    };
+    schedule();
+    window.addEventListener('resize', schedule, { passive: true });
+    return () => {
+      window.removeEventListener('resize', schedule);
+      if (raf) cancelAnimationFrame(raf);
+    };
   }, []);
   return w;
 }
@@ -90,6 +100,26 @@ export function HeroVoxelBackdrop() {
   const stopCameraRef = useRef(stopCamera);
   stopCameraRef.current = stopCamera;
 
+  /** Warm the Transformers.js chunk after idle so first camera enable is snappier without blocking paint. */
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    let cancelled = false;
+    const load = () => {
+      if (!cancelled) void import('@huggingface/transformers');
+    };
+    let handle: number;
+    if ('requestIdleCallback' in window) {
+      handle = window.requestIdleCallback(load, { timeout: 4000 });
+    } else {
+      handle = window.setTimeout(load, 2500);
+    }
+    return () => {
+      cancelled = true;
+      if ('cancelIdleCallback' in window) window.cancelIdleCallback(handle);
+      else window.clearTimeout(handle);
+    };
+  }, []);
+
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
@@ -102,7 +132,6 @@ export function HeroVoxelBackdrop() {
         const { mountHeroVoxelScene } = await import('./heroVoxelScene');
         const api = await mountHeroVoxelScene(el, tier, {
           reducedMotion: prefersReducedMotion,
-          tryWebGpuFirst: true,
         });
         if (cancelled) {
           api.dispose();
