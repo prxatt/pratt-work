@@ -24,6 +24,9 @@
 .DS_Store
 *.pem
 
+# local WebGPU experiments (not part of Next app)
+webgpu-volumetric-voxel-grid-v/
+
 # debug
 npm-debug.log*
 yarn-debug.log*

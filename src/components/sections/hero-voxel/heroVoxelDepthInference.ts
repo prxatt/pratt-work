@@ -1,6 +1,8 @@
 /**
- * Depth maps from webcam for hero voxels — ONNX Depth Anything when available,
- * luminance fallback immediately (no blocking on model load).
+ * Depth maps from webcam — **Depth Anything V2** (ONNX) via `@huggingface/transformers`
+ * when available; luminance fallback is immediate so the grid never waits on model load.
+ *
+ * Model: `onnx-community/depth-anything-v2-small` (WASM, fp32).
  */
 
 export type DepthInferenceApi = {
@@ -11,6 +13,19 @@ export type DepthInferenceApi = {
 
 const DEPTH_W = 320;
 const DEPTH_H = 240;
+
+const DEPTH_MODEL_ID = 'onnx-community/depth-anything-v2-small' as const;
+
+async function disposeDepthPipeline(pipe: unknown): Promise<void> {
+  if (!pipe || typeof pipe !== 'object') return;
+  const p = pipe as { dispose?: () => void | Promise<void> };
+  if (typeof p.dispose !== 'function') return;
+  try {
+    await Promise.resolve(p.dispose());
+  } catch {
+    /* best-effort WASM / ONNX teardown */
+  }
+}
 
 export function createDepthInference(opts: {
   video: HTMLVideoElement;
@@ -45,11 +60,14 @@ export function createDepthInference(opts: {
       if (cancelled) return;
       env.allowLocalModels = false;
       env.useBrowserCache = true;
-      const pipe = await pipeline('depth-estimation', 'onnx-community/depth-anything-v2-small', {
+      const pipe = await pipeline('depth-estimation', DEPTH_MODEL_ID, {
         device: 'wasm',
         dtype: 'fp32',
       });
-      if (cancelled) return;
+      if (cancelled) {
+        await disposeDepthPipeline(pipe);
+        return;
+      }
       depthPipeline = pipe;
       depthReady = true;
     } catch {
@@ -66,7 +84,8 @@ export function createDepthInference(opts: {
         const pi = (iz * GRID_X + ix) * 4;
         const lum =
           (0.299 * pixels[pi] + 0.587 * pixels[pi + 1] + 0.114 * pixels[pi + 2]) / 255;
-        lastDepthMap[iz * GRID_X + (GRID_X - 1 - ix)] = Math.pow(lum, 0.65);
+        const ixMirror = GRID_X - 1 - ix;
+        lastDepthMap[iz * GRID_X + ixMirror] = Math.pow(lum, 0.65);
       }
     }
   }
@@ -82,8 +101,9 @@ export function createDepthInference(opts: {
     const dRange = dMax - dMin || 1;
     for (let iz = 0; iz < GRID_Z; iz++) {
       for (let ix = 0; ix < GRID_X; ix++) {
-        const srcX = Math.min(Math.floor(((GRID_X - 1 - ix) / GRID_X) * dW), dW - 1);
-        const srcY = Math.min(Math.floor((iz / GRID_Z) * dH), dH - 1);
+        const ixMirror = GRID_X - 1 - ix;
+        const srcX = Math.min(Math.floor((ixMirror / Math.max(GRID_X - 1, 1)) * (dW - 1)), dW - 1);
+        const srcY = Math.min(Math.floor((iz / Math.max(GRID_Z - 1, 1)) * (dH - 1)), dH - 1);
         lastDepthMap[iz * GRID_X + ix] = (rawData[srcY * dW + srcX] - dMin) / dRange;
       }
     }
@@ -125,8 +145,10 @@ export function createDepthInference(opts: {
     getBuffer: () => lastDepthMap,
     dispose: () => {
       cancelled = true;
+      const pipe = depthPipeline;
       depthPipeline = null;
       depthReady = false;
+      void disposeDepthPipeline(pipe);
     },
   };
 }

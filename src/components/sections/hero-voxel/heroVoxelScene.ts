@@ -7,6 +7,7 @@
 import * as THREE from 'three/webgpu';
 import { WebGLRenderer } from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import {
   float,
   vec3,
@@ -24,10 +25,8 @@ import {
   attribute,
 } from 'three/tsl';
 
-/** Local alias — avoids importing `./heroVoxelTypes` in this client chunk (Turbopack cache / export bugs). */
 export type HeroVoxelTier = 'full' | 'medium';
 
-/** Keep in sync with `getHeroVoxelGridDimensions` in `./heroVoxelTypes`. */
 function gridDimensionsForTier(tier: HeroVoxelTier): { gx: number; gz: number } {
   if (tier === 'medium') return { gx: 64, gz: 48 };
   return { gx: 96, gz: 72 };
@@ -35,8 +34,9 @@ function gridDimensionsForTier(tier: HeroVoxelTier): { gx: number; gz: number } 
 
 const MAX_EXTRUSION = 14.0;
 const MIN_EXTRUSION = 0.12;
-const DEPTH_CONTRAST = 1.6;
-const Z_PUSH_FACTOR = -0.22;
+const DEPTH_CONTRAST = 1.45;
+/** Max Z relief in live mode ≈10× prior single-sided push; scaled by user Shift-wheel. */
+const LIVE_Z_RELIEF_BASE = 26;
 /** Idle: parallax along Z (world) so the wall reads thicker / more volumetric */
 const IDLE_Z_SWELL = 2.35;
 const IDLE_HEIGHT_CAP = 10.8;
@@ -69,9 +69,9 @@ function writeIdleColorJs(
   const wave1 = Math.sin(nx * 6.28 + t * 1.5) * 0.5 + 0.5;
   const wave2 = Math.cos(nz * 6.28 + t * 1.2) * 0.5 + 0.5;
   const waveMix = wave1 * 0.6 + wave2 * 0.4;
-  const c0 = { r: 0, g: 1, b: 1 };
-  const c1 = { r: 0.55, g: 0, b: 1 };
-  const c2 = { r: 0.9, g: 0, b: 0.8 };
+  const c0 = { r: 0.06, g: 0.065, b: 0.07 };
+  const c1 = { r: 0.12, g: 0.2, b: 0.22 };
+  const c2 = { r: 0.82, g: 0.8, b: 0.76 };
   const a = {
     r: c0.r + (c1.r - c0.r) * smoothstepScalar(0, 0.55, waveMix),
     g: c0.g + (c1.g - c0.g) * smoothstepScalar(0, 0.55, waveMix),
@@ -82,39 +82,40 @@ function writeIdleColorJs(
     g: a.g + (c2.g - a.g) * smoothstepScalar(0.55, 1, waveMix),
     b: a.b + (c2.b - a.b) * smoothstepScalar(0.55, 1, waveMix),
   };
-  const pulse = Math.sin(t * 2 + i * 0.005) * 0.15 + 0.85;
+  const pulse = Math.sin(t * 1.65 + i * 0.005) * 0.08 + 0.92;
   out[i * 3] = bCol.r * pulse;
   out[i * 3 + 1] = bCol.g * pulse;
   out[i * 3 + 2] = bCol.b * pulse;
 }
 
+/** Live depth: charcoal → cool teal → warm paper; restrained teal in mid-depths only. */
 function writeDepthColor(
   instanceColorArray: Float32Array,
   i: number,
   depth01: number
 ) {
+  const t = Math.max(0, Math.min(1, depth01));
+  const c0 = { r: 0.045, g: 0.048, b: 0.05 };
+  const c1 = { r: 0.1, g: 0.16, b: 0.168 };
+  const c2 = { r: 0.94, g: 0.93, b: 0.905 };
   let r: number;
   let g: number;
   let b: number;
-  if (depth01 < 0.25) {
-    const t = depth01 / 0.25;
-    r = 0.02 + t * 0.35;
-    g = 0.01;
-    b = 0.18 + t * 0.55;
-  } else if (depth01 < 0.65) {
-    const t = (depth01 - 0.25) / 0.4;
-    r = 0.37 + t * 0.53;
-    g = 0.01;
-    b = 0.73 - t * 0.1;
+  if (t < 0.42) {
+    const u = t / 0.42;
+    r = c0.r + (c1.r - c0.r) * u;
+    g = c0.g + (c1.g - c0.g) * u;
+    b = c0.b + (c1.b - c0.b) * u;
   } else {
-    const t = (depth01 - 0.65) / 0.35;
-    r = 0.9 - t * 0.9;
-    g = t;
-    b = 0.63 + t * 0.37;
+    const u = (t - 0.42) / 0.58;
+    r = c1.r + (c2.r - c1.r) * u;
+    g = c1.g + (c2.g - c1.g) * u;
+    b = c1.b + (c2.b - c1.b) * u;
   }
-  instanceColorArray[i * 3] = r;
-  instanceColorArray[i * 3 + 1] = g;
-  instanceColorArray[i * 3 + 2] = b;
+  const accent = t > 0.38 && t < 0.66 ? 1 : 0;
+  instanceColorArray[i * 3] = Math.min(1, r + 0.02 * accent);
+  instanceColorArray[i * 3 + 1] = Math.min(1, g + 0.055 * accent);
+  instanceColorArray[i * 3 + 2] = Math.min(1, b + 0.05 * accent);
 }
 
 export type HeroVoxelSceneApi = {
@@ -135,6 +136,8 @@ export async function mountHeroVoxelScene(
 
   let depthBuffer: Float32Array | null = null;
   let cameraMode = false;
+  let smoothDepth: Float32Array | null = null;
+  let extrusionBoost = 1;
   /** Created per mount so TSL `uniform` is not evaluated at module load (safer for preview / strict runtimes). */
   const uCameraActive = uniform(0);
 
@@ -196,10 +199,11 @@ export async function mountHeroVoxelScene(
   renderer.domElement.style.cssText =
     'display:block;width:100%;height:100%;object-fit:cover;outline:none;vertical-align:top';
   container.appendChild(renderer.domElement);
+  renderer.domElement.style.pointerEvents = 'none';
 
   const controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true;
-  controls.dampingFactor = 0.06;
+  controls.dampingFactor = 0.08;
   controls.enableZoom = false;
   controls.enablePan = false;
   controls.enableRotate = false;
@@ -208,8 +212,16 @@ export async function mountHeroVoxelScene(
   controls.target.set(0, 4.85, 0);
   controls.minDistance = 22;
   controls.maxDistance = 62;
-  controls.maxPolarAngle = Math.PI * 0.52;
-  controls.minPolarAngle = Math.PI * 0.34;
+  controls.maxPolarAngle = Math.PI * 0.55;
+  controls.minPolarAngle = Math.PI * 0.32;
+
+  const onWheelExtrusion = (e: WheelEvent) => {
+    if (!cameraMode || !e.shiftKey) return;
+    e.preventDefault();
+    const factor = e.deltaY > 0 ? 0.92 : 1.08;
+    extrusionBoost = Math.max(0.2, Math.min(6, extrusionBoost * factor));
+  };
+  renderer.domElement.addEventListener('wheel', onWheelExtrusion, { passive: false });
 
   if (backend === 'webgpu') {
     createBackgroundWebGPU(scene);
@@ -222,8 +234,8 @@ export async function mountHeroVoxelScene(
       ? createVoxelGridWebGPU(scene, GRID_X, GRID_Z, voxelCount, uCameraActive)
       : createVoxelGridWebGL(scene, GRID_X, GRID_Z, voxelCount);
 
-  const { voxelMesh, instanceColorAttr, instanceColorArray } = voxelPack;
-  voxelPack.wallRoot.scale.setScalar(1.48);
+  const { voxelMesh, instanceColorAttr, instanceColorArray, wallRoot } = voxelPack;
+  wallRoot.scale.setScalar(1.48);
 
   createLights(scene);
 
@@ -241,8 +253,8 @@ export async function mountHeroVoxelScene(
       currentHeights: Float32Array;
     };
     const t = now * 0.001;
-    const lerpSpeed = cameraMode ? 8.0 : 2.85;
-    let colorDirty = backend === 'webgl' && !cameraMode;
+    const lerpSpeed = cameraMode ? 24 : 2.85;
+    let colorDirty = false;
 
     const buf = cameraMode ? depthBuffer : null;
     const bufOk = buf && buf.length === voxelCount;
@@ -253,12 +265,16 @@ export async function mountHeroVoxelScene(
       const nx = ix / GRID_X;
       const nz = iz / GRID_Z;
 
-      if (cameraMode && bufOk) {
+      if (cameraMode && bufOk && smoothDepth) {
         const raw = buf[i];
-        const contrast = Math.pow(raw, DEPTH_CONTRAST);
+        // Depth Anything + luminance: higher = nearer; do not invert (1−raw made near read as far).
+        const target = raw;
+        smoothDepth[i] += (target - smoothDepth[i]) * 0.35;
+        const d = smoothDepth[i];
+        const contrast = Math.pow(d, DEPTH_CONTRAST);
         ud.heightTargets[i] =
-          MIN_EXTRUSION + contrast * (MAX_EXTRUSION - MIN_EXTRUSION);
-        writeDepthColor(instanceColorArray, i, raw);
+          (MIN_EXTRUSION + contrast * (MAX_EXTRUSION - MIN_EXTRUSION)) * extrusionBoost;
+        writeDepthColor(instanceColorArray, i, d);
         colorDirty = true;
       } else {
         const wave =
@@ -281,6 +297,7 @@ export async function mountHeroVoxelScene(
         );
         if (backend === 'webgl') {
           writeIdleColorJs(instanceColorArray, i, ix, iz, GRID_X, GRID_Z, t);
+          colorDirty = true;
         }
       }
 
@@ -291,8 +308,9 @@ export async function mountHeroVoxelScene(
       const z = ud.basePositions[i * 3 + 2];
       const h = Math.max(ud.currentHeights[i], 0.06);
       let zOff = 0;
-      if (cameraMode && bufOk) {
-        zOff = buf[i] * Z_PUSH_FACTOR * MAX_EXTRUSION;
+      if (cameraMode && bufOk && smoothDepth) {
+        const d = smoothDepth[i];
+        zOff = (d - 0.5) * 2 * LIVE_Z_RELIEF_BASE * extrusionBoost;
       } else {
         const swell =
           Math.sin(nx * 10.5 + t * 1.05) * Math.cos(nz * 8.25 + t * 0.88);
@@ -340,14 +358,41 @@ export async function mountHeroVoxelScene(
   const setCameraActive = (active: boolean) => {
     cameraMode = active;
     uCameraActive.value = active ? 1 : 0;
+    controls.enableRotate = active;
+    controls.enableZoom = active;
+    controls.enablePan = false;
     controls.autoRotate = !reducedMotion && !active;
-    if (!active) {
-      const udm = voxelMesh.userData as {
-        heightTargets: Float32Array;
-      };
+    renderer.domElement.style.pointerEvents = active ? 'auto' : 'none';
+
+    if (active) {
+      smoothDepth = new Float32Array(voxelCount).fill(0.5);
+      extrusionBoost = 1;
+      controls.minDistance = 10;
+      controls.maxDistance = 118;
+      controls.rotateSpeed = 0.72;
+      controls.zoomSpeed = 0.95;
+    } else {
+      smoothDepth = null;
+      extrusionBoost = 1;
+      camera.position.set(0, 4.85, 29.5);
+      controls.target.set(0, 4.85, 0);
+      wallRoot.rotation.set(-Math.PI / 2, 0, 0);
+      controls.minDistance = 22;
+      controls.maxDistance = 62;
+      controls.rotateSpeed = 1;
+      controls.zoomSpeed = 1;
+      const udm = voxelMesh.userData as { heightTargets: Float32Array };
       for (let i = 0; i < voxelCount; i++) udm.heightTargets[i] = 0.35;
       depthBuffer = null;
     }
+
+    const mat = voxelMesh.material;
+    if (mat instanceof THREE.MeshStandardMaterial) {
+      mat.metalness = active ? 0.38 : 0.72;
+      mat.roughness = active ? 0.44 : 0.2;
+      mat.emissiveIntensity = active ? 0.06 : 0.18;
+    }
+
     applySize();
   };
 
@@ -356,6 +401,7 @@ export async function mountHeroVoxelScene(
   };
 
   const dispose = () => {
+    renderer.domElement.removeEventListener('wheel', onWheelExtrusion);
     ro.disconnect();
     if (typeof window !== 'undefined' && window.visualViewport) {
       window.visualViewport.removeEventListener('resize', applySize);
@@ -390,9 +436,9 @@ function createBackgroundWebGPU(scene: THREE.Scene) {
   const cx = sphereUV.x.sub(0.5).mul(2.0);
   const radDist = pow(cx.mul(cx).add(cy.sub(0.4).mul(cy.sub(0.4))), float(0.5));
 
-  const col1 = color(0x0a1628);
-  const col2 = color(0x030812);
-  const col3 = color(0x000000);
+  const col1 = color(0x0c1016);
+  const col2 = color(0x06080c);
+  const col3 = color(0x020304);
 
   sphereMat.colorNode = mix(mix(col1, col2, smoothstep(0.0, 0.5, radDist)), col3, smoothstep(0.3, 1.0, radDist));
   scene.add(new THREE.Mesh(sphereGeo, sphereMat));
@@ -401,7 +447,7 @@ function createBackgroundWebGPU(scene: THREE.Scene) {
 function createBackgroundWebGL(scene: THREE.Scene) {
   const sphereGeo = new THREE.SphereGeometry(200, 32, 24);
   const sphereMat = new THREE.MeshBasicMaterial({
-    color: 0x040814,
+    color: 0x0a0c10,
     side: THREE.BackSide,
     depthWrite: false,
   });
@@ -416,8 +462,8 @@ function createVoxelGridWebGPU(
   /** TSL `uniform(0|1)` — `mix()` typings don't accept `UniformNode` explicitly in this three version. */
   uCameraActive: unknown
 ) {
-  const geo = new THREE.BoxGeometry(0.44, 0.44, 0.44);
-  geo.translate(0, 0.22, 0);
+  const geo = new RoundedBoxGeometry(0.4, 0.4, 0.4, 3, 0.068);
+  geo.translate(0, 0.2, 0);
 
   const instanceColorArray = new Float32Array(voxelCount * 3);
   for (let i = 0; i < voxelCount; i++) {
@@ -427,7 +473,7 @@ function createVoxelGridWebGPU(
   const instanceColorAttr = new THREE.InstancedBufferAttribute(instanceColorArray, 3);
   geo.setAttribute('instanceColor', instanceColorAttr);
 
-  const mat = new THREE.MeshStandardNodeMaterial({ metalness: 0.72, roughness: 0.18 });
+  const mat = new THREE.MeshStandardNodeMaterial({ metalness: 0.72, roughness: 0.2 });
 
   const tNode = time;
   const idxFloat = float(instanceIndex);
@@ -439,23 +485,23 @@ function createVoxelGridWebGPU(
   const wave2 = cos(normZ.mul(6.28).add(tNode.mul(1.2))).mul(0.5).add(0.5);
   const waveMix = wave1.mul(0.6).add(wave2.mul(0.4));
 
-  const cyan = vec3(0.0, 1.0, 1.0);
-  const violet = vec3(0.55, 0.0, 1.0);
-  const magenta = vec3(0.9, 0.0, 0.8);
+  const base = vec3(0.06, 0.065, 0.07);
+  const teal = vec3(0.12, 0.2, 0.22);
+  const paper = vec3(0.82, 0.8, 0.76);
 
   const colorWave = mix(
-    mix(cyan, violet, smoothstep(0.0, 0.55, waveMix)),
-    magenta,
+    mix(base, teal, smoothstep(0.0, 0.55, waveMix)),
+    paper,
     smoothstep(0.55, 1.0, waveMix)
   );
-  const idleColor = colorWave.mul(sin(tNode.mul(2.0).add(idxFloat.mul(0.005))).mul(0.15).add(0.85));
+  const idleColor = colorWave.mul(sin(tNode.mul(1.65).add(idxFloat.mul(0.005))).mul(0.08).add(0.92));
 
   const depthColor = attribute('instanceColor', 'vec3') as typeof idleColor;
 
   mat.colorNode = mix(idleColor, depthColor, uCameraActive as Parameters<typeof mix>[2]);
   mat.emissiveNode = mix(
-    colorWave.mul(sin(tNode.mul(1.8).add(normX.mul(3.14).add(normZ.mul(2.0)))).mul(0.2).add(0.3)),
-    depthColor.mul(float(0.35)),
+    colorWave.mul(sin(tNode.mul(1.5).add(normX.mul(3.14).add(normZ.mul(2.0)))).mul(0.12).add(0.22)),
+    depthColor.mul(float(0.12)),
     uCameraActive as Parameters<typeof mix>[2]
   );
 
@@ -470,8 +516,8 @@ function createVoxelGridWebGL(
   GRID_Z: number,
   voxelCount: number
 ) {
-  const geo = new THREE.BoxGeometry(0.44, 0.44, 0.44);
-  geo.translate(0, 0.22, 0);
+  const geo = new RoundedBoxGeometry(0.4, 0.4, 0.4, 3, 0.068);
+  geo.translate(0, 0.2, 0);
 
   const instanceColorArray = new Float32Array(voxelCount * 3);
   for (let i = 0; i < voxelCount; i++) {
@@ -484,8 +530,8 @@ function createVoxelGridWebGL(
     metalness: 0.72,
     roughness: 0.2,
     vertexColors: true,
-    emissive: 0x000000,
-    emissiveIntensity: 0.18,
+    emissive: 0x0a1218,
+    emissiveIntensity: 0.12,
   });
 
   return finalizeInstancedWall(scene, geo, mat, instanceColorAttr, instanceColorArray, GRID_X, GRID_Z, voxelCount, {
@@ -495,7 +541,7 @@ function createVoxelGridWebGL(
 
 function finalizeInstancedWall(
   scene: THREE.Scene,
-  geo: THREE.BoxGeometry,
+  geo: THREE.BufferGeometry,
   mat: THREE.Material,
   instanceColorAttr: THREE.InstancedBufferAttribute,
   instanceColorArray: Float32Array,
@@ -550,17 +596,17 @@ function finalizeInstancedWall(
 }
 
 function createLights(scene: THREE.Scene) {
-  scene.add(new THREE.AmbientLight(0x1a1a3e, 0.85));
-  const dir = new THREE.DirectionalLight(0xaabbff, 1.05);
+  scene.add(new THREE.AmbientLight(0x1a1e24, 0.72));
+  const dir = new THREE.DirectionalLight(0xc8d4e8, 0.95);
   dir.position.set(8, 28, 32);
   scene.add(dir);
-  const p1 = new THREE.PointLight(0x00ffff, 2.2, 120);
+  const p1 = new THREE.PointLight(0x4a90a4, 1.35, 120);
   p1.position.set(-24, 20, 20);
   scene.add(p1);
-  const p2 = new THREE.PointLight(0x8800ff, 2.2, 120);
+  const p2 = new THREE.PointLight(0x6b5b8c, 1.1, 120);
   p2.position.set(24, 20, 20);
   scene.add(p2);
-  const rim = new THREE.DirectionalLight(0xffeecc, 0.35);
+  const rim = new THREE.DirectionalLight(0xf0e8d8, 0.32);
   rim.position.set(0, 8, -40);
   scene.add(rim);
 }
