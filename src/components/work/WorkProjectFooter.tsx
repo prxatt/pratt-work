@@ -12,7 +12,7 @@ import { ArrowLeft, ArrowRight, Shuffle } from 'lucide-react';
 const projectThumbnails: Record<string, { src: string; alt: string; objectPosition?: string }> = {
   'the-crypt-volumetric': { src: '/work/the-crypt-thumb.mp4', alt: 'The Crypt Volumetric' },
   'weights-and-biases-fully-connected': { src: '/work/weights-biases-thumb.webp', alt: 'Weights & Biases Fully Connected' },
-  'surface-tension-digital-drip': { src: '/work/surface-tension-thumb.webm', alt: 'Surface Tension Digital Drip' },
+  'surface-tension-digital-drip': { src: '/work/surface-tension-drip.webp', alt: 'Surface Tension Digital Drip' },
   'boubyan-bank-hq': { src: '/work/boubyan-bank-thumb.webp', alt: 'Boubyan Bank HQ' },
   'salesforce-grant-celebration': { src: '/work/salesforce-thumb.webp', alt: 'Salesforce Grant Celebration' },
   'levis-innovation-labs': { src: '/work/levis-thumb.webp', alt: "Levi's Innovation Labs" },

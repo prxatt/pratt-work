@@ -292,10 +292,12 @@ export const Navbar = () => {
   const scrollOffset = useRef(0);
   const lastScrollY = useRef(0);
   const navHeight = useRef(64);
-  const hasHomeInitialReveal = useRef(false);
-  
+
   // Physical scroll handler - direct coupling to scroll delta
   useEffect(() => {
+    /** Home only: hide nav in first ~88vh (hero); past that, keep bar visible (avoid hide-on-scroll trap in lower sections). */
+    const heroExitPx = () => Math.round(window.innerHeight * 0.88);
+
     const syncNavHeight = () => {
       if (!navRef.current) return;
       navHeight.current = navRef.current.getBoundingClientRect().height;
@@ -306,23 +308,26 @@ export const Navbar = () => {
 
     if (navRef.current) {
       if (isHomePage) {
-        hasHomeInitialReveal.current = false;
-        scrollOffset.current = navHeight.current;
-        navRef.current.style.transform = `translateY(-${navHeight.current}px)`;
+        const pastHero = window.scrollY >= heroExitPx();
+        if (!pastHero) {
+          scrollOffset.current = navHeight.current;
+          navRef.current.style.transform = `translateY(-${navHeight.current}px)`;
+        } else {
+          scrollOffset.current = 0;
+          navRef.current.style.transform = 'translateY(0px)';
+        }
       } else {
-        hasHomeInitialReveal.current = true;
         scrollOffset.current = 0;
         navRef.current.style.transform = 'translateY(0px)';
       }
     }
-    
+
     const handleScroll = () => {
       const currentScrollY = window.scrollY;
       const delta = currentScrollY - lastScrollY.current;
       lastScrollY.current = currentScrollY;
 
-      // Homepage: keep header hidden on initial load, reveal after first scroll-down.
-      if (isHomePage && !hasHomeInitialReveal.current && currentScrollY < 24) {
+      if (isHomePage && currentScrollY < heroExitPx()) {
         scrollOffset.current = navHeight.current;
         if (navRef.current) {
           navRef.current.style.transform = `translateY(-${navHeight.current}px)`;
@@ -330,17 +335,14 @@ export const Navbar = () => {
         return;
       }
 
-      // Homepage: once user scrolls past threshold, reveal immediately.
-      if (isHomePage && !hasHomeInitialReveal.current && currentScrollY >= 24) {
-        hasHomeInitialReveal.current = true;
+      if (isHomePage) {
         scrollOffset.current = 0;
         if (navRef.current) {
           navRef.current.style.transform = 'translateY(0px)';
         }
         return;
       }
-      
-      // At top of page: always fully visible
+
       if (currentScrollY <= 0) {
         scrollOffset.current = 0;
         if (navRef.current) {
@@ -348,24 +350,19 @@ export const Navbar = () => {
         }
         return;
       }
-      
-      // Physical coupling: scrolling down hides (1:1 ratio)
-      // Scrolling up reveals (2.5x faster - eager to show)
+
       if (delta > 0) {
-        // Scrolling DOWN: increase offset toward navHeight
         scrollOffset.current = Math.min(
           scrollOffset.current + delta,
           navHeight.current
         );
       } else {
-        // Scrolling UP: decrease offset toward 0, 2.5x speed
         scrollOffset.current = Math.max(
           scrollOffset.current + delta * 2.5,
           0
         );
       }
-      
-      // Apply directly to DOM - no React state, no re-renders
+
       if (navRef.current) {
         navRef.current.style.transform = `translateY(-${scrollOffset.current}px)`;
       }
@@ -373,19 +370,26 @@ export const Navbar = () => {
 
     const handleResize = () => {
       syncNavHeight();
-
       if (!navRef.current) return;
 
-      if (isHomePage && !hasHomeInitialReveal.current && window.scrollY < 24) {
+      if (isHomePage && window.scrollY < heroExitPx()) {
         scrollOffset.current = navHeight.current;
         navRef.current.style.transform = `translateY(-${navHeight.current}px)`;
+        return;
+      }
+
+      if (isHomePage) {
+        scrollOffset.current = 0;
+        navRef.current.style.transform = 'translateY(0px)';
         return;
       }
 
       scrollOffset.current = Math.min(scrollOffset.current, navHeight.current);
       navRef.current.style.transform = `translateY(-${scrollOffset.current}px)`;
     };
-    
+
+    handleScroll();
+
     window.addEventListener('scroll', handleScroll, { passive: true });
     window.addEventListener('resize', handleResize);
     return () => {
@@ -417,7 +421,7 @@ export const Navbar = () => {
     <>
       <nav 
         ref={navRef}
-        className={`fixed top-0 left-0 right-0 z-[110] ${isHomePage ? '-translate-y-full' : ''}`}
+        className="fixed top-0 left-0 right-0 z-[110]"
         style={{ 
           willChange: 'transform',
         }}

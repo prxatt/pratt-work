@@ -427,13 +427,21 @@ const ImageCard = ({
               </div>
             ) : isSurface ? (
               <div className="absolute inset-0 w-full h-full flex items-center justify-center">
-                <img 
-                  src={getImageUrl('/work/surface-tension-drip.webp', 1600)} 
+                <img
+                  src={getImageUrl('/work/surface-tension-drip.webp', 1600)}
                   alt={project.title}
                   className="w-full h-full object-cover"
-                  loading={index === 0 ? "eager" : "lazy"}
+                  loading={index === 0 ? 'eager' : 'lazy'}
                   decoding="async"
+                  fetchPriority={index <= 2 ? 'high' : 'auto'}
                   style={{ objectPosition: 'center center' }}
+                  onError={(e) => {
+                    const el = e.currentTarget;
+                    if (el.dataset.fallback === '1') return;
+                    el.dataset.fallback = '1';
+                    el.removeAttribute('srcset');
+                    el.src = '/work/surface-tension-drip.jpg';
+                  }}
                 />
               </div>
             ) : (

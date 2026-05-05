@@ -146,10 +146,18 @@ export const Hero = () => {
   const [contentReady, setContentReady] = useState(false);
 
   useEffect(() => {
-    const contentTimer = window.setTimeout(() => setContentReady(true), 120);
-    const failSafe = window.setTimeout(() => setContentReady(true), 2500);
+    let cancelled = false;
+    const raf = requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        if (!cancelled) setContentReady(true);
+      });
+    });
+    const failSafe = window.setTimeout(() => {
+      if (!cancelled) setContentReady(true);
+    }, 900);
     return () => {
-      window.clearTimeout(contentTimer);
+      cancelled = true;
+      cancelAnimationFrame(raf);
       window.clearTimeout(failSafe);
     };
   }, []);
