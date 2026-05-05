@@ -1,9 +1,10 @@
 import type { NextConfig } from "next";
 
 const isDev = process.env.NODE_ENV !== 'production';
+/** Vercel Live / preview toolbar loads scripts from vercel.live */
 const scriptSrc = isDev
-  ? "script-src 'self' 'unsafe-inline' 'unsafe-eval'"
-  : "script-src 'self' 'unsafe-inline'";
+  ? "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://vercel.live https://*.vercel.live"
+  : "script-src 'self' 'unsafe-inline' https://vercel.live https://*.vercel.live";
 
 const csp = [
   "default-src 'self'",

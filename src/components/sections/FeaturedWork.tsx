@@ -168,6 +168,9 @@ const LazyVideo = ({
 
   const fadeMs = priority ? 280 : 500;
 
+  const resolveVideoSrc = (path: string) =>
+    path.startsWith('/') ? path : getVideoUrl(path);
+
   return (
     <div className="relative w-full h-full">
       {poster && (
@@ -194,8 +197,8 @@ const LazyVideo = ({
       >
         {load && (
           <>
-            <source src={getVideoUrl(src.webm)} type="video/webm" />
-            <source src={getVideoUrl(src.mp4)} type="video/mp4" />
+            <source src={resolveVideoSrc(src.webm)} type="video/webm" />
+            <source src={resolveVideoSrc(src.mp4)} type="video/mp4" />
           </>
         )}
       </video>
@@ -378,7 +381,7 @@ const BoubyanCard = ({
                 src={{ webm: '/work/boubyan-bank-card.webm', mp4: '/work/boubyan-bank-card.mp4' }}
                 poster="/work/boubyan-bank-thumb.webp"
                 caps={caps}
-                eagerRootMargin="480px 0px 75vh 0px"
+                eagerRootMargin="480px 0px 1000px 0px"
                 priority
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/35 via-black/5 to-transparent" />
