@@ -25,8 +25,8 @@ function tierForViewport(opts: {
 }
 
 function gridDimensionsForTier(tier: HeroVoxelTier): { gx: number; gz: number } {
-  if (tier === 'medium') return { gx: 88, gz: 66 };
-  return { gx: 120, gz: 90 };
+  if (tier === 'medium') return { gx: 96, gz: 72 };
+  return { gx: 144, gz: 108 };
 }
 
 function useViewportWidth(): number {
@@ -41,7 +41,7 @@ function useViewportWidth(): number {
   return w;
 }
 
-const INFER_INTERVAL_MS = 48;
+const INFER_INTERVAL_MS = 66;
 
 export function HeroVoxelBackdrop() {
   const { setLiveDepthActive } = useHeroLiveDepth();

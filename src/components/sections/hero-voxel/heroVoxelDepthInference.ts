@@ -11,8 +11,8 @@ export type DepthInferenceApi = {
   dispose: () => void;
 };
 
-const DEPTH_W = 384;
-const DEPTH_H = 288;
+const DEPTH_W = 256;
+const DEPTH_H = 192;
 
 const DEPTH_MODEL_ID = 'onnx-community/depth-anything-v2-small' as const;
 
@@ -84,8 +84,7 @@ export function createDepthInference(opts: {
         const pi = (iz * GRID_X + ix) * 4;
         const lum =
           (0.299 * pixels[pi] + 0.587 * pixels[pi + 1] + 0.114 * pixels[pi + 2]) / 255;
-        const ixMirror = GRID_X - 1 - ix;
-        lastDepthMap[iz * GRID_X + ixMirror] = Math.pow(lum, 0.65);
+        lastDepthMap[iz * GRID_X + ix] = Math.pow(lum, 0.65);
       }
     }
   }
@@ -101,10 +100,9 @@ export function createDepthInference(opts: {
     const dRange = dMax - dMin || 1;
     for (let iz = 0; iz < GRID_Z; iz++) {
       for (let ix = 0; ix < GRID_X; ix++) {
-        const ixMirror = GRID_X - 1 - ix;
         const srcX = Math.min(Math.floor((ix / Math.max(GRID_X - 1, 1)) * (dW - 1)), dW - 1);
         const srcY = Math.min(Math.floor((iz / Math.max(GRID_Z - 1, 1)) * (dH - 1)), dH - 1);
-        lastDepthMap[iz * GRID_X + ixMirror] = (rawData[srcY * dW + srcX] - dMin) / dRange;
+        lastDepthMap[iz * GRID_X + ix] = (rawData[srcY * dW + srcX] - dMin) / dRange;
       }
     }
   }
