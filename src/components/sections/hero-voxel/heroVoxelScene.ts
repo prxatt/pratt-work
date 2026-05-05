@@ -53,14 +53,17 @@ const LIVE_FOREGROUND_THRESHOLD = 0.72; // start foreground amplification here
 const LIVE_NORMALIZE_BLEND = 0.14; // blend global [0,1] with per-frame min/max remap
 const LIVE_LERP_BASE = 0.42;
 const LIVE_INITIAL_BOOST = 1.05; // extrusion amplifier on activation
+const LIVE_EXPOSURE_BASE = 1.34;
+const LIVE_EXPOSURE_MIN = 1.18;
+const LIVE_EXPOSURE_MAX = 1.56;
 
 // ── Brand palette ──────────────────────────────────────────────────────────
-const COLOR_SHADOW = new THREE.Color('#101b23');
+const COLOR_SHADOW = new THREE.Color('#1d313d');
 const COLOR_MID = new THREE.Color('#2e5d6d');
 const COLOR_TEAL_BRIGHT = new THREE.Color('#88ddec');
 const COLOR_HIGHLIGHT = new THREE.Color('#f8fdff');
 
-const IDLE_COLOR_LO = new THREE.Color('#0f1820');
+const IDLE_COLOR_LO = new THREE.Color('#1a2d39');
 const IDLE_COLOR_MID = new THREE.Color('#274755');
 const IDLE_COLOR_HI = new THREE.Color('#8bbbc4');
 
@@ -178,7 +181,7 @@ export async function mountHeroVoxelScene(
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   }
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.28;
+  renderer.toneMappingExposure = LIVE_EXPOSURE_BASE;
   renderer.domElement.style.cssText =
     'display:block;width:100%;height:100%;object-fit:cover;outline:none;vertical-align:top';
   renderer.domElement.style.pointerEvents = 'none';
@@ -267,6 +270,16 @@ export async function mountHeroVoxelScene(
       if (v > depthMax) depthMax = v;
     }
     const depthRange = Math.max(0.12, depthMax - depthMin);
+    // Adaptive exposure: low depth range usually means flat/over-bright input,
+    // so reduce exposure; richer depth range gets a gentle lift for readability.
+    const rangeNorm = THREE.MathUtils.clamp((depthRange - 0.12) / 0.5, 0, 1);
+    const targetExposure = THREE.MathUtils.clamp(
+      LIVE_EXPOSURE_BASE + (rangeNorm - 0.5) * 0.3,
+      LIVE_EXPOSURE_MIN,
+      LIVE_EXPOSURE_MAX
+    );
+    renderer.toneMappingExposure +=
+      (targetExposure - renderer.toneMappingExposure) * Math.min(1, lerp * 0.7);
 
     for (let i = 0; i < voxelCount; i++) {
       // Canonical "high = near" — orientation handled in inference layer.
