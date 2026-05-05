@@ -29,6 +29,8 @@ function useViewportWidth(): number {
 }
 
 const INFER_INTERVAL_MS = 66;
+const INFER_INTERVAL_LOW_FPS_MS = 120;
+const FPS_LOW_THRESHOLD = 24;
 
 export function HeroVoxelBackdrop() {
   const { setLiveDepthActive } = useHeroLiveDepth();
@@ -197,9 +199,40 @@ export function HeroVoxelBackdrop() {
 
       void depthInf.infer();
 
+      // Adaptive cadence — sample FPS and back off if the page is heavy on a
+      // mid-tier device. Inference stays decoupled from the render loop.
+      let lastSampleAt = performance.now();
+      let frameSamples = 0;
+      let currentInterval = INFER_INTERVAL_MS;
+      const fpsTick = () => {
+        if (cameraSessionRef.current !== session) return;
+        frameSamples += 1;
+        const now = performance.now();
+        if (now - lastSampleAt >= 1000) {
+          const fps = (frameSamples * 1000) / (now - lastSampleAt);
+          frameSamples = 0;
+          lastSampleAt = now;
+          const targetInterval =
+            fps < FPS_LOW_THRESHOLD ? INFER_INTERVAL_LOW_FPS_MS : INFER_INTERVAL_MS;
+          if (targetInterval !== currentInterval) {
+            currentInterval = targetInterval;
+            if (inferTimerRef.current !== null) {
+              window.clearInterval(inferTimerRef.current);
+            }
+            inferTimerRef.current = window.setInterval(() => {
+              void depthInf.infer();
+            }, currentInterval);
+          }
+        }
+        if (cameraSessionRef.current === session) {
+          requestAnimationFrame(fpsTick);
+        }
+      };
+      requestAnimationFrame(fpsTick);
+
       inferTimerRef.current = window.setInterval(() => {
         void depthInf.infer();
-      }, INFER_INTERVAL_MS);
+      }, currentInterval);
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Camera unavailable';
       setCameraError(msg);
@@ -220,8 +253,8 @@ export function HeroVoxelBackdrop() {
         ref={containerRef}
         className={
           cameraOn
-            ? 'pointer-events-auto absolute inset-0 z-[14] h-full min-h-[100dvh] w-full overflow-hidden [touch-action:none]'
-            : 'pointer-events-none absolute inset-0 z-[2] h-full min-h-[100dvh] w-full overflow-hidden'
+            ? 'pointer-events-auto absolute inset-0 z-[6] h-full min-h-[100dvh] w-full overflow-hidden [touch-action:none]'
+            : 'pointer-events-none absolute inset-0 z-[4] h-full min-h-[100dvh] w-full overflow-hidden'
         }
         aria-hidden
       />

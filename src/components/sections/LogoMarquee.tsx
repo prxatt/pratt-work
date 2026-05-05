@@ -69,10 +69,19 @@ export const LogoMarquee = () => {
   const [isVisible, setIsVisible] = useState(false);
   /** Desktop fine pointer: gate animation on visibility. Touch / coarse uses CSS in globals. */
   const [desktopFinePointer, setDesktopFinePointer] = useState(false);
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
 
   useEffect(() => {
     const mq = window.matchMedia('(min-width: 768px) and (pointer: fine)');
     const sync = () => setDesktopFinePointer(mq.matches);
+    sync();
+    mq.addEventListener('change', sync);
+    return () => mq.removeEventListener('change', sync);
+  }, []);
+
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const sync = () => setPrefersReducedMotion(mq.matches);
     sync();
     mq.addEventListener('change', sync);
     return () => mq.removeEventListener('change', sync);
@@ -132,7 +141,11 @@ export const LogoMarquee = () => {
                     WebkitAnimation: isVisible ? 'marquee 50s linear infinite' : 'none',
                     willChange: 'transform',
                   }
-                : undefined
+                : {
+                    animation: `marquee ${prefersReducedMotion ? 80 : 42}s linear infinite`,
+                    WebkitAnimation: `marquee ${prefersReducedMotion ? 80 : 42}s linear infinite`,
+                    willChange: 'transform',
+                  }
             }
           >
             {allLogos.map((logo, index) => (

@@ -7,6 +7,7 @@ import { useCursor } from '@/context/CursorContext';
 export const TypographicCTA = () => {
   const { setCursorState } = useCursor();
   const [isHovered, setIsHovered] = useState(false);
+  const [tapPulse, setTapPulse] = useState(0);
 
   const remarkableLetters = 'REMARKABLE'.split('');
 
@@ -21,6 +22,12 @@ export const TypographicCTA = () => {
         ease: [0.16, 1, 0.3, 1] as const,
       },
     }),
+  };
+
+  const triggerRemarkableTouch = () => {
+    setTapPulse((prev) => prev + 1);
+    setIsHovered(true);
+    window.setTimeout(() => setIsHovered(false), 520);
   };
 
   return (
@@ -44,10 +51,16 @@ export const TypographicCTA = () => {
               className="inline-flex max-w-full min-w-0 cursor-pointer flex-wrap justify-center gap-x-[0.02em] text-[#6366f1]"
               onMouseEnter={() => setIsHovered(true)}
               onMouseLeave={() => setIsHovered(false)}
+              onTouchStart={triggerRemarkableTouch}
+              onPointerDown={(e) => {
+                if (e.pointerType === 'touch' || e.pointerType === 'pen') {
+                  triggerRemarkableTouch();
+                }
+              }}
             >
               {remarkableLetters.map((letter, i) => (
                 <motion.span
-                  key={i}
+                  key={`${i}-${tapPulse}`}
                   custom={i}
                   initial="initial"
                   animate={isHovered ? 'hover' : 'initial'}

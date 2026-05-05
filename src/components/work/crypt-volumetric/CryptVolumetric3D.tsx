@@ -555,9 +555,9 @@ export default function CryptVolumetric3D({
         void toggleFullscreen();
       }}
       className={`relative w-full overflow-hidden rounded-xl bg-black group ${
-        pseudoFullscreen ? 'fixed inset-0 z-[99999] rounded-none' : ''
+        pseudoFullscreen ? 'fixed inset-0 z-[99999] m-0 h-[100dvh] w-screen max-w-none rounded-none' : ''
       }`}
-      style={{ height: pseudoFullscreen ? '100dvh' : height }}
+      style={{ height: pseudoFullscreen ? '100dvh' : height, maxHeight: pseudoFullscreen ? '100dvh' : undefined }}
     >
 
       {/* Three.js canvas mounts here */}

@@ -257,12 +257,11 @@ const CinemaModeOverlay = ({
 
   useEffect(() => {
     if (!isOpen || !containerRef.current) return;
-    void enterFullscreen();
     void ensureAudiblePlayback();
     return () => {
       void exitFullscreen();
     };
-  }, [enterFullscreen, ensureAudiblePlayback, exitFullscreen, isOpen]);
+  }, [ensureAudiblePlayback, exitFullscreen, isOpen]);
 
   useEffect(() => {
     const doc = document as Document & { webkitFullscreenElement?: Element | null };
@@ -432,7 +431,13 @@ const CinemaModeOverlay = ({
             {isPlaying ? <Pause className="w-4 h-4 text-white/80" /> : <Play className="w-4 h-4 text-white/80" />}
           </button>
           <button
-            onClick={() => setMuted((prev) => !prev)}
+            onClick={() => {
+              if (muted) {
+                void ensureAudiblePlayback();
+                return;
+              }
+              setMuted(true);
+            }}
             className="w-9 h-9 rounded-full border border-white/20 flex items-center justify-center hover:border-[#f59e0b]/70 transition-colors"
             aria-label={muted ? 'Unmute video' : 'Mute video'}
           >
