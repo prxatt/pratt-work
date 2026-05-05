@@ -28,18 +28,27 @@ import {
 export type HeroVoxelTier = 'full' | 'medium';
 
 function gridDimensionsForTier(tier: HeroVoxelTier): { gx: number; gz: number } {
-  if (tier === 'medium') return { gx: 64, gz: 48 };
-  return { gx: 96, gz: 72 };
+  if (tier === 'medium') return { gx: 88, gz: 66 };
+  return { gx: 120, gz: 90 };
 }
 
-const MAX_EXTRUSION = 14.0;
-const MIN_EXTRUSION = 0.12;
-const DEPTH_CONTRAST = 1.45;
-/** Max Z relief in live mode ≈10× prior single-sided push; scaled by user Shift-wheel. */
-const LIVE_Z_RELIEF_BASE = 26;
-/** Idle: parallax along Z (world) so the wall reads thicker / more volumetric */
-const IDLE_Z_SWELL = 2.35;
-const IDLE_HEIGHT_CAP = 10.8;
+/** Finer columns read as depth relief, not giant pillars (scaled with grid density). */
+const MAX_EXTRUSION = 3.85;
+const MIN_EXTRUSION = 0.16;
+const DEPTH_CONTRAST = 1.12;
+/** Subtle Z push for volumetric depth — matches feed without extreme shearing. */
+const LIVE_Z_RELIEF_BASE = 6.8;
+/** Idle: slow waves on XZ + height tied to a third phase (reads as Y motion on the wall). */
+const IDLE_Z_SWELL = 1.05;
+const IDLE_HEIGHT_CAP = 3.35;
+
+const VOXEL_BOX = 0.24;
+const VOXEL_ROUND = 0.038;
+const VOXEL_SEGMENTS = 2;
+const VOXEL_SPACING = 0.3;
+const VOXEL_PIVOT_Y = VOXEL_BOX * 0.5;
+/** Keeps similar framing vs prior 96×72 @ 0.5 spacing + 1.48 scale. */
+const WALL_ROOT_SCALE = 1.92;
 
 function smoothstepScalar(edge0: number, edge1: number, x: number): number {
   const d = edge1 - edge0 || 1;
@@ -47,12 +56,24 @@ function smoothstepScalar(edge0: number, edge1: number, x: number): number {
   return t * t * (3 - 2 * t);
 }
 
-function frac(x: number) {
-  return x - Math.floor(x);
+/** Slow interacting waves across X, Z, and a diagonal/depth phase (Y reads as column height). */
+function idleWaveMix(nx: number, nz: number, t: number): number {
+  const kx = nx * Math.PI * 2;
+  const kz = nz * Math.PI * 2;
+  const wXY =
+    Math.sin(kx * 1.8 + t * 0.34) * Math.cos(kz * 1.8 + t * 0.29) * 0.5 + 0.5;
+  const wDiag = Math.sin(kx + kz - t * 0.41) * 0.5 + 0.5;
+  const wDepth = Math.sin(t * 0.36 + kx * 0.65 + kz * 0.65) * 0.5 + 0.5;
+  return wXY * 0.45 + wDiag * 0.33 + wDepth * 0.22;
 }
 
-function hashNoise(n: number) {
-  return frac(Math.sin(n) * 43758.5453123);
+function idleZWave(nx: number, nz: number, t: number): number {
+  const kx = nx * Math.PI * 2;
+  const kz = nz * Math.PI * 2;
+  return (
+    Math.sin(kx * 1.4 + t * 0.31) * Math.cos(kz * 1.4 + t * 0.27) * 0.62 +
+    Math.sin(kx * 0.9 + kz * 0.9 + t * 0.24) * 0.38
+  );
 }
 
 function writeIdleColorJs(
@@ -66,9 +87,7 @@ function writeIdleColorJs(
 ) {
   const nx = ix / GRID_X;
   const nz = iz / GRID_Z;
-  const wave1 = Math.sin(nx * 6.28 + t * 1.5) * 0.5 + 0.5;
-  const wave2 = Math.cos(nz * 6.28 + t * 1.2) * 0.5 + 0.5;
-  const waveMix = wave1 * 0.6 + wave2 * 0.4;
+  const waveMix = idleWaveMix(nx, nz, t);
   const c0 = { r: 0.06, g: 0.065, b: 0.07 };
   const c1 = { r: 0.12, g: 0.2, b: 0.22 };
   const c2 = { r: 0.82, g: 0.8, b: 0.76 };
@@ -82,7 +101,7 @@ function writeIdleColorJs(
     g: a.g + (c2.g - a.g) * smoothstepScalar(0.55, 1, waveMix),
     b: a.b + (c2.b - a.b) * smoothstepScalar(0.55, 1, waveMix),
   };
-  const pulse = Math.sin(t * 1.65 + i * 0.005) * 0.08 + 0.92;
+  const pulse = Math.sin(t * 0.55 + nx * 2.1 + nz * 1.7) * 0.045 + 0.955;
   out[i * 3] = bCol.r * pulse;
   out[i * 3 + 1] = bCol.g * pulse;
   out[i * 3 + 2] = bCol.b * pulse;
@@ -195,7 +214,7 @@ export async function mountHeroVoxelScene(
   renderer.setSize(cw, ch);
   renderer.setClearColor(0x000000, 0);
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.12;
+  renderer.toneMappingExposure = 1.18;
   renderer.domElement.style.cssText =
     'display:block;width:100%;height:100%;object-fit:cover;outline:none;vertical-align:top';
   container.appendChild(renderer.domElement);
@@ -219,7 +238,7 @@ export async function mountHeroVoxelScene(
     if (!cameraMode || !e.shiftKey) return;
     e.preventDefault();
     const factor = e.deltaY > 0 ? 0.92 : 1.08;
-    extrusionBoost = Math.max(0.2, Math.min(6, extrusionBoost * factor));
+    extrusionBoost = Math.max(0.35, Math.min(2.85, extrusionBoost * factor));
   };
   renderer.domElement.addEventListener('wheel', onWheelExtrusion, { passive: false });
 
@@ -235,7 +254,7 @@ export async function mountHeroVoxelScene(
       : createVoxelGridWebGL(scene, GRID_X, GRID_Z, voxelCount);
 
   const { voxelMesh, instanceColorAttr, instanceColorArray, wallRoot } = voxelPack;
-  wallRoot.scale.setScalar(1.48);
+  wallRoot.scale.setScalar(WALL_ROOT_SCALE);
 
   createLights(scene);
 
@@ -253,7 +272,7 @@ export async function mountHeroVoxelScene(
       currentHeights: Float32Array;
     };
     const t = now * 0.001;
-    const lerpSpeed = cameraMode ? 24 : 2.85;
+    const lerpSpeed = cameraMode ? 34 : 1.28;
     let colorDirty = false;
 
     const buf = cameraMode ? depthBuffer : null;
@@ -267,33 +286,20 @@ export async function mountHeroVoxelScene(
 
       if (cameraMode && bufOk && smoothDepth) {
         const raw = buf[i];
-        // Depth Anything + luminance: higher = nearer; do not invert (1−raw made near read as far).
         const target = raw;
-        smoothDepth[i] += (target - smoothDepth[i]) * 0.35;
+        smoothDepth[i] += (target - smoothDepth[i]) * 0.52;
         const d = smoothDepth[i];
-        const contrast = Math.pow(d, DEPTH_CONTRAST);
+        const shaped = Math.pow(d, DEPTH_CONTRAST);
+        const relief = shaped * 0.9 + d * 0.1;
         ud.heightTargets[i] =
-          (MIN_EXTRUSION + contrast * (MAX_EXTRUSION - MIN_EXTRUSION)) * extrusionBoost;
+          (MIN_EXTRUSION + relief * (MAX_EXTRUSION - MIN_EXTRUSION)) * extrusionBoost;
         writeDepthColor(instanceColorArray, i, d);
         colorDirty = true;
       } else {
-        const wave =
-          Math.sin(nx * 8 + t * 1.5) * Math.cos(nz * 6 + t * 1.2) * 0.5 + 0.5;
-        const ripples =
-          Math.sin(nx * 14 + t * 2.35) * 0.5 +
-          0.5 +
-          (Math.cos(nz * 12 + t * 1.85) * 0.5 + 0.5);
-        const pulse = Math.sin(t * 1.05 + hashNoise(ix * 0.37 + iz * 0.53)) * 0.5 + 0.5;
-        const hNoise = hashNoise(i * 0.031 + t * 0.41);
-        const burst = Math.sin(t * 2.65 + hNoise * 12.9898) * 0.5 + 0.5;
-        const wander = Math.sin(t * 0.73 + i * 0.0007) * 0.5 + 0.5;
-        const chaos = 0.45 + pulse * 0.55 + hNoise * 0.85 + burst * 0.5 + wander * 0.35;
+        const waveMix = idleWaveMix(nx, nz, t);
         ud.heightTargets[i] = Math.min(
           IDLE_HEIGHT_CAP,
-          0.14 +
-            (wave * 1.35 + ripples * 0.32) *
-              (2.15 + pulse * 2.45) *
-              (0.55 + chaos * 0.68)
+          0.2 + waveMix * (IDLE_HEIGHT_CAP - 0.2)
         );
         if (backend === 'webgl') {
           writeIdleColorJs(instanceColorArray, i, ix, iz, GRID_X, GRID_Z, t);
@@ -306,15 +312,13 @@ export async function mountHeroVoxelScene(
 
       const x = ud.basePositions[i * 3];
       const z = ud.basePositions[i * 3 + 2];
-      const h = Math.max(ud.currentHeights[i], 0.06);
+      const h = Math.max(ud.currentHeights[i], 0.05);
       let zOff = 0;
       if (cameraMode && bufOk && smoothDepth) {
         const d = smoothDepth[i];
         zOff = (d - 0.5) * 2 * LIVE_Z_RELIEF_BASE * extrusionBoost;
       } else {
-        const swell =
-          Math.sin(nx * 10.5 + t * 1.05) * Math.cos(nz * 8.25 + t * 0.88);
-        zOff = swell * IDLE_Z_SWELL;
+        zOff = idleZWave(nx, nz, t) * IDLE_Z_SWELL;
       }
 
       dummy.position.set(x, 0, z + zOff);
@@ -382,15 +386,15 @@ export async function mountHeroVoxelScene(
       controls.rotateSpeed = 1;
       controls.zoomSpeed = 1;
       const udm = voxelMesh.userData as { heightTargets: Float32Array };
-      for (let i = 0; i < voxelCount; i++) udm.heightTargets[i] = 0.35;
+      for (let i = 0; i < voxelCount; i++) udm.heightTargets[i] = 0.22;
       depthBuffer = null;
     }
 
     const mat = voxelMesh.material;
     if (mat instanceof THREE.MeshStandardMaterial) {
-      mat.metalness = active ? 0.38 : 0.72;
-      mat.roughness = active ? 0.44 : 0.2;
-      mat.emissiveIntensity = active ? 0.06 : 0.18;
+      mat.metalness = active ? 0.4 : 0.68;
+      mat.roughness = active ? 0.42 : 0.16;
+      mat.emissiveIntensity = active ? 0.045 : 0.14;
     }
 
     applySize();
@@ -462,8 +466,14 @@ function createVoxelGridWebGPU(
   /** TSL `uniform(0|1)` — `mix()` typings don't accept `UniformNode` explicitly in this three version. */
   uCameraActive: unknown
 ) {
-  const geo = new RoundedBoxGeometry(0.4, 0.4, 0.4, 3, 0.068);
-  geo.translate(0, 0.2, 0);
+  const geo = new RoundedBoxGeometry(
+    VOXEL_BOX,
+    VOXEL_BOX,
+    VOXEL_BOX,
+    VOXEL_SEGMENTS,
+    VOXEL_ROUND
+  );
+  geo.translate(0, VOXEL_PIVOT_Y, 0);
 
   const instanceColorArray = new Float32Array(voxelCount * 3);
   for (let i = 0; i < voxelCount; i++) {
@@ -473,17 +483,25 @@ function createVoxelGridWebGPU(
   const instanceColorAttr = new THREE.InstancedBufferAttribute(instanceColorArray, 3);
   geo.setAttribute('instanceColor', instanceColorAttr);
 
-  const mat = new THREE.MeshStandardNodeMaterial({ metalness: 0.72, roughness: 0.2 });
+  const mat = new THREE.MeshStandardNodeMaterial({ metalness: 0.68, roughness: 0.16 });
 
   const tNode = time;
   const idxFloat = float(instanceIndex);
   const gridXF = float(GRID_X);
   const normX = idxFloat.mod(gridXF).div(gridXF);
   const normZ = floor(idxFloat.div(gridXF)).div(float(GRID_Z));
-
-  const wave1 = sin(normX.mul(6.28).add(tNode.mul(1.5))).mul(0.5).add(0.5);
-  const wave2 = cos(normZ.mul(6.28).add(tNode.mul(1.2))).mul(0.5).add(0.5);
-  const waveMix = wave1.mul(0.6).add(wave2.mul(0.4));
+  const pi2 = float(6.28318530718);
+  const kx = normX.mul(pi2);
+  const kz = normZ.mul(pi2);
+  const wXY = sin(kx.mul(1.8).add(tNode.mul(0.34)))
+    .mul(cos(kz.mul(1.8).add(tNode.mul(0.29))))
+    .mul(0.5)
+    .add(0.5);
+  const wDiag = sin(kx.add(kz).sub(tNode.mul(0.41))).mul(0.5).add(0.5);
+  const wDepth = sin(tNode.mul(0.36).add(kx.mul(0.65)).add(kz.mul(0.65)))
+    .mul(0.5)
+    .add(0.5);
+  const waveMix = wXY.mul(0.45).add(wDiag.mul(0.33)).add(wDepth.mul(0.22));
 
   const base = vec3(0.06, 0.065, 0.07);
   const teal = vec3(0.12, 0.2, 0.22);
@@ -494,14 +512,18 @@ function createVoxelGridWebGPU(
     paper,
     smoothstep(0.55, 1.0, waveMix)
   );
-  const idleColor = colorWave.mul(sin(tNode.mul(1.65).add(idxFloat.mul(0.005))).mul(0.08).add(0.92));
+  const idleColor = colorWave.mul(
+    sin(tNode.mul(0.55).add(normX.mul(2.1)).add(normZ.mul(1.7))).mul(0.045).add(0.955)
+  );
 
   const depthColor = attribute('instanceColor', 'vec3') as typeof idleColor;
 
   mat.colorNode = mix(idleColor, depthColor, uCameraActive as Parameters<typeof mix>[2]);
   mat.emissiveNode = mix(
-    colorWave.mul(sin(tNode.mul(1.5).add(normX.mul(3.14).add(normZ.mul(2.0)))).mul(0.12).add(0.22)),
-    depthColor.mul(float(0.12)),
+    colorWave.mul(
+      sin(tNode.mul(0.48).add(normX.mul(3.14)).add(normZ.mul(2.0))).mul(0.08).add(0.2)
+    ),
+    depthColor.mul(float(0.11)),
     uCameraActive as Parameters<typeof mix>[2]
   );
 
@@ -516,8 +538,14 @@ function createVoxelGridWebGL(
   GRID_Z: number,
   voxelCount: number
 ) {
-  const geo = new RoundedBoxGeometry(0.4, 0.4, 0.4, 3, 0.068);
-  geo.translate(0, 0.2, 0);
+  const geo = new RoundedBoxGeometry(
+    VOXEL_BOX,
+    VOXEL_BOX,
+    VOXEL_BOX,
+    VOXEL_SEGMENTS,
+    VOXEL_ROUND
+  );
+  geo.translate(0, VOXEL_PIVOT_Y, 0);
 
   const instanceColorArray = new Float32Array(voxelCount * 3);
   for (let i = 0; i < voxelCount; i++) {
@@ -527,11 +555,11 @@ function createVoxelGridWebGL(
   const instanceColorAttr = new THREE.InstancedBufferAttribute(instanceColorArray, 3);
 
   const mat = new THREE.MeshStandardMaterial({
-    metalness: 0.72,
-    roughness: 0.2,
+    metalness: 0.68,
+    roughness: 0.16,
     vertexColors: true,
     emissive: 0x0a1218,
-    emissiveIntensity: 0.12,
+    emissiveIntensity: 0.14,
   });
 
   return finalizeInstancedWall(scene, geo, mat, instanceColorAttr, instanceColorArray, GRID_X, GRID_Z, voxelCount, {
@@ -557,8 +585,8 @@ function finalizeInstancedWall(
   }
 
   const dummy = new THREE.Object3D();
-  const spacingX = 0.5;
-  const spacingZ = 0.5;
+  const spacingX = VOXEL_SPACING;
+  const spacingZ = VOXEL_SPACING;
   const offsetX = (GRID_X - 1) * spacingX * 0.5;
   const offsetZ = (GRID_Z - 1) * spacingZ * 0.5;
 
@@ -576,12 +604,12 @@ function finalizeInstancedWall(
     basePositions[i * 3 + 2] = z;
 
     dummy.position.set(x, 0, z);
-    dummy.scale.set(1, 0.32, 1);
+    dummy.scale.set(1, 0.22, 1);
     dummy.updateMatrix();
     voxelMesh.setMatrixAt(i, dummy.matrix);
 
-    heightTargets[i] = 0.32;
-    currentHeights[i] = 0.32;
+    heightTargets[i] = 0.22;
+    currentHeights[i] = 0.22;
   }
 
   voxelMesh.instanceMatrix.needsUpdate = true;
@@ -596,17 +624,21 @@ function finalizeInstancedWall(
 }
 
 function createLights(scene: THREE.Scene) {
-  scene.add(new THREE.AmbientLight(0x1a1e24, 0.72));
-  const dir = new THREE.DirectionalLight(0xc8d4e8, 0.95);
-  dir.position.set(8, 28, 32);
+  scene.add(new THREE.HemisphereLight(0x2a3238, 0x06080c, 0.48));
+  scene.add(new THREE.AmbientLight(0x1a1e24, 0.58));
+  const dir = new THREE.DirectionalLight(0xd8e4f8, 1.08);
+  dir.position.set(10, 32, 28);
   scene.add(dir);
-  const p1 = new THREE.PointLight(0x4a90a4, 1.35, 120);
-  p1.position.set(-24, 20, 20);
+  const fill = new THREE.DirectionalLight(0x8899b8, 0.42);
+  fill.position.set(-18, 14, 22);
+  scene.add(fill);
+  const p1 = new THREE.PointLight(0x5a9aaa, 1.15, 130);
+  p1.position.set(-22, 18, 18);
   scene.add(p1);
-  const p2 = new THREE.PointLight(0x6b5b8c, 1.1, 120);
-  p2.position.set(24, 20, 20);
+  const p2 = new THREE.PointLight(0x7a6a9c, 0.88, 130);
+  p2.position.set(22, 18, 18);
   scene.add(p2);
-  const rim = new THREE.DirectionalLight(0xf0e8d8, 0.32);
-  rim.position.set(0, 8, -40);
+  const rim = new THREE.DirectionalLight(0xf5efe4, 0.38);
+  rim.position.set(0, 10, -42);
   scene.add(rim);
 }

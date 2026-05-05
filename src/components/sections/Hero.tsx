@@ -6,10 +6,7 @@ import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import { useDeviceCapabilities } from '@/hooks/useReducedMotion';
 import { HeroAmbientScreen } from '@/components/sections/HeroAmbientScreen';
-import {
-  HeroLiveDepthProvider,
-  useHeroLiveDepth,
-} from '@/components/sections/hero-voxel/HeroLiveDepthContext';
+import { HeroLiveDepthProvider } from '@/components/sections/hero-voxel/HeroLiveDepthContext';
 
 const HeroVoxelBackdrop = dynamic(
   () =>
@@ -156,7 +153,6 @@ const LetterLockup = ({
 function HeroInner() {
   const containerRef = useRef<HTMLDivElement>(null);
   const { isTouch, isLowEnd, prefersReducedMotion } = useDeviceCapabilities();
-  const { liveDepthActive } = useHeroLiveDepth();
   const [contentReady, setContentReady] = useState(false);
 
   useEffect(() => {
@@ -177,23 +173,17 @@ function HeroInner() {
   }, []);
 
   const lite = prefersReducedMotion || isLowEnd;
-  const showTypography = !liveDepthActive;
-  const textReveal = contentReady && showTypography;
+  const textReveal = contentReady;
 
   return (
     <>
-      {/* Main content — hidden while live depth is full-bleed */}
       <motion.div
         ref={containerRef}
         className="flex-1 flex flex-col items-center justify-center z-10 px-6 relative group"
         data-cursor="hover"
         initial={{ opacity: 0 }}
-        animate={{
-          opacity: liveDepthActive ? 0 : contentReady ? 1 : 0,
-        }}
-        transition={{ duration: liveDepthActive ? 0.35 : 0.55, ease: HERO_EASE }}
-        aria-hidden={liveDepthActive}
-        style={{ pointerEvents: liveDepthActive ? 'none' : undefined }}
+        animate={{ opacity: contentReady ? 1 : 0 }}
+        transition={{ duration: 0.55, ease: HERO_EASE }}
       >
         <div className="flex flex-col items-center text-center">
           {/* Status pill */}
@@ -291,13 +281,8 @@ function HeroInner() {
       <motion.div
         className="w-full px-6 md:px-12 lg:px-20 py-6 md:py-8 flex flex-row flex-nowrap justify-between items-center gap-3 z-10 relative"
         initial={{ opacity: 0, y: 20 }}
-        animate={{
-          opacity: liveDepthActive ? 0 : contentReady ? 1 : 0,
-          y: liveDepthActive ? 12 : contentReady ? 0 : 20,
-        }}
-        transition={{ duration: liveDepthActive ? 0.35 : 0.7, delay: liveDepthActive ? 0 : 1.35, ease: HERO_EASE }}
-        aria-hidden={liveDepthActive}
-        style={{ pointerEvents: liveDepthActive ? 'none' : undefined }}
+        animate={{ opacity: contentReady ? 1 : 0, y: contentReady ? 0 : 20 }}
+        transition={{ duration: 0.7, delay: 1.35, ease: HERO_EASE }}
       >
         <motion.span
           initial={{ opacity: 0, y: 6 }}
