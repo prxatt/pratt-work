@@ -35,23 +35,23 @@ const VOXEL_SPACING = 0.29;
 const WALL_ROOT_SCALE = 0.88;
 
 // ── Idle wave field ────────────────────────────────────────────────────────
-const IDLE_HEIGHT = 1.06;
 const IDLE_HEIGHT_BIAS = 0.34; // never fully flatten — keeps grid readable
-const IDLE_Z_SWELL = 0.52;
+const IDLE_Z_SWELL = 0.44;
 const IDLE_LERP_BASE = 0.058;
 
 // ── Live volumetric extrusion ──────────────────────────────────────────────
-const LIVE_Y_RELIEF = 11.4; // peak voxel height (perceived "thickness" toward camera)
-const LIVE_Y_BIAS = 0.22; // minimum height for "far" voxels — avoid invisible cells
-const LIVE_Z_RELIEF = 5.9; // forward/backward parallax range
+const LIVE_Z_RELIEF = 9.4; // forward/backward parallax range
+const LIVE_Z_PIVOT = 0.42; // near regions protrude, far regions recede
+const LIVE_SCALE_MIN = 0.68; // avoid needle-thin bars
+const LIVE_SCALE_MAX = 1.46; // keep extrusion believable
 const LIVE_DEPTH_CONTRAST = 1.4; // pow exponent — deeper midtone push
 const LIVE_DEPTH_SHAPE_LO = 0.12; // smoothstep low edge for shaped curve
 const LIVE_DEPTH_SHAPE_HI = 0.88; // smoothstep high edge for shaped curve
 const LIVE_DEPTH_SHAPE_MIX = 0.62; // mix(d1, d2, blend) — 0 = pure pow, 1 = pure smoothstep
-const LIVE_FOREGROUND_BOOST = 0.06; // selectively amplify near regions
-const LIVE_FOREGROUND_THRESHOLD = 0.78; // start foreground amplification here
+const LIVE_FOREGROUND_BOOST = 0.1; // selectively amplify near regions
+const LIVE_FOREGROUND_THRESHOLD = 0.72; // start foreground amplification here
 const LIVE_NORMALIZE_BLEND = 0.14; // blend global [0,1] with per-frame min/max remap
-const LIVE_LERP_BASE = 0.5;
+const LIVE_LERP_BASE = 0.42;
 const LIVE_INITIAL_BOOST = 1.05; // extrusion amplifier on activation
 
 // ── Brand palette ──────────────────────────────────────────────────────────
@@ -103,14 +103,14 @@ function idleColor(out: THREE.Color, mix01: number) {
 function depthColor(out: THREE.Color, depth01: number) {
   const t = THREE.MathUtils.clamp(depth01, 0, 1);
   // Cinematic tritone separation improves foreground/mid/background legibility.
-  if (t < 0.38) {
-    out.copy(COLOR_SHADOW).lerp(COLOR_MID, smoothstepScalar(0, 0.38, t));
-  } else if (t < 0.76) {
+  if (t < 0.34) {
+    out.copy(COLOR_SHADOW).lerp(COLOR_MID, smoothstepScalar(0, 0.34, t));
+  } else if (t < 0.74) {
     out
       .copy(COLOR_MID)
-      .lerp(COLOR_TEAL_BRIGHT, smoothstepScalar(0.38, 0.76, t));
+      .lerp(COLOR_TEAL_BRIGHT, smoothstepScalar(0.34, 0.74, t));
   } else {
-    out.copy(COLOR_TEAL_BRIGHT).lerp(COLOR_HIGHLIGHT, smoothstepScalar(0.76, 1, t));
+    out.copy(COLOR_TEAL_BRIGHT).lerp(COLOR_HIGHLIGHT, smoothstepScalar(0.74, 1, t));
   }
 }
 
@@ -169,7 +169,14 @@ export async function mountHeroVoxelScene(
     });
     try {
       await wr.init();
-      renderer = wr;
+      // WebGPU ignores onBeforeCompile patches (used below for fresnel rim).
+      // Keep the authored rim effect deterministic by using WebGL for now.
+      wr.dispose();
+      renderer = new WebGLRenderer({
+        antialias: true,
+        alpha: true,
+        powerPreference: 'high-performance',
+      });
     } catch {
       wr.dispose();
       renderer = new WebGLRenderer({
@@ -190,7 +197,11 @@ export async function mountHeroVoxelScene(
     Math.min(window.devicePixelRatio || 1, tier === 'medium' ? 1 : 1.25)
   );
   renderer.setSize(cw, ch);
-  renderer.setClearColor(0x000000, 0);
+  renderer.setClearColor(0x02050a, 1);
+  if ('shadowMap' in renderer) {
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  }
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.2;
   renderer.domElement.style.cssText =
@@ -247,7 +258,7 @@ export async function mountHeroVoxelScene(
       const nx = ix / Math.max(GRID_X - 1, 1);
       const nz = iz / Math.max(GRID_Z - 1, 1);
       const wave = idleWaveMix(nx, nz, t);
-      const targetY = IDLE_HEIGHT_BIAS + wave * IDLE_HEIGHT;
+      const targetY = 0.82 + wave * 0.42;
       const targetZ = idleZWave(nx, nz, t) * IDLE_Z_SWELL;
 
       voxels.currentScaleY[i] += (targetY - voxels.currentScaleY[i]) * lerp;
@@ -302,15 +313,17 @@ export async function mountHeroVoxelScene(
         1
       );
       // Suppress background spill so distant regions don't project toward camera.
-      dFinal = smoothstepScalar(0.06, 0.94, dFinal);
+      dFinal = smoothstepScalar(0.08, 0.96, dFinal);
       if (dFinal > LIVE_FOREGROUND_THRESHOLD) {
         const fg = smoothstepScalar(LIVE_FOREGROUND_THRESHOLD, 1, dFinal);
         dFinal = THREE.MathUtils.clamp(dFinal + fg * LIVE_FOREGROUND_BOOST, 0, 1);
       }
 
-      const targetY = LIVE_Y_BIAS + dFinal * LIVE_Y_RELIEF * extrusionBoost;
-      // Keep near voxels from collapsing into a front clipping band.
-      const targetZ = (dFinal - 0.5) * 1.2 * LIVE_Z_RELIEF * extrusionBoost;
+      const targetY =
+        LIVE_SCALE_MIN +
+        dFinal * (LIVE_SCALE_MAX - LIVE_SCALE_MIN) * (0.86 + 0.14 * extrusionBoost);
+      // Position carries shape; scale adds subtle voxel thickness variation.
+      const targetZ = (dFinal - LIVE_Z_PIVOT) * LIVE_Z_RELIEF * extrusionBoost;
 
       voxels.currentScaleY[i] += (targetY - voxels.currentScaleY[i]) * lerp;
       voxels.currentZPush[i] += (targetZ - voxels.currentZPush[i]) * lerp;
@@ -491,6 +504,8 @@ function createVoxelGrid(
   const mesh = new THREE.InstancedMesh(geometry, material, count);
   mesh.name = 'heroVoxelInstancedGrid';
   mesh.frustumCulled = false;
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
   mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
 
   const basePositions = new Float32Array(count * 3);
@@ -550,6 +565,12 @@ function createLights(scene: THREE.Scene) {
   // Key — bright warm-white from upper-right, drives primary specular
   const key = new THREE.DirectionalLight(0xf4f9ff, 1.45);
   key.position.set(8, 26, 22);
+  key.castShadow = true;
+  key.shadow.mapSize.width = 1024;
+  key.shadow.mapSize.height = 1024;
+  key.shadow.camera.near = 0.5;
+  key.shadow.camera.far = 120;
+  key.shadow.bias = -0.0008;
   scene.add(key);
   // Fill — cool blue from upper-left, opens shadows without crushing contrast
   const fill = new THREE.DirectionalLight(0x476887, 0.28);
@@ -558,6 +579,12 @@ function createLights(scene: THREE.Scene) {
   // Rim — teal-cyan from behind, etches voxel silhouettes against dark void
   const rim = new THREE.DirectionalLight(0x6be8ff, 0.92);
   rim.position.set(0, 8, -36);
+  rim.castShadow = true;
+  rim.shadow.mapSize.width = 512;
+  rim.shadow.mapSize.height = 512;
+  rim.shadow.camera.near = 0.5;
+  rim.shadow.camera.far = 120;
+  rim.shadow.bias = -0.0006;
   scene.add(rim);
   // Warm accent point — adds occasional sparkle to clearcoat reflections
   const warm = new THREE.PointLight(0xf8e4b8, 0.38, 220);
