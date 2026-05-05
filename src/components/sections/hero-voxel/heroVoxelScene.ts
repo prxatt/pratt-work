@@ -41,21 +41,21 @@ const IDLE_Z_SWELL = 0.82;
 const IDLE_LERP_BASE = 0.056;
 
 // ── Live volumetric extrusion ──────────────────────────────────────────────
-const LIVE_Y_RELIEF = 11.0; // peak voxel height (perceived "thickness" toward camera)
-const LIVE_Y_BIAS = 0.22; // minimum height for "far" voxels — avoid invisible cells
-const LIVE_Z_RELIEF = 5.8; // forward/backward parallax range
+const LIVE_Y_RELIEF = 10.2; // peak voxel height (perceived "thickness" toward camera)
+const LIVE_Y_BIAS = 0.28; // minimum height for "far" voxels — avoid invisible cells
+const LIVE_Z_RELIEF = 6.2; // forward/backward parallax range
 const LIVE_DEPTH_CONTRAST = 1.32; // pow exponent — bites mid-tones outward
 const LIVE_DEPTH_SHAPE_LO = 0.18; // smoothstep low edge for shaped curve
 const LIVE_DEPTH_SHAPE_HI = 0.82; // smoothstep high edge for shaped curve
 const LIVE_DEPTH_SHAPE_MIX = 0.55; // mix(d1, d2, blend) — 0 = pure pow, 1 = pure smoothstep
-const LIVE_LERP_BASE = 0.55;
+const LIVE_LERP_BASE = 0.48;
 const LIVE_INITIAL_BOOST = 1.4; // extrusion amplifier on activation
 
 // ── Brand palette ──────────────────────────────────────────────────────────
-const COLOR_SHADOW = new THREE.Color('#0d1014');
-const COLOR_TEAL_DEEP = new THREE.Color('#16323a');
-const COLOR_TEAL_BRIGHT = new THREE.Color('#3aa9b8');
-const COLOR_PAPER = new THREE.Color('#e8e2d3');
+const COLOR_SHADOW = new THREE.Color('#121a26');
+const COLOR_TEAL_DEEP = new THREE.Color('#1f3f58');
+const COLOR_TEAL_BRIGHT = new THREE.Color('#4dd2f3');
+const COLOR_PAPER = new THREE.Color('#f2e9d7');
 
 const IDLE_COLOR_LO = new THREE.Color('#0c1116');
 const IDLE_COLOR_MID = new THREE.Color('#1a2b32');
@@ -97,7 +97,7 @@ function idleColor(out: THREE.Color, mix01: number) {
   }
 }
 
-function depthColor(out: THREE.Color, depth01: number) {
+function depthColor(out: THREE.Color, depth01: number, glowMix: number) {
   const t = THREE.MathUtils.clamp(depth01, 0, 1);
   if (t < 0.42) {
     out.copy(COLOR_SHADOW).lerp(COLOR_TEAL_DEEP, smoothstepScalar(0, 0.42, t));
@@ -108,6 +108,7 @@ function depthColor(out: THREE.Color, depth01: number) {
   } else {
     out.copy(COLOR_TEAL_BRIGHT).lerp(COLOR_PAPER, smoothstepScalar(0.78, 1, t));
   }
+  out.lerp(COLOR_PAPER, glowMix);
 }
 
 type VoxelPack = {
@@ -188,7 +189,7 @@ export async function mountHeroVoxelScene(
   renderer.setSize(cw, ch);
   renderer.setClearColor(0x000000, 0);
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.2;
+  renderer.toneMappingExposure = 1.28;
   renderer.domElement.style.cssText =
     'display:block;width:100%;height:100%;object-fit:cover;outline:none;vertical-align:top';
   renderer.domElement.style.pointerEvents = 'none';
@@ -269,6 +270,9 @@ export async function mountHeroVoxelScene(
 
   function updateLive(buf: Float32Array, dt: number) {
     const lerp = frameLerp(LIVE_LERP_BASE, dt, 0.08);
+    let dMin = 1;
+    let dMax = 0;
+    let dSum = 0;
     for (let i = 0; i < voxelCount; i++) {
       // Canonical "high = near" — orientation handled in inference layer.
       const raw = buf[i];
@@ -281,6 +285,9 @@ export async function mountHeroVoxelScene(
         0,
         1
       );
+      if (dFinal < dMin) dMin = dFinal;
+      if (dFinal > dMax) dMax = dFinal;
+      dSum += dFinal;
 
       const targetY = LIVE_Y_BIAS + dFinal * LIVE_Y_RELIEF * extrusionBoost;
       const targetZ = (dFinal - 0.5) * 2 * LIVE_Z_RELIEF * extrusionBoost;
@@ -299,9 +306,19 @@ export async function mountHeroVoxelScene(
       dummy.updateMatrix();
       voxels.mesh.setMatrixAt(i, dummy.matrix);
 
-      depthColor(tmpColor, dFinal);
+      const centerBias = 1 - Math.abs((i % GRID_X) / Math.max(GRID_X - 1, 1) - 0.5) * 2;
+      const glowMix = smoothstepScalar(0.55, 1, dFinal) * (0.08 + centerBias * 0.07);
+      depthColor(tmpColor, dFinal, glowMix);
       voxels.mesh.setColorAt(i, tmpColor);
     }
+    const dRange = dMax - dMin;
+    const dAvg = dSum / Math.max(voxelCount, 1);
+    const exposureTarget = THREE.MathUtils.clamp(
+      1.16 + (0.45 - dAvg) * 0.36 + (0.32 - dRange) * 0.42,
+      1.02,
+      1.48
+    );
+    renderer.toneMappingExposure += (exposureTarget - renderer.toneMappingExposure) * 0.08;
     voxels.mesh.instanceMatrix.needsUpdate = true;
     if (voxels.mesh.instanceColor) voxels.mesh.instanceColor.needsUpdate = true;
   }
@@ -320,7 +337,7 @@ export async function mountHeroVoxelScene(
       controls.target.set(0, 0, 0);
     }
     renderer.setSize(w, h);
-    const cap = cameraMode ? 1 : tier === 'medium' ? 1 : 1.25;
+    const cap = cameraMode ? 0.9 : tier === 'medium' ? 1 : 1.2;
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, cap));
   };
 
