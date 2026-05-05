@@ -258,7 +258,7 @@ export function HeroVoxelBackdrop() {
         }
         aria-hidden
       />
-      <div className="pointer-events-auto absolute bottom-[7rem] left-1/2 z-[25] -translate-x-1/2 sm:bottom-[7.5rem] max-w-[min(92vw,22rem)]">
+      <div className="pointer-events-auto absolute bottom-[max(1.5rem,env(safe-area-inset-bottom))] left-1/2 z-[25] -translate-x-1/2 sm:bottom-[max(2rem,env(safe-area-inset-bottom))] max-w-[min(92vw,22rem)]">
         <button
           type="button"
           onClick={() => void toggleCamera()}

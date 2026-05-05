@@ -37,22 +37,22 @@ const WALL_ROOT_SCALE = 0.88;
 // ── Idle wave field ────────────────────────────────────────────────────────
 const IDLE_HEIGHT = 1.4;
 const IDLE_HEIGHT_BIAS = 0.34; // never fully flatten — keeps grid readable
-const IDLE_Z_SWELL = 0.7;
+const IDLE_Z_SWELL = 0.78;
 const IDLE_LERP_BASE = 0.075;
 
 // ── Live volumetric extrusion ──────────────────────────────────────────────
 const LIVE_Y_RELIEF = 13.4; // peak voxel height (perceived "thickness" toward camera)
 const LIVE_Y_BIAS = 0.22; // minimum height for "far" voxels — avoid invisible cells
-const LIVE_Z_RELIEF = 9.8; // forward/backward parallax range
-const LIVE_DEPTH_CONTRAST = 1.58; // pow exponent — deeper midtone push
+const LIVE_Z_RELIEF = 7.2; // forward/backward parallax range
+const LIVE_DEPTH_CONTRAST = 1.5; // pow exponent — deeper midtone push
 const LIVE_DEPTH_SHAPE_LO = 0.12; // smoothstep low edge for shaped curve
 const LIVE_DEPTH_SHAPE_HI = 0.9; // smoothstep high edge for shaped curve
 const LIVE_DEPTH_SHAPE_MIX = 0.7; // mix(d1, d2, blend) — 0 = pure pow, 1 = pure smoothstep
-const LIVE_FOREGROUND_BOOST = 0.36; // selectively amplify near regions
-const LIVE_FOREGROUND_THRESHOLD = 0.58; // start foreground amplification here
-const LIVE_NORMALIZE_BLEND = 0.58; // blend global [0,1] with per-frame min/max remap
+const LIVE_FOREGROUND_BOOST = 0.2; // selectively amplify near regions
+const LIVE_FOREGROUND_THRESHOLD = 0.66; // start foreground amplification here
+const LIVE_NORMALIZE_BLEND = 0.34; // blend global [0,1] with per-frame min/max remap
 const LIVE_LERP_BASE = 0.7;
-const LIVE_INITIAL_BOOST = 1.52; // extrusion amplifier on activation
+const LIVE_INITIAL_BOOST = 1.32; // extrusion amplifier on activation
 
 // ── Brand palette ──────────────────────────────────────────────────────────
 const COLOR_SHADOW = new THREE.Color('#0d1014');
@@ -306,7 +306,8 @@ export async function mountHeroVoxelScene(
       }
 
       const targetY = LIVE_Y_BIAS + dFinal * LIVE_Y_RELIEF * extrusionBoost;
-      const targetZ = (dFinal - 0.5) * 2 * LIVE_Z_RELIEF * extrusionBoost;
+      // Keep near voxels from collapsing into a front clipping band.
+      const targetZ = (dFinal - 0.5) * 1.7 * LIVE_Z_RELIEF * extrusionBoost;
 
       voxels.currentScaleY[i] += (targetY - voxels.currentScaleY[i]) * lerp;
       voxels.currentZPush[i] += (targetZ - voxels.currentZPush[i]) * lerp;
@@ -528,15 +529,15 @@ function createVoxelGrid(
 
 function createLights(scene: THREE.Scene) {
   // Hemisphere — soft sky/ground fill rooted in brand palette
-  scene.add(new THREE.HemisphereLight(0x2b3945, 0x05080c, 0.54));
+  scene.add(new THREE.HemisphereLight(0x314554, 0x06090e, 0.58));
   // Ambient — bottom-floor light so deep shadows don't crush
-  scene.add(new THREE.AmbientLight(0x131922, 0.34));
+  scene.add(new THREE.AmbientLight(0x151d27, 0.38));
   // Key — bright warm-white from upper-right, drives primary specular
   const key = new THREE.DirectionalLight(0xe9efff, 1.28);
   key.position.set(8, 26, 22);
   scene.add(key);
   // Fill — cool blue from upper-left, opens shadows without crushing contrast
-  const fill = new THREE.DirectionalLight(0x6b86ab, 0.42);
+  const fill = new THREE.DirectionalLight(0x7090bc, 0.5);
   fill.position.set(-18, 12, 14);
   scene.add(fill);
   // Rim — teal-cyan from behind, etches voxel silhouettes against dark void
