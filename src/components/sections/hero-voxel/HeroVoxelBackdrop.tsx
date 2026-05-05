@@ -7,7 +7,7 @@ import { getHeroVoxelGridDimensions, getHeroVoxelTier, type HeroVoxelTier } from
 import { mountHeroVoxelScene, type HeroVoxelSceneApi } from './heroVoxelScene';
 
 function useViewportWidth(): number {
-  const [w, setW] = useState(1280);
+  const [w, setW] = useState(0);
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const set = () => setW(window.innerWidth);
