@@ -482,9 +482,6 @@ export default function SalesforceContent({ metadata, content, mainDescriptionMd
                     onHoverStart={() => setHoveredFrame(0)}
                     onHoverEnd={() => setHoveredFrame(null)}
                     onTap={() => setHoveredFrame(prev => prev === 0 ? null : 0)}
-                    onClick={() => {
-                      if (isTouchDevice) setActiveImageIndex(0);
-                    }}
                   >
                     {/* Animated Corner Draw - hidden on touch devices for performance */}
                     <div className="hidden sm:block">
@@ -528,9 +525,6 @@ export default function SalesforceContent({ metadata, content, mainDescriptionMd
                     onHoverStart={() => setHoveredFrame(1)}
                     onHoverEnd={() => setHoveredFrame(null)}
                     onTap={() => setHoveredFrame(prev => prev === 1 ? null : 1)}
-                    onClick={() => {
-                      if (isTouchDevice) setActiveImageIndex(1);
-                    }}
                   >
                     <div className="hidden sm:block">
                       <CornerDraw color={sfBlue} size={16} strokeWidth={1} isHovered={hoveredFrame === 1} />
@@ -578,9 +572,6 @@ export default function SalesforceContent({ metadata, content, mainDescriptionMd
                     onHoverStart={() => setHoveredFrame(2)}
                     onHoverEnd={() => setHoveredFrame(null)}
                     onTap={() => setHoveredFrame(prev => prev === 2 ? null : 2)}
-                    onClick={() => {
-                      if (isTouchDevice) setActiveImageIndex(2);
-                    }}
                   >
                     <div className="hidden sm:block">
                       <CornerDraw color={sfBlue} size={16} strokeWidth={1} isHovered={hoveredFrame === 2} />
@@ -624,9 +615,6 @@ export default function SalesforceContent({ metadata, content, mainDescriptionMd
                     onHoverStart={() => setHoveredFrame(3)}
                     onHoverEnd={() => setHoveredFrame(null)}
                     onTap={() => setHoveredFrame(prev => prev === 3 ? null : 3)}
-                    onClick={() => {
-                      if (isTouchDevice) setActiveImageIndex(3);
-                    }}
                   >
                     <div className="hidden sm:block">
                       <CornerDraw color={sfBlue} size={24} strokeWidth={2} isHovered={hoveredFrame === 3} />

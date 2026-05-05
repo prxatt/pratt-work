@@ -33,6 +33,7 @@ export default function WeightsBiasesContent({
   approachSections,
 }: WeightsBiasesContentProps) {
   const [hoveredFrame, setHoveredFrame] = useState<number | null>(null);
+  const [isTouchDevice, setIsTouchDevice] = useState(false);
   const [activePhoto, setActivePhoto] = useState<null | {
     src: string;
     alt: string;
@@ -150,6 +151,16 @@ export default function WeightsBiasesContent({
       },
     },
   }), []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const detectTouch = () => {
+      setIsTouchDevice(('ontouchstart' in window) || navigator.maxTouchPoints > 0);
+    };
+    detectTouch();
+    window.addEventListener('resize', detectTouch);
+    return () => window.removeEventListener('resize', detectTouch);
+  }, []);
 
   useEffect(() => {
     if (!activePhoto) return;
@@ -473,14 +484,15 @@ export default function WeightsBiasesContent({
                 onHoverStart={() => setHoveredFrame(0)}
                 onHoverEnd={() => setHoveredFrame(null)}
                 onTap={() => setHoveredFrame(prev => prev === 0 ? null : 0)}
-                onClick={() =>
+                onClick={() => {
+                  if (isTouchDevice) return;
                   setActivePhoto({
                     src: getImageUrl('/work/conference-wb.jpg', 2200, { format: 'jpg' }),
                     alt: 'Conference atmosphere at Weights & Biases Fully Connected',
                     label: 'FULLY_CONNECTED_2023',
                     subtitle: 'ATTENDEES: 5000',
-                  })
-                }
+                  });
+                }}
               >
                 {/* Corner accents with animated draw */}
                 <div className="hidden sm:block">
@@ -535,14 +547,15 @@ export default function WeightsBiasesContent({
                   onHoverStart={() => setHoveredFrame(1)}
                   onHoverEnd={() => setHoveredFrame(null)}
                   onTap={() => setHoveredFrame(prev => prev === 1 ? null : 1)}
-                  onClick={() =>
+                  onClick={() => {
+                    if (isTouchDevice) return;
                     setActivePhoto({
                       src: getImageUrl('/work/keynote-wb.jpg', 1800, { format: 'jpg' }),
                       alt: 'Keynote stage at Weights & Biases Fully Connected',
                       label: 'KEYNOTE',
                       subtitle: 'MAIN STAGE / LIVE',
-                    })
-                  }
+                    });
+                  }}
                 >
                   <div className="hidden sm:block">
                     <CornerDraw color={accentColor} size={16} strokeWidth={1} isHovered={hoveredFrame === 1} />
@@ -587,14 +600,15 @@ export default function WeightsBiasesContent({
                   onHoverStart={() => setHoveredFrame(2)}
                   onHoverEnd={() => setHoveredFrame(null)}
                   onTap={() => setHoveredFrame(prev => prev === 2 ? null : 2)}
-                  onClick={() =>
+                  onClick={() => {
+                    if (isTouchDevice) return;
                     setActivePhoto({
                       src: getImageUrl('/work/weave-wb.jpg', 1800, { format: 'jpg' }),
                       alt: 'Weave launch at Weights & Biases Fully Connected',
                       label: 'WEAVE',
                       subtitle: 'LLM-POWERED APPS',
-                    })
-                  }
+                    });
+                  }}
                 >
                   <div className="hidden sm:block">
                     <CornerDraw color={accentColor} size={16} strokeWidth={1} isHovered={hoveredFrame === 2} />
@@ -775,7 +789,7 @@ export default function WeightsBiasesContent({
       </section>
 
       <AnimatePresence>
-        {activePhoto && (
+        {activePhoto && !isTouchDevice && (
           <motion.div
             className="fixed inset-0 z-[200] bg-black/95 backdrop-blur-sm p-4 md:p-8"
             initial={{ opacity: 0 }}

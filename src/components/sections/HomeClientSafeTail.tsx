@@ -3,14 +3,7 @@
 import React from 'react';
 import dynamic from 'next/dynamic';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
-
-const RecognitionSection = dynamic(
-  () => import('@/components/sections/RecognitionSection').then((mod) => mod.RecognitionSection),
-  {
-    loading: () => <div className="h-[50vh] bg-[#0a0a0a]" />,
-    ssr: false,
-  }
-);
+import { RecognitionSection } from '@/components/sections/RecognitionSection';
 
 const TypographicCTA = dynamic(
   () => import('@/components/sections/TypographicCTA').then((mod) => mod.TypographicCTA),
