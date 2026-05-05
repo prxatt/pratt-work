@@ -1,7 +1,7 @@
 'use client';
 
-import { motion, useInView, useReducedMotion } from 'framer-motion';
-import { useRef, ReactNode, useState, useMemo } from 'react';
+import { motion, AnimatePresence, useInView, useReducedMotion } from 'framer-motion';
+import { useRef, ReactNode, useState, useMemo, useEffect } from 'react';
 import { WorkProjectFooter } from '@/components/work/WorkProjectFooter';
 import { AnimatedCounter } from '@/components/micro-animations/AnimatedCounter';
 import { ScrambleText } from '@/components/micro-animations/ScrambleText';
@@ -33,6 +33,12 @@ export default function WeightsBiasesContent({
   approachSections,
 }: WeightsBiasesContentProps) {
   const [hoveredFrame, setHoveredFrame] = useState<number | null>(null);
+  const [activePhoto, setActivePhoto] = useState<null | {
+    src: string;
+    alt: string;
+    label: string;
+    subtitle: string;
+  }>(null);
   const prefersReducedMotion = useReducedMotion();
 
   // W&B Brand colors - amber/gold palette
@@ -144,6 +150,19 @@ export default function WeightsBiasesContent({
       },
     },
   }), []);
+
+  useEffect(() => {
+    if (!activePhoto) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setActivePhoto(null);
+    };
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', onKey);
+    return () => {
+      document.body.style.overflow = '';
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [activePhoto]);
 
   return (
     <article className="min-h-screen bg-[#0a0a0a]">
@@ -454,6 +473,14 @@ export default function WeightsBiasesContent({
                 onHoverStart={() => setHoveredFrame(0)}
                 onHoverEnd={() => setHoveredFrame(null)}
                 onTap={() => setHoveredFrame(prev => prev === 0 ? null : 0)}
+                onClick={() =>
+                  setActivePhoto({
+                    src: getImageUrl('/work/conference-wb.jpg', 2200, { format: 'jpg' }),
+                    alt: 'Conference atmosphere at Weights & Biases Fully Connected',
+                    label: 'FULLY_CONNECTED_2023',
+                    subtitle: 'ATTENDEES: 5000',
+                  })
+                }
               >
                 {/* Corner accents with animated draw */}
                 <div className="hidden sm:block">
@@ -508,6 +535,14 @@ export default function WeightsBiasesContent({
                   onHoverStart={() => setHoveredFrame(1)}
                   onHoverEnd={() => setHoveredFrame(null)}
                   onTap={() => setHoveredFrame(prev => prev === 1 ? null : 1)}
+                  onClick={() =>
+                    setActivePhoto({
+                      src: getImageUrl('/work/keynote-wb.jpg', 1800, { format: 'jpg' }),
+                      alt: 'Keynote stage at Weights & Biases Fully Connected',
+                      label: 'KEYNOTE',
+                      subtitle: 'MAIN STAGE / LIVE',
+                    })
+                  }
                 >
                   <div className="hidden sm:block">
                     <CornerDraw color={accentColor} size={16} strokeWidth={1} isHovered={hoveredFrame === 1} />
@@ -552,6 +587,14 @@ export default function WeightsBiasesContent({
                   onHoverStart={() => setHoveredFrame(2)}
                   onHoverEnd={() => setHoveredFrame(null)}
                   onTap={() => setHoveredFrame(prev => prev === 2 ? null : 2)}
+                  onClick={() =>
+                    setActivePhoto({
+                      src: getImageUrl('/work/weave-wb.jpg', 1800, { format: 'jpg' }),
+                      alt: 'Weave launch at Weights & Biases Fully Connected',
+                      label: 'WEAVE',
+                      subtitle: 'LLM-POWERED APPS',
+                    })
+                  }
                 >
                   <div className="hidden sm:block">
                     <CornerDraw color={accentColor} size={16} strokeWidth={1} isHovered={hoveredFrame === 2} />
@@ -730,6 +773,52 @@ export default function WeightsBiasesContent({
           </motion.div>
         </motion.div>
       </section>
+
+      <AnimatePresence>
+        {activePhoto && (
+          <motion.div
+            className="fixed inset-0 z-[200] bg-black/95 backdrop-blur-sm p-4 md:p-8"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setActivePhoto(null)}
+          >
+            <motion.div
+              className="relative w-full h-full max-w-7xl mx-auto"
+              initial={{ opacity: 0, scale: 0.98 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.98 }}
+              transition={{ duration: 0.2 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <Image
+                src={activePhoto.src}
+                alt={activePhoto.alt}
+                fill
+                className="object-contain"
+                sizes="100vw"
+                priority
+              />
+              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-4 md:p-6 pointer-events-none">
+                <p className="font-mono text-[10px] tracking-[0.18em] uppercase" style={{ color: accentColor }}>
+                  {activePhoto.label}
+                </p>
+                <p className="font-mono text-[9px] tracking-[0.12em] uppercase text-white/60 mt-1">
+                  {activePhoto.subtitle}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setActivePhoto(null)}
+                className="absolute top-3 right-3 w-9 h-9 rounded-full border border-white/30 bg-black/60 text-white text-lg leading-none"
+                aria-label="Close image"
+              >
+                ×
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Project Footer */}
       <WorkProjectFooter currentSlug="weights-and-biases-fully-connected" />
