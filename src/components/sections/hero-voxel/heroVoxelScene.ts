@@ -41,24 +41,24 @@ const IDLE_Z_SWELL = 0.82;
 const IDLE_LERP_BASE = 0.056;
 
 // ── Live volumetric extrusion ──────────────────────────────────────────────
-const LIVE_Y_RELIEF = 10.2; // peak voxel height (perceived "thickness" toward camera)
-const LIVE_Y_BIAS = 0.28; // minimum height for "far" voxels — avoid invisible cells
-const LIVE_Z_RELIEF = 6.2; // forward/backward parallax range
-const LIVE_DEPTH_CONTRAST = 1.32; // pow exponent — bites mid-tones outward
+const LIVE_Y_RELIEF = 10.6; // peak voxel height (perceived "thickness" toward camera)
+const LIVE_Y_BIAS = 0.32; // minimum height for "far" voxels — keeps subject readable
+const LIVE_Z_RELIEF = 6.4; // forward/backward parallax range
+const LIVE_DEPTH_CONTRAST = 1.18; // gentler curve — avoids crushing mids to black
 const LIVE_DEPTH_SHAPE_LO = 0.18; // smoothstep low edge for shaped curve
 const LIVE_DEPTH_SHAPE_HI = 0.82; // smoothstep high edge for shaped curve
 const LIVE_DEPTH_SHAPE_MIX = 0.55; // mix(d1, d2, blend) — 0 = pure pow, 1 = pure smoothstep
-const LIVE_LERP_BASE = 0.48;
+const LIVE_LERP_BASE = 0.42;
 const LIVE_INITIAL_BOOST = 1.4; // extrusion amplifier on activation
 
 /** Baseline exposure for idle; live mode adjusts dynamically and must reset on exit. */
-const DEFAULT_TONE_MAPPING_EXPOSURE = 1.28;
+const DEFAULT_TONE_MAPPING_EXPOSURE = 1.38;
 
 // ── Brand palette ──────────────────────────────────────────────────────────
-const COLOR_SHADOW = new THREE.Color('#121a26');
-const COLOR_TEAL_DEEP = new THREE.Color('#1f3f58');
-const COLOR_TEAL_BRIGHT = new THREE.Color('#4dd2f3');
-const COLOR_PAPER = new THREE.Color('#f2e9d7');
+const COLOR_SHADOW = new THREE.Color('#1a2636');
+const COLOR_TEAL_DEEP = new THREE.Color('#285a78');
+const COLOR_TEAL_BRIGHT = new THREE.Color('#5ee0ff');
+const COLOR_PAPER = new THREE.Color('#faf6ec');
 
 const IDLE_COLOR_LO = new THREE.Color('#0c1116');
 const IDLE_COLOR_MID = new THREE.Color('#1a2b32');
@@ -300,11 +300,11 @@ export async function mountHeroVoxelScene(
     const dRange = dMax - dMin;
     const dAvg = dSum / Math.max(voxelCount, 1);
     const exposureTarget = THREE.MathUtils.clamp(
-      1.16 + (0.45 - dAvg) * 0.36 + (0.32 - dRange) * 0.42,
-      1.02,
-      1.48
+      1.28 + (0.48 - dAvg) * 0.22 + (0.28 - dRange) * 0.26,
+      1.18,
+      1.62
     );
-    renderer.toneMappingExposure += (exposureTarget - renderer.toneMappingExposure) * 0.08;
+    renderer.toneMappingExposure += (exposureTarget - renderer.toneMappingExposure) * 0.06;
     voxels.mesh.instanceMatrix.needsUpdate = true;
     if (voxels.mesh.instanceColor) voxels.mesh.instanceColor.needsUpdate = true;
   }
@@ -323,7 +323,7 @@ export async function mountHeroVoxelScene(
       controls.target.set(0, 0, 0);
     }
     renderer.setSize(w, h);
-    const cap = cameraMode ? 0.9 : tier === 'medium' ? 1 : 1.2;
+    const cap = cameraMode ? (tier === 'medium' ? 0.92 : 1) : tier === 'medium' ? 1 : 1.2;
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, cap));
   };
 
@@ -383,6 +383,7 @@ export async function mountHeroVoxelScene(
 
     if (active) {
       extrusionBoost = LIVE_INITIAL_BOOST;
+      renderer.toneMappingExposure = DEFAULT_TONE_MAPPING_EXPOSURE;
       voxels.smoothDepths.fill(0.5);
       // Don't snap currentScale/currentZPush — let them lerp naturally from idle.
       controls.minDistance = 14;
@@ -457,8 +458,8 @@ function createVoxelGrid(
     clearcoat: 0.45,
     clearcoatRoughness: 0.3,
     reflectivity: 0.5,
-    emissive: new THREE.Color('#08161c'),
-    emissiveIntensity: 0.16,
+    emissive: new THREE.Color('#0c2430'),
+    emissiveIntensity: 0.24,
   });
 
   const mesh = new THREE.InstancedMesh(geometry, material, count);

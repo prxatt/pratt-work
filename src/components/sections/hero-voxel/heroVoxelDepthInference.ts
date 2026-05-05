@@ -19,8 +19,9 @@ export type DepthInferenceApi = {
   dispose: () => void;
 };
 
-const DEPTH_W = 256;
-const DEPTH_H = 192;
+/** Slightly smaller than 256×192 for faster WASM inference with negligible visual loss. */
+const DEPTH_W = 240;
+const DEPTH_H = 176;
 
 const DEPTH_MODEL_ID = 'onnx-community/depth-anything-v2-small' as const;
 

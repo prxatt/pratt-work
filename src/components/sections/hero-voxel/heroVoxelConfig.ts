@@ -30,14 +30,14 @@ export function gridDimensionsForTier(tier: HeroVoxelTier): { gx: number; gz: nu
  *
  *   - `mirrorX`         : flips X so a hand on the user's RIGHT pushes voxels
  *                         on screen RIGHT (standard selfie-mirror convention).
- *   - `invertPolarity`  : Applied only to Depth Anything ONNX samples (after
- *                         min–max normalization). Luminance fallback already
- *                         stores brighter = nearer and must not be inverted.
+ *   - `invertPolarity`  : ONNX-only; HF `predicted_depth` is already aligned so
+ *                         normalized **high = nearer** here. Keep false unless
+ *                         a future model export inverts disparity.
  *
  * Centralizing the convention here is the single source of truth and prevents
  * mixed polarity between paths.
  */
 export const liveDepthOrientation = {
   mirrorX: true,
-  invertPolarity: true,
+  invertPolarity: false,
 } as const;
