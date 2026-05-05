@@ -457,7 +457,7 @@ const ImageCard = ({
                     if (el.dataset.fallback === '1') return;
                     el.dataset.fallback = '1';
                     el.removeAttribute('srcset');
-                    el.src = '/work/surface-tension-drip.jpg';
+                    el.src = getImageUrl('/work/surface-tension-drip.jpg', 1600);
                   }}
                 />
               </div>
