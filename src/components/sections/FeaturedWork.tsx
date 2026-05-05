@@ -172,9 +172,6 @@ const LazyVideo = ({
 
   const fadeMs = priority ? 280 : 500;
 
-  /** Always resolve via blob base (NEXT_PUBLIC_MEDIA_BASE_URL / Vercel Blob) for full-quality delivery. */
-  const resolveVideoSrc = (path: string) => getVideoUrl(path);
-
   const posterW = priority ? 1920 : 1400;
 
   return (
@@ -203,8 +200,8 @@ const LazyVideo = ({
       >
         {load && (
           <>
-            <source src={resolveVideoSrc(src.webm)} type="video/webm" />
-            <source src={resolveVideoSrc(src.mp4)} type="video/mp4" />
+            <source src={getVideoUrl(src.webm)} type="video/webm" />
+            <source src={getVideoUrl(src.mp4)} type="video/mp4" />
           </>
         )}
       </video>
