@@ -1,7 +1,7 @@
 'use client';
 
-import { motion, useInView } from 'framer-motion';
-import { useRef, ReactNode, useState } from 'react';
+import { motion, AnimatePresence, useInView } from 'framer-motion';
+import { useRef, ReactNode, useState, useEffect } from 'react';
 import { Users } from 'lucide-react';
 import { WorkProjectFooter } from '@/components/work/WorkProjectFooter';
 import { AnimatedCounter } from '@/components/micro-animations/AnimatedCounter';
@@ -36,6 +36,9 @@ export default function SalesforceContent({ metadata, content, mainDescriptionMd
 
   // Hover states for photo frames
   const [hoveredFrame, setHoveredFrame] = useState<number | null>(null);
+  const [isTouchDevice, setIsTouchDevice] = useState(false);
+  const [activeImageIndex, setActiveImageIndex] = useState<number | null>(null);
+  const touchStartXRef = useRef<number | null>(null);
 
   // Salesforce Corporate Tech Aesthetic - Bold & Geometric
   const sfBlue = '#0176D3';       // Salesforce blue
@@ -121,6 +124,75 @@ export default function SalesforceContent({ metadata, content, mainDescriptionMd
   const processInView = useInView(processRef, { once: true, margin: "-100px" });
   const impactInView = useInView(impactRef, { once: true, margin: "-100px" });
 
+  const galleryImages = [
+    {
+      src: getImageUrl('/work/salesforce-mayor.jpeg', 2200, { format: 'jpg' }),
+      alt: 'Mayor speaking at Salesforce grant celebration event',
+      label: 'IMG_01',
+      subtitle: 'GRANT CELEBRATION / MAIN STAGE',
+    },
+    {
+      src: getImageUrl('/work/salesforce-students.jpeg', 2200, { format: 'jpg' }),
+      alt: 'Students participating at the Salesforce grant celebration',
+      label: 'IMG_02',
+      subtitle: 'STUDENT ENGAGEMENT',
+    },
+    {
+      src: getImageUrl('/work/salesforce-qa.jpeg', 2200, { format: 'jpg' }),
+      alt: 'Students asking questions during Q&A session',
+      label: 'IMG_03',
+      subtitle: 'Q&A SESSION',
+    },
+    {
+      src: getImageUrl('/work/salesforce-lab.jpeg', 2200, { format: 'jpg' }),
+      alt: 'Students exploring VR and technology lab',
+      label: 'IMG_04',
+      subtitle: 'TECH LAB',
+    },
+  ];
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const detectTouch = () => {
+      setIsTouchDevice(('ontouchstart' in window) || navigator.maxTouchPoints > 0);
+    };
+    detectTouch();
+    window.addEventListener('resize', detectTouch);
+    return () => window.removeEventListener('resize', detectTouch);
+  }, []);
+
+  useEffect(() => {
+    if (activeImageIndex === null) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setActiveImageIndex(null);
+      if (e.key === 'ArrowRight') setActiveImageIndex((prev) => (prev === null ? 0 : (prev + 1) % galleryImages.length));
+      if (e.key === 'ArrowLeft') setActiveImageIndex((prev) => (prev === null ? 0 : (prev - 1 + galleryImages.length) % galleryImages.length));
+    };
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.body.style.overflow = '';
+      window.removeEventListener('keydown', onKeyDown);
+    };
+  }, [activeImageIndex, galleryImages.length]);
+
+  const handleTouchStartModal = (e: React.TouchEvent) => {
+    touchStartXRef.current = e.touches[0]?.clientX ?? null;
+  };
+
+  const handleTouchEndModal = (e: React.TouchEvent) => {
+    if (touchStartXRef.current === null || activeImageIndex === null) return;
+    const endX = e.changedTouches[0]?.clientX ?? touchStartXRef.current;
+    const delta = touchStartXRef.current - endX;
+    const threshold = 40;
+    if (delta > threshold) {
+      setActiveImageIndex((activeImageIndex + 1) % galleryImages.length);
+    } else if (delta < -threshold) {
+      setActiveImageIndex((activeImageIndex - 1 + galleryImages.length) % galleryImages.length);
+    }
+    touchStartXRef.current = null;
+  };
+
   return (
     <article className="min-h-screen bg-[#0a0a0a]">
       {/* Geometric Grid Background */}
@@ -182,11 +254,10 @@ export default function SalesforceContent({ metadata, content, mainDescriptionMd
 
               {/* Bold stacked title - SALESFORCE one word, two colors */}
               <motion.div className="space-y-0" variants={fadeInUp}>
-                <h1 className="font-display text-[clamp(2.8rem,18.5vw,15rem)] uppercase leading-[0.9] tracking-tight">
-                  <span className="inline-flex whitespace-nowrap">
-                    <span className="text-white">SALES</span>
-                    <span style={{ color: sfBlue }}>FORCE</span>
-                  </span>
+                <h1 className="font-display text-[clamp(2.2rem,13.5vw,12rem)] uppercase leading-[0.9] tracking-tight [overflow-wrap:anywhere]">
+                  <span className="text-white">SALES</span>
+                  <wbr />
+                  <span style={{ color: sfBlue }}>FORCE</span>
                 </h1>
               </motion.div>
 
@@ -221,7 +292,7 @@ export default function SalesforceContent({ metadata, content, mainDescriptionMd
                   animate={heroInView ? { scale: 1, rotate: 45 } : { scale: 0, rotate: 0 }}
                   transition={{ duration: 0.4, delay: 0.8, type: "spring" }}
                 />
-                <span className="font-mono text-[10px] md:text-[11px] tracking-[0.2em] md:tracking-[0.25em] uppercase text-white break-all">
+                <span className="font-mono text-[10px] md:text-[11px] tracking-[0.2em] md:tracking-[0.25em] uppercase text-white [overflow-wrap:anywhere]">
                   {metadata.role}
                 </span>
                 <span className="font-mono text-[9px] md:text-[10px] text-[#555] uppercase shrink-0">{metadata.year}</span>
@@ -268,7 +339,7 @@ export default function SalesforceContent({ metadata, content, mainDescriptionMd
                       transition={{ delay: 0.3 + i * 0.15, duration: 0.5 }}
                     >
                       <div className="min-w-0">
-                        <span className="font-display text-3xl md:text-4xl lg:text-5xl text-white block break-all">
+                        <span className="font-display text-3xl md:text-4xl lg:text-5xl text-white block">
                           <AnimatedCounter
                             value={stat.value}
                             prefix={stat.prefix}
@@ -411,6 +482,9 @@ export default function SalesforceContent({ metadata, content, mainDescriptionMd
                     onHoverStart={() => setHoveredFrame(0)}
                     onHoverEnd={() => setHoveredFrame(null)}
                     onTap={() => setHoveredFrame(prev => prev === 0 ? null : 0)}
+                    onClick={() => {
+                      if (isTouchDevice) setActiveImageIndex(0);
+                    }}
                   >
                     {/* Animated Corner Draw - hidden on touch devices for performance */}
                     <div className="hidden sm:block">
@@ -454,6 +528,9 @@ export default function SalesforceContent({ metadata, content, mainDescriptionMd
                     onHoverStart={() => setHoveredFrame(1)}
                     onHoverEnd={() => setHoveredFrame(null)}
                     onTap={() => setHoveredFrame(prev => prev === 1 ? null : 1)}
+                    onClick={() => {
+                      if (isTouchDevice) setActiveImageIndex(1);
+                    }}
                   >
                     <div className="hidden sm:block">
                       <CornerDraw color={sfBlue} size={16} strokeWidth={1} isHovered={hoveredFrame === 1} />
@@ -501,6 +578,9 @@ export default function SalesforceContent({ metadata, content, mainDescriptionMd
                     onHoverStart={() => setHoveredFrame(2)}
                     onHoverEnd={() => setHoveredFrame(null)}
                     onTap={() => setHoveredFrame(prev => prev === 2 ? null : 2)}
+                    onClick={() => {
+                      if (isTouchDevice) setActiveImageIndex(2);
+                    }}
                   >
                     <div className="hidden sm:block">
                       <CornerDraw color={sfBlue} size={16} strokeWidth={1} isHovered={hoveredFrame === 2} />
@@ -544,6 +624,9 @@ export default function SalesforceContent({ metadata, content, mainDescriptionMd
                     onHoverStart={() => setHoveredFrame(3)}
                     onHoverEnd={() => setHoveredFrame(null)}
                     onTap={() => setHoveredFrame(prev => prev === 3 ? null : 3)}
+                    onClick={() => {
+                      if (isTouchDevice) setActiveImageIndex(3);
+                    }}
                   >
                     <div className="hidden sm:block">
                       <CornerDraw color={sfBlue} size={24} strokeWidth={2} isHovered={hoveredFrame === 3} />
