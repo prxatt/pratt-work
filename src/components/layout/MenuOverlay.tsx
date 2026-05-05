@@ -4,7 +4,7 @@ import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import Link from 'next/link';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { useCursor } from '@/context/CursorContext';
-import { ArrowUpRight, Mail, Quote, RefreshCw, Pin, PinOff } from 'lucide-react';
+import { ArrowUpRight, ExternalLink, Mail, Quote, RefreshCw, Pin, PinOff } from 'lucide-react';
 import { useSocialFeed } from '@/hooks/useSocialFeed';
 import { Update, formatRelativeTime } from '@/config/updates';
 
@@ -557,6 +557,9 @@ export const MenuOverlay: React.FC<MenuOverlayProps> = ({ isOpen, onClose }) => 
                                   <p className="font-sans text-[13px] text-[#F2F2F0] group-hover:text-[#6366f1] transition-colors leading-snug">
                                     {update.title}
                                   </p>
+                                  {update.external && (
+                                    <ExternalLink className="w-3 h-3 text-[#4d4d4d] shrink-0" aria-hidden />
+                                  )}
                                   {update.badge && (
                                     <span className="font-mono text-[8px] tracking-[0.15em] text-[#6366f1] bg-[#6366f1]/10 px-1.5 py-0.5 rounded uppercase">
                                       {update.badge}

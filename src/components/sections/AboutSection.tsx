@@ -21,7 +21,12 @@ const AnimatedWord = ({ word, delay }: { word: string; delay: number }) => {
         color: '#f59e0b',
         transition: { duration: 0.2 }
       }}
-      className="inline-flex shrink-0 cursor-default"
+      whileTap={{
+        color: '#f59e0b',
+        scale: 1.02,
+        transition: { duration: 0.18 }
+      }}
+      className="inline-flex shrink-0 cursor-pointer"
     >
       {word}
     </motion.span>
