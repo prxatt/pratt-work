@@ -273,7 +273,7 @@ export function HeroVoxelBackdrop() {
                 : 'Enable camera — live depth'}
           </button>
           {cameraError ? (
-            <p className="mt-2 max-w-[min(90vw,20rem)] text-center font-mono text-[10px] text-red-300/90">
+            <p className="mx-auto mt-2 max-w-[min(90vw,20rem)] text-center font-mono text-[10px] text-red-300/90">
               {cameraError}
             </p>
           ) : null}
