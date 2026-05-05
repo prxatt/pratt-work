@@ -93,9 +93,8 @@ export const workProjects: WorkProject[] = [
     featured: true,
     featuredSize: 'medium',
     thumbnail: {
-      type: 'video',
-      src: getVideoUrl('/work/surface-tension-thumb.webm'),
-      fallback: getVideoUrl('/work/surface-tension-thumb.mp4'),
+      type: 'image',
+      src: getImageUrl('/work/surface-tension-drip.webp', 800),
       alt: 'Surface Tension Digital Drip immersive art installation',
     },
     tags: ['experiential', 'immersive', 'art', 'installation', 'interactive', 'generative', 'spatial audio']

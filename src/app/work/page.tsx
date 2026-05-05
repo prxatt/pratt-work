@@ -42,9 +42,9 @@ const projects = [
     category: 'EXPERIENTIAL',
     year: '2025',
     thumbnail: {
-      type: 'video' as const,
-      src: getVideoUrl('/work/surface-tension-thumb.webm'),
-      fallback: getVideoUrl('/work/surface-tension-thumb.mp4'),
+      type: 'image' as const,
+      src: getImageUrl('/work/surface-tension-drip.webp', 1200),
+      fallback: getImageUrl('/work/surface-tension-drip.jpg', 1200),
       alt: 'Surface Tension Digital Drip immersive art installation',
     },
   },
@@ -475,7 +475,10 @@ export default function WorkPage() {
   const gridInView = useInView(gridRef, { once: true, margin: '-100px' });
   
   // Preload critical above-the-fold images
-  const criticalImages = projects.slice(0, 4).map(p => p.thumbnail.src);
+  const criticalImages = projects
+    .filter((p) => p.thumbnail.type === 'image')
+    .slice(0, 5)
+    .map((p) => p.thumbnail.src);
 
   const categories = useMemo(() => {
     const cats = new Set(projects.map((p) => p.category));

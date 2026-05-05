@@ -115,15 +115,27 @@ const MagneticWrapper = ({
 // ─────────────────────────────────────────────────────────────────────────────
 
 const LazyVideo = ({
-  src, poster, caps, eagerRootMargin = '100px 0px 100px 0px',
+  src,
+  poster,
+  caps,
+  eagerRootMargin = '100px 0px 100px 0px',
+  priority = false,
 }: {
-  src: { webm: string; mp4: string }; poster?: string; caps: DeviceCaps; eagerRootMargin?: string;
+  src: { webm: string; mp4: string };
+  poster?: string;
+  caps: DeviceCaps;
+  eagerRootMargin?: string;
+  priority?: boolean;
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [load, setLoad] = useState(false);
-  const [vis,  setVis]  = useState(false);
+  const [load, setLoad] = useState(priority);
+  /** Priority card: treat as in-view for opacity so blob-backed video is not stuck at opacity 0 before IO runs. */
+  const [vis, setVis] = useState(priority);
 
   useEffect(() => {
+    if (priority) {
+      setLoad(true);
+    }
     const video = videoRef.current;
     if (!video) return;
     const obs = new IntersectionObserver(
@@ -132,21 +144,25 @@ const LazyVideo = ({
         setVis(in_);
         if (in_) setLoad(true);
       },
-      { threshold: 0.08, rootMargin: eagerRootMargin }
+      {
+        threshold: priority ? 0 : 0.08,
+        rootMargin: eagerRootMargin,
+      }
     );
     obs.observe(video);
     return () => obs.disconnect();
-  }, [eagerRootMargin]);
+  }, [eagerRootMargin, priority]);
 
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
-    if (vis) { 
-      video.muted = true; 
-      video.playsInline = true; 
-      video.play().catch(() => {}); 
+    if (vis) {
+      video.muted = true;
+      video.playsInline = true;
+      video.play().catch(() => {});
+    } else {
+      video.pause();
     }
-    else { video.pause(); }
   }, [vis]);
 
   // Low-end devices: show gradient only, no video overhead
@@ -154,27 +170,33 @@ const LazyVideo = ({
     return <div className="w-full h-full" style={{ background: 'linear-gradient(135deg, #0f1f12, #0a0a0a)' }} />;
   }
 
+  const fadeMs = priority ? 280 : 500;
+
+  const posterW = priority ? 1920 : 1400;
+
   return (
     <div className="relative w-full h-full">
-      {/* Poster image - immediately visible */}
       {poster && (
-        <img 
-          src={getImageUrl(poster, 1400)}
+        <img
+          src={getImageUrl(poster, posterW)}
           alt=""
           className="absolute inset-0 w-full h-full object-cover"
-          loading="eager"
+          loading={priority ? 'eager' : 'lazy'}
           decoding="async"
+          fetchPriority={priority ? 'high' : 'auto'}
         />
       )}
-      {/* Video loads over poster with crossfade */}
-      <video 
-        ref={videoRef} 
-        muted 
-        loop 
-        playsInline 
-        preload="metadata"
-        className="absolute inset-0 w-full h-full object-cover opacity-0 transition-opacity duration-500"
-        style={{ opacity: vis ? 1 : 0 }}
+      <video
+        ref={videoRef}
+        muted
+        loop
+        playsInline
+        preload={priority ? 'auto' : 'metadata'}
+        className="absolute inset-0 w-full h-full object-cover gpu-accelerated"
+        style={{
+          opacity: vis ? 1 : 0,
+          transition: `opacity ${fadeMs}ms ease-out`,
+        }}
       >
         {load && (
           <>
@@ -337,14 +359,23 @@ const BoubyanCard = ({
 }) => {
   const { setCursorState } = useCursor();
   const ref      = useRef<HTMLDivElement>(null);
-  const isInView = useInView(ref, { once: true, margin: '0px 0px 40% 0px', amount: 0.15 });
+  const isInView = useInView(ref, {
+    once: true,
+    margin: featured ? '25% 0px 60% 0px' : '0px 0px 40% 0px',
+    amount: featured ? 0.02 : 0.15,
+  });
   const aspectClass = featured ? 'aspect-[16/9] sm:aspect-[21/9] md:aspect-[21/8]' : 'aspect-[16/10]';
+
+  const outerDur = featured ? 0.42 : 0.5;
+  const outerDelay = featured ? 0 : index * 0.15;
+  const innerDur = featured ? 0.4 : 1.2;
+  const innerDelay = featured ? 0 : index * 0.15;
 
   return (
     <motion.div
       ref={ref}
       initial={{ opacity: 0 }} animate={isInView ? { opacity: 1 } : { opacity: 0 }}
-      transition={{ duration: 0.5, delay: index * 0.15, ease: [0.16, 1, 0.3, 1] }}
+      transition={{ duration: outerDur, delay: outerDelay, ease: [0.16, 1, 0.3, 1] }}
       className="relative group"
     >
       <Link href={`/work/${project.slug}`} className="block w-full h-full"
@@ -355,14 +386,15 @@ const BoubyanCard = ({
           <motion.div
             className="absolute inset-0"
             initial={{ opacity: 0 }} animate={isInView ? { opacity: 1 } : { opacity: 0 }}
-            transition={{ duration: 1.2, delay: index * 0.15, ease: [0.16, 1, 0.3, 1] }}
+            transition={{ duration: innerDur, delay: innerDelay, ease: [0.16, 1, 0.3, 1] }}
           >
             <div className="absolute inset-0 scale-[1.02]">
               <LazyVideo
                 src={{ webm: '/work/boubyan-bank-card.webm', mp4: '/work/boubyan-bank-card.mp4' }}
                 poster="/work/boubyan-bank-thumb.webp"
                 caps={caps}
-                eagerRootMargin="200px"
+                eagerRootMargin="480px 0px 1000px 0px"
+                priority
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/35 via-black/5 to-transparent" />
               <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_40%,rgba(0,0,0,0.15)_100%)]" />
@@ -427,13 +459,21 @@ const ImageCard = ({
               </div>
             ) : isSurface ? (
               <div className="absolute inset-0 w-full h-full flex items-center justify-center">
-                <img 
-                  src={getImageUrl('/work/surface-tension-drip.webp', 1600)} 
+                <img
+                  src={getImageUrl('/work/surface-tension-drip.webp', 1600)}
                   alt={project.title}
                   className="w-full h-full object-cover"
-                  loading={index === 0 ? "eager" : "lazy"}
+                  loading={index === 0 ? 'eager' : 'lazy'}
                   decoding="async"
+                  fetchPriority={index <= 2 ? 'high' : 'auto'}
                   style={{ objectPosition: 'center center' }}
+                  onError={(e) => {
+                    const el = e.currentTarget;
+                    if (el.dataset.fallback === '1') return;
+                    el.dataset.fallback = '1';
+                    el.removeAttribute('srcset');
+                    el.src = getImageUrl('/work/surface-tension-drip.jpg', 1600);
+                  }}
                 />
               </div>
             ) : (

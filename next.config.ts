@@ -1,9 +1,10 @@
 import type { NextConfig } from "next";
 
 const isDev = process.env.NODE_ENV !== 'production';
+/** Vercel Live / preview toolbar loads scripts from vercel.live */
 const scriptSrc = isDev
-  ? "script-src 'self' 'unsafe-inline' 'unsafe-eval'"
-  : "script-src 'self' 'unsafe-inline'";
+  ? "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://vercel.live https://*.vercel.live"
+  : "script-src 'self' 'unsafe-inline' https://vercel.live https://*.vercel.live";
 
 const csp = [
   "default-src 'self'",
@@ -17,7 +18,7 @@ const csp = [
   "img-src 'self' data: blob: https://*.public.blob.vercel-storage.com",
   "font-src 'self' data:",
   "media-src 'self' blob: https://*.public.blob.vercel-storage.com",
-  "connect-src 'self' https://vitals.vercel-insights.com https://*.vercel-insights.com https://cdn.jsdelivr.net",
+  "connect-src 'self' https://vitals.vercel-insights.com https://*.vercel-insights.com https://cdn.jsdelivr.net https://vercel.live https://*.vercel.live",
   "worker-src 'self' blob:",
   "upgrade-insecure-requests",
 ].join('; ');

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { Search } from 'lucide-react';
@@ -283,130 +283,128 @@ const GlitchText = () => {
 export const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const { setCursorState } = useCursor();
   const pathname = usePathname();
   const isHomePage = pathname === '/';
-  
-  // Physical scroll coupling refs
+
+  /** Controlled transform: imperative styles were cleared whenever React re-rendered (menu/Motion). */
+  const [navTransform, setNavTransform] = useState(() =>
+    pathname === '/' ? 'translateY(-100%)' : 'translateY(0px)'
+  );
+  const [navScrolled, setNavScrolled] = useState(false);
+  const { setCursorState } = useCursor();
+
   const navRef = useRef<HTMLElement>(null);
   const scrollOffset = useRef(0);
   const lastScrollY = useRef(0);
   const navHeight = useRef(64);
-  const hasHomeInitialReveal = useRef(false);
-  
+  /** Cached 0.88 × innerHeight; updated on mount and resize only (not on every scroll). */
+  const heroExitThresholdRef = useRef(0);
+  /** Tracks hero zone on / so leaving it reveals the bar once before scroll-hide applies. */
+  const prevInHeroRef = useRef(false);
+
+  const syncNavTransform = useCallback(() => {
+    setNavTransform(`translateY(-${scrollOffset.current}px)`);
+  }, []);
+
   // Physical scroll handler - direct coupling to scroll delta
   useEffect(() => {
+    /** Home only: hide nav in first ~88vh (hero). Past that, same scroll-hide loop as other pages. */
+    const updateHeroExitThreshold = () => {
+      heroExitThresholdRef.current = Math.round(window.innerHeight * 0.88);
+    };
+
     const syncNavHeight = () => {
       if (!navRef.current) return;
       navHeight.current = navRef.current.getBoundingClientRect().height;
     };
 
+    updateHeroExitThreshold();
     syncNavHeight();
     lastScrollY.current = window.scrollY;
+    prevInHeroRef.current = isHomePage && window.scrollY < heroExitThresholdRef.current;
 
-    if (navRef.current) {
-      if (isHomePage) {
-        hasHomeInitialReveal.current = false;
+    if (isHomePage) {
+      const pastHero = window.scrollY >= heroExitThresholdRef.current;
+      if (!pastHero) {
         scrollOffset.current = navHeight.current;
-        navRef.current.style.transform = `translateY(-${navHeight.current}px)`;
       } else {
-        hasHomeInitialReveal.current = true;
         scrollOffset.current = 0;
-        navRef.current.style.transform = 'translateY(0px)';
       }
+    } else {
+      scrollOffset.current = 0;
     }
-    
+    syncNavTransform();
+
     const handleScroll = () => {
       const currentScrollY = window.scrollY;
       const delta = currentScrollY - lastScrollY.current;
       lastScrollY.current = currentScrollY;
 
-      // Homepage: keep header hidden on initial load, reveal after first scroll-down.
-      if (isHomePage && !hasHomeInitialReveal.current && currentScrollY < 24) {
+      const inHero = isHomePage && currentScrollY < heroExitThresholdRef.current;
+      if (inHero) {
+        prevInHeroRef.current = true;
         scrollOffset.current = navHeight.current;
-        if (navRef.current) {
-          navRef.current.style.transform = `translateY(-${navHeight.current}px)`;
-        }
+        syncNavTransform();
         return;
       }
 
-      // Homepage: once user scrolls past threshold, reveal immediately.
-      if (isHomePage && !hasHomeInitialReveal.current && currentScrollY >= 24) {
-        hasHomeInitialReveal.current = true;
+      if (isHomePage && prevInHeroRef.current) {
+        prevInHeroRef.current = false;
         scrollOffset.current = 0;
-        if (navRef.current) {
-          navRef.current.style.transform = 'translateY(0px)';
-        }
+        syncNavTransform();
         return;
       }
-      
-      // At top of page: always fully visible
+
       if (currentScrollY <= 0) {
         scrollOffset.current = 0;
-        if (navRef.current) {
-          navRef.current.style.transform = 'translateY(0px)';
-        }
+        syncNavTransform();
         return;
       }
-      
-      // Physical coupling: scrolling down hides (1:1 ratio)
-      // Scrolling up reveals (2.5x faster - eager to show)
+
       if (delta > 0) {
-        // Scrolling DOWN: increase offset toward navHeight
         scrollOffset.current = Math.min(
           scrollOffset.current + delta,
           navHeight.current
         );
       } else {
-        // Scrolling UP: decrease offset toward 0, 2.5x speed
         scrollOffset.current = Math.max(
           scrollOffset.current + delta * 2.5,
           0
         );
       }
-      
-      // Apply directly to DOM - no React state, no re-renders
-      if (navRef.current) {
-        navRef.current.style.transform = `translateY(-${scrollOffset.current}px)`;
-      }
+
+      syncNavTransform();
     };
 
     const handleResize = () => {
+      updateHeroExitThreshold();
       syncNavHeight();
 
-      if (!navRef.current) return;
+      prevInHeroRef.current = isHomePage && window.scrollY < heroExitThresholdRef.current;
 
-      if (isHomePage && !hasHomeInitialReveal.current && window.scrollY < 24) {
+      if (isHomePage && window.scrollY < heroExitThresholdRef.current) {
         scrollOffset.current = navHeight.current;
-        navRef.current.style.transform = `translateY(-${navHeight.current}px)`;
+        syncNavTransform();
         return;
       }
 
       scrollOffset.current = Math.min(scrollOffset.current, navHeight.current);
-      navRef.current.style.transform = `translateY(-${scrollOffset.current}px)`;
+      syncNavTransform();
     };
-    
+
+    handleScroll();
+
     window.addEventListener('scroll', handleScroll, { passive: true });
     window.addEventListener('resize', handleResize);
     return () => {
       window.removeEventListener('scroll', handleScroll);
       window.removeEventListener('resize', handleResize);
     };
-  }, [isHomePage]);
+  }, [isHomePage, syncNavTransform]);
   
-  // Scroll-based backdrop
   useEffect(() => {
     const handleBackdrop = () => {
-      if (!navRef.current) return;
-      if (window.scrollY > 80) {
-        navRef.current.style.backgroundColor = 'rgba(13, 13, 13, 0.92)';
-        navRef.current.style.backdropFilter = 'blur(12px)';
-        (navRef.current.style as CSSStyleDeclaration & { webkitBackdropFilter: string }).webkitBackdropFilter = 'blur(12px)';
-      } else {
-        navRef.current.style.backgroundColor = 'transparent';
-        navRef.current.style.backdropFilter = 'none';
-        (navRef.current.style as CSSStyleDeclaration & { webkitBackdropFilter: string }).webkitBackdropFilter = 'none';
-      }
+      setNavScrolled(window.scrollY > 80);
     };
     handleBackdrop();
     window.addEventListener('scroll', handleBackdrop, { passive: true });
@@ -417,9 +415,12 @@ export const Navbar = () => {
     <>
       <nav 
         ref={navRef}
-        className={`fixed top-0 left-0 right-0 z-[110] ${isHomePage ? '-translate-y-full' : ''}`}
+        className={`fixed top-0 left-0 right-0 z-[110] transition-[background-color,backdrop-filter] duration-200 ${
+          navScrolled ? 'bg-[rgba(13,13,13,0.92)] backdrop-blur-[12px]' : 'bg-transparent'
+        }`}
         style={{ 
           willChange: 'transform',
+          transform: navTransform,
         }}
       >
         <div className="px-4 sm:px-6 md:px-12 lg:px-20 pt-[max(1rem,env(safe-area-inset-top))] pb-4 sm:pb-6 flex items-center justify-between gap-3">
