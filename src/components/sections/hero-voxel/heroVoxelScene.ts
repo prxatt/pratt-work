@@ -219,7 +219,7 @@ export async function mountHeroVoxelScene(
 
     voxelMesh.instanceMatrix.needsUpdate = true;
     if (colorDirty) instanceColorAttr.needsUpdate = true;
-    if (frameIdx % 18 === 0) voxelMesh.computeBoundingSphere();
+    // voxelMesh.computeBoundingSphere(); // Disabled for performance; frustum culling not needed for hero background
 
     controls.update();
     renderer.render(scene, camera);
