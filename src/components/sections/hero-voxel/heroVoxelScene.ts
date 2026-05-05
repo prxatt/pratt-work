@@ -48,17 +48,17 @@ const LIVE_DEPTH_CONTRAST = 1.5; // pow exponent — deeper midtone push
 const LIVE_DEPTH_SHAPE_LO = 0.12; // smoothstep low edge for shaped curve
 const LIVE_DEPTH_SHAPE_HI = 0.9; // smoothstep high edge for shaped curve
 const LIVE_DEPTH_SHAPE_MIX = 0.7; // mix(d1, d2, blend) — 0 = pure pow, 1 = pure smoothstep
-const LIVE_FOREGROUND_BOOST = 0.2; // selectively amplify near regions
-const LIVE_FOREGROUND_THRESHOLD = 0.66; // start foreground amplification here
-const LIVE_NORMALIZE_BLEND = 0.34; // blend global [0,1] with per-frame min/max remap
+const LIVE_FOREGROUND_BOOST = 0.1; // selectively amplify near regions
+const LIVE_FOREGROUND_THRESHOLD = 0.74; // start foreground amplification here
+const LIVE_NORMALIZE_BLEND = 0.18; // blend global [0,1] with per-frame min/max remap
 const LIVE_LERP_BASE = 0.7;
-const LIVE_INITIAL_BOOST = 1.32; // extrusion amplifier on activation
+const LIVE_INITIAL_BOOST = 1.16; // extrusion amplifier on activation
 
 // ── Brand palette ──────────────────────────────────────────────────────────
 const COLOR_SHADOW = new THREE.Color('#0d1014');
 const COLOR_MID = new THREE.Color('#1e4250');
 const COLOR_TEAL_BRIGHT = new THREE.Color('#46c4d8');
-const COLOR_HIGHLIGHT = new THREE.Color('#f0e8d8');
+const COLOR_HIGHLIGHT = new THREE.Color('#cfd7db');
 
 const IDLE_COLOR_LO = new THREE.Color('#0c1116');
 const IDLE_COLOR_MID = new THREE.Color('#1a2b32');
@@ -280,7 +280,7 @@ export async function mountHeroVoxelScene(
       if (v < depthMin) depthMin = v;
       if (v > depthMax) depthMax = v;
     }
-    const depthRange = Math.max(0.08, depthMax - depthMin);
+    const depthRange = Math.max(0.12, depthMax - depthMin);
 
     for (let i = 0; i < voxelCount; i++) {
       // Canonical "high = near" — orientation handled in inference layer.
@@ -308,7 +308,7 @@ export async function mountHeroVoxelScene(
 
       const targetY = LIVE_Y_BIAS + dFinal * LIVE_Y_RELIEF * extrusionBoost;
       // Keep near voxels from collapsing into a front clipping band.
-      const targetZ = (dFinal - 0.5) * 1.7 * LIVE_Z_RELIEF * extrusionBoost;
+      const targetZ = (dFinal - 0.5) * 1.38 * LIVE_Z_RELIEF * extrusionBoost;
 
       voxels.currentScaleY[i] += (targetY - voxels.currentScaleY[i]) * lerp;
       voxels.currentZPush[i] += (targetZ - voxels.currentZPush[i]) * lerp;

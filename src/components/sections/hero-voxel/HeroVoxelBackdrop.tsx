@@ -258,7 +258,8 @@ export function HeroVoxelBackdrop() {
         }
         aria-hidden
       />
-      <div className="pointer-events-auto absolute bottom-[max(1.5rem,env(safe-area-inset-bottom))] left-1/2 z-[25] -translate-x-1/2 sm:bottom-[max(2rem,env(safe-area-inset-bottom))] max-w-[min(92vw,22rem)]">
+      <div className="pointer-events-none absolute inset-x-0 bottom-[max(1.5rem,env(safe-area-inset-bottom))] z-[25] flex justify-center px-4 sm:bottom-[max(2rem,env(safe-area-inset-bottom))]">
+        <div className="pointer-events-auto w-full max-w-[min(92vw,22rem)] text-center">
         <button
           type="button"
           onClick={() => void toggleCamera()}
@@ -281,6 +282,7 @@ export function HeroVoxelBackdrop() {
             Drag to orbit · Scroll to zoom · Shift-scroll depth scale
           </p>
         ) : null}
+        </div>
       </div>
     </>
   );
