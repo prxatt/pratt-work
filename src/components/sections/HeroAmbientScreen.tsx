@@ -13,6 +13,11 @@ type HeroAmbientScreenProps = {
   baseBgClass?: string;
   /** `hero`: absolute fill inside a positioned parent. `global`: fixed full viewport (e.g. long pages). */
   variant?: HeroAmbientScreenVariant;
+  /**
+   * Caps the key-light / vignette layers so a WebGL/WebGPU layer behind them stays visible.
+   * Use on the home hero only (default 1 = unchanged).
+   */
+  overlayStrength?: number;
 };
 
 /**
@@ -22,6 +27,7 @@ type HeroAmbientScreenProps = {
 export function HeroAmbientScreen({
   baseBgClass = 'bg-[#0a0a0a]',
   variant = 'hero',
+  overlayStrength = 1,
 }: HeroAmbientScreenProps) {
   const { prefersReducedMotion, isLowEnd } = useDeviceCapabilities();
   const lite = prefersReducedMotion || isLowEnd;
@@ -62,7 +68,13 @@ export function HeroAmbientScreen({
       <motion.div
         className="absolute inset-0 z-[2]"
         initial={{ opacity: 0 }}
-        animate={contentReady ? { opacity: lite ? 0.88 : 1 } : { opacity: 0 }}
+        animate={
+          contentReady
+            ? {
+                opacity: (lite ? 0.88 : 1) * overlayStrength,
+              }
+            : { opacity: 0 }
+        }
         transition={{ duration: lite ? 0.4 : 1.6, ease: HERO_EASE }}
         style={{
           background:
@@ -78,6 +90,7 @@ export function HeroAmbientScreen({
         style={{
           background:
             'radial-gradient(ellipse 96% 62% at 50% 40%, transparent 44%, rgba(0,0,0,0.12) 72%, rgba(0,0,0,0.24) 100%)',
+          opacity: overlayStrength,
         }}
       />
       <div
@@ -85,6 +98,7 @@ export function HeroAmbientScreen({
         style={{
           background:
             'radial-gradient(ellipse 86% 62% at 28% 42%, transparent 48%, rgba(0,0,0,0.16) 100%)',
+          opacity: overlayStrength,
         }}
       />
 
