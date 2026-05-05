@@ -158,6 +158,7 @@ function HeroInner() {
   const { isTouch, isLowEnd, prefersReducedMotion } = useDeviceCapabilities();
   const { liveDepthActive } = useHeroLiveDepth();
   const [contentReady, setContentReady] = useState(false);
+  const [metaIntroPlayed, setMetaIntroPlayed] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -178,6 +179,8 @@ function HeroInner() {
 
   const lite = prefersReducedMotion || isLowEnd;
   const textReveal = contentReady;
+  const showBottomMeta = contentReady && !liveDepthActive;
+  const bottomMetaDelay = showBottomMeta && !metaIntroPlayed ? 1.35 : 0;
 
   return (
     <>
@@ -290,10 +293,19 @@ function HeroInner() {
         }`}
         initial={{ opacity: 0, y: 20 }}
         animate={{
-          opacity: contentReady && !liveDepthActive ? 1 : 0,
-          y: contentReady && !liveDepthActive ? 0 : 20,
+          opacity: showBottomMeta ? 1 : 0,
+          y: showBottomMeta ? 0 : 20,
         }}
-        transition={{ duration: 0.7, delay: 1.35, ease: HERO_EASE }}
+        transition={{
+          duration: 0.7,
+          delay: bottomMetaDelay,
+          ease: HERO_EASE,
+        }}
+        onAnimationComplete={() => {
+          if (showBottomMeta && !metaIntroPlayed) {
+            setMetaIntroPlayed(true);
+          }
+        }}
       >
         <motion.span
           initial={{ opacity: 0, y: 6 }}
