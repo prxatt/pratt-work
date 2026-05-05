@@ -97,7 +97,7 @@ export function createDepthInference(opts: {
     depthWorking = true;
     try {
       inferenceCtx.drawImage(opts.video, 0, 0, DEPTH_W, DEPTH_H);
-      const result = await depthPipeline(inferenceCanvas.toDataURL('image/jpeg', 0.72));
+      const result = await depthPipeline(inferenceCanvas);
 
       const tensor = result.predicted_depth ?? result.depth;
       const rawData: Float32Array | number[] | undefined = tensor?.data;
