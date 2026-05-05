@@ -139,6 +139,7 @@ export function HeroVoxelBackdrop() {
       });
 
       const video = document.createElement('video');
+      videoRef.current = video;
       video.setAttribute('playsinline', '');
       video.muted = true;
       video.autoplay = true;
@@ -151,7 +152,6 @@ export function HeroVoxelBackdrop() {
       } catch {
         throw new Error('Video playback blocked');
       }
-      videoRef.current = video;
 
       const { gx, gz } = getHeroVoxelGridDimensions(tier);
       const depthInf = createDepthInference({
