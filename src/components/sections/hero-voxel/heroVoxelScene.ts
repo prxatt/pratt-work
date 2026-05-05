@@ -385,7 +385,7 @@ export async function mountHeroVoxelScene(
       idleCameraBase.set(0, 0, cameraDistanceForAspect(camera.aspect));
       camera.position.copy(idleCameraBase);
       controls.target.set(0, 0, 0);
-      controls.minDistance = 22;
+      controls.minDistance = 18;
       controls.maxDistance = 52;
       controls.rotateSpeed = 1;
       controls.zoomSpeed = 1;
