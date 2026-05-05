@@ -18,8 +18,8 @@ export function tierForViewport(opts: {
  * via this shared module — never duplicate elsewhere.
  */
 export function gridDimensionsForTier(tier: HeroVoxelTier): { gx: number; gz: number } {
-  if (tier === 'medium') return { gx: 88, gz: 64 };
-  return { gx: 132, gz: 96 };
+  if (tier === 'medium') return { gx: 104, gz: 76 };
+  return { gx: 148, gz: 110 };
 }
 
 /**
