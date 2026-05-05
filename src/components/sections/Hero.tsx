@@ -175,9 +175,13 @@ export const Hero = () => {
 
   return (
     <section className="relative h-[100dvh] w-full overflow-hidden flex flex-col bg-[#0a0a0a]">
+      {/* Ambient first so the 3D layer can stack above vignettes and stay readable on Vercel / all browsers */}
+      <HeroAmbientScreen
+        variant="hero"
+        baseBgClass="bg-transparent"
+        overlayStrength={0.58}
+      />
       <HeroVoxelBackdrop />
-      {/* Transparent base so the WebGPU layer stays visible; section keeps `bg-[#0a0a0a]` fallback */}
-      <HeroAmbientScreen variant="hero" baseBgClass="bg-transparent" />
 
       {/* Main content */}
       <motion.div

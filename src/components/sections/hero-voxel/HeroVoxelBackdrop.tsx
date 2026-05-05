@@ -3,8 +3,31 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useDeviceCapabilities } from '@/hooks/useReducedMotion';
 import { createDepthInference } from './heroVoxelDepthInference';
-import { getHeroVoxelGridDimensions, getHeroVoxelTier, type HeroVoxelTier } from './heroVoxelTypes';
-import { mountHeroVoxelScene, type HeroVoxelSceneApi } from './heroVoxelScene';
+
+/** Local only — keep in sync with `heroVoxelScene.ts` exports. */
+type HeroVoxelTier = 'full' | 'medium';
+type HeroVoxelSceneApi = {
+  dispose: () => void;
+  setCameraActive: (active: boolean) => void;
+  bindDepthBuffer: (buffer: Float32Array | null) => void;
+};
+
+/** Mirrors `./heroVoxelTypes` (logic local so this chunk never depends on that module). */
+function tierForViewport(opts: {
+  prefersReducedMotion: boolean;
+  isLowEnd: boolean;
+  width: number;
+}): HeroVoxelTier {
+  if (opts.prefersReducedMotion) return 'medium';
+  const w = opts.width > 0 ? opts.width : 1200;
+  if (opts.isLowEnd || w < 520) return 'medium';
+  return 'full';
+}
+
+function gridDimensionsForTier(tier: HeroVoxelTier): { gx: number; gz: number } {
+  if (tier === 'medium') return { gx: 64, gz: 48 };
+  return { gx: 96, gz: 72 };
+}
 
 function useViewportWidth(): number {
   const [w, setW] = useState(0);
@@ -18,58 +41,37 @@ function useViewportWidth(): number {
   return w;
 }
 
-async function detectWebGPU(): Promise<boolean> {
-  if (typeof navigator === 'undefined' || !navigator.gpu) return false;
-  try {
-    const adapter = await navigator.gpu.requestAdapter();
-    return adapter != null;
-  } catch {
-    return false;
-  }
-}
-
 const INFER_INTERVAL_MS = 95;
 
 export function HeroVoxelBackdrop() {
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const sceneApiRef = useRef<HeroVoxelSceneApi | null>(null);
-  const inferTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const inferTimerRef = useRef<number | null>(null);
   const depthApiRef = useRef<ReturnType<typeof createDepthInference> | null>(null);
 
   const { prefersReducedMotion, isLowEnd } = useDeviceCapabilities();
   const width = useViewportWidth();
-  const [webgpuSupported, setWebgpuSupported] = useState(false);
   const [cameraOn, setCameraOn] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [sceneReady, setSceneReady] = useState(false);
 
-  useEffect(() => {
-    let cancelled = false;
-    void detectWebGPU().then((ok) => {
-      if (!cancelled) setWebgpuSupported(ok);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
   const tier: HeroVoxelTier = useMemo(
     () =>
-      getHeroVoxelTier({
-        webgpuSupported,
+      tierForViewport({
         prefersReducedMotion,
         isLowEnd,
         width,
       }),
-    [webgpuSupported, prefersReducedMotion, isLowEnd, width]
+    [prefersReducedMotion, isLowEnd, width]
   );
 
   const stopCamera = useCallback(() => {
-    if (inferTimerRef.current) {
-      clearInterval(inferTimerRef.current);
-      inferTimerRef.current = null;
+    const timerId = inferTimerRef.current;
+    inferTimerRef.current = null;
+    if (timerId !== null && typeof window !== 'undefined') {
+      window.clearInterval(timerId);
     }
     depthApiRef.current?.dispose();
     depthApiRef.current = null;
@@ -96,30 +98,35 @@ export function HeroVoxelBackdrop() {
 
   useEffect(() => {
     const el = containerRef.current;
-    if (!el || tier === 'off') return;
+    if (!el) return;
 
     let cancelled = false;
     let dispose: (() => void) | undefined;
 
-    const pending = mountHeroVoxelScene(el, tier, {
-      reducedMotion: prefersReducedMotion,
-    });
-    void pending.then((api) => {
-      if (cancelled) {
-        api.dispose();
-        return;
+    void (async () => {
+      try {
+        const { mountHeroVoxelScene } = await import('./heroVoxelScene');
+        const api = await mountHeroVoxelScene(el, tier, {
+          reducedMotion: prefersReducedMotion,
+          tryWebGpuFirst: true,
+        });
+        if (cancelled) {
+          api.dispose();
+          return;
+        }
+        sceneApiRef.current = api;
+        setSceneReady(true);
+        dispose = api.dispose;
+      } catch (e) {
+        console.error('[HeroVoxelBackdrop] mount failed', e);
       }
-      sceneApiRef.current = api;
-      setSceneReady(true);
-      dispose = api.dispose;
-    });
+    })();
 
     return () => {
       cancelled = true;
       setSceneReady(false);
       stopCameraRef.current();
       sceneApiRef.current = null;
-      /** Mount `.then` above already calls `api.dispose()` when `cancelled`; avoid a second `pending.then` that would double-dispose. */
       if (dispose) dispose();
     };
   }, [tier, prefersReducedMotion]);
@@ -154,7 +161,7 @@ export function HeroVoxelBackdrop() {
         throw new Error('Video playback blocked');
       }
 
-      const { gx, gz } = getHeroVoxelGridDimensions(tier);
+      const { gx, gz } = gridDimensionsForTier(tier);
       const depthInf = createDepthInference({
         video,
         gridX: gx,
@@ -168,7 +175,7 @@ export function HeroVoxelBackdrop() {
 
       void depthInf.infer();
 
-      inferTimerRef.current = setInterval(() => {
+      inferTimerRef.current = window.setInterval(() => {
         void depthInf.infer();
       }, INFER_INTERVAL_MS);
     } catch (e) {
@@ -185,13 +192,11 @@ export function HeroVoxelBackdrop() {
     else void startCamera();
   }, [cameraOn, startCamera, stopCamera]);
 
-  if (tier === 'off') return null;
-
   return (
     <>
       <div
         ref={containerRef}
-        className="pointer-events-none absolute inset-0 z-0 h-full min-h-[100dvh] w-full overflow-hidden"
+        className="pointer-events-none absolute inset-0 z-[2] h-full min-h-[100dvh] w-full overflow-hidden"
         aria-hidden
       />
       <div className="pointer-events-auto absolute bottom-[7rem] left-1/2 z-[25] -translate-x-1/2 sm:bottom-[7.5rem]">
