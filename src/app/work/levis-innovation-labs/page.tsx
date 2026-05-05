@@ -805,7 +805,7 @@ export default function LevisInnovationLabsPage() {
                 whileTap={{ scale: 0.99 }}
                 onTapStart={() => setActivePublicationIndex(i)}
                 onTapCancel={() => setActivePublicationIndex(null)}
-                onTap={() => setActivePublicationIndex(i)}
+                onTap={() => setActivePublicationIndex(null)}
                 style={{ willChange: 'transform' }}
               >
                 <div className="flex items-center justify-between mb-4 min-w-0">
