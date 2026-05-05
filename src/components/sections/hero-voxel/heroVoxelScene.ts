@@ -153,7 +153,9 @@ export async function mountHeroVoxelScene(
   let { w: cw, h: ch } = measure();
 
   const camera = new THREE.PerspectiveCamera(58, cw / ch, 0.1, 500);
-  const cameraDistanceForAspect = (aspect: number) => (aspect < 1 ? 25.5 : 19.2);
+  // Slightly farther than the pre–PR-42 tight framing so near extrusion + shift-boost
+  // does not punch through the perspective near plane.
+  const cameraDistanceForAspect = (aspect: number) => (aspect < 1 ? 26 : 20.8);
   camera.position.set(0, 0, cameraDistanceForAspect(cw / ch));
   camera.lookAt(0, 0, 0);
 
@@ -215,7 +217,7 @@ export async function mountHeroVoxelScene(
     if (!cameraMode || !e.shiftKey) return;
     e.preventDefault();
     const factor = e.deltaY > 0 ? 0.94 : 1.06;
-    extrusionBoost = Math.max(0.4, Math.min(3.4, extrusionBoost * factor));
+    extrusionBoost = Math.max(0.4, Math.min(2.65, extrusionBoost * factor));
   };
   renderer.domElement.addEventListener('wheel', onWheelExtrusion, {
     passive: false,

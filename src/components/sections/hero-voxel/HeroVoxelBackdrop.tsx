@@ -259,12 +259,13 @@ export function HeroVoxelBackdrop() {
         aria-hidden
       />
       <div className="pointer-events-none absolute inset-x-0 bottom-[max(1.5rem,env(safe-area-inset-bottom))] z-[25] flex justify-center px-4 sm:bottom-[max(2rem,env(safe-area-inset-bottom))]">
-        <div className="pointer-events-auto w-full max-w-[min(92vw,22rem)] text-center">
+        {/* Narrow pointer hit-target: full-width wrapper would block the hero bottom row (e.g. Latest Work). */}
+        <div className="pointer-events-none inline-flex max-w-[min(92vw,22rem)] flex-col items-center text-center">
           <button
             type="button"
             onClick={() => void toggleCamera()}
             disabled={busy || !sceneReady}
-            className="rounded-full border border-cyan-400/35 bg-black/40 px-5 py-2.5 font-mono text-[10px] uppercase tracking-[0.2em] text-cyan-200/90 shadow-[0_0_24px_rgba(0,255,255,0.08)] backdrop-blur-md transition hover:border-cyan-300/55 hover:bg-black/50 disabled:opacity-50"
+            className="pointer-events-auto rounded-full border border-cyan-400/35 bg-black/40 px-5 py-2.5 font-mono text-[10px] uppercase tracking-[0.2em] text-cyan-200/90 shadow-[0_0_24px_rgba(0,255,255,0.08)] backdrop-blur-md transition hover:border-cyan-300/55 hover:bg-black/50 disabled:opacity-50"
           >
             {busy
               ? 'Requesting…'
