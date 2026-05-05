@@ -51,6 +51,9 @@ const LIVE_DEPTH_SHAPE_MIX = 0.55; // mix(d1, d2, blend) — 0 = pure pow, 1 = p
 const LIVE_LERP_BASE = 0.48;
 const LIVE_INITIAL_BOOST = 1.4; // extrusion amplifier on activation
 
+/** Baseline exposure for idle; live mode adjusts dynamically and must reset on exit. */
+const DEFAULT_TONE_MAPPING_EXPOSURE = 1.28;
+
 // ── Brand palette ──────────────────────────────────────────────────────────
 const COLOR_SHADOW = new THREE.Color('#121a26');
 const COLOR_TEAL_DEEP = new THREE.Color('#1f3f58');
@@ -172,7 +175,7 @@ export async function mountHeroVoxelScene(
   renderer.setSize(cw, ch);
   renderer.setClearColor(0x000000, 0);
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.28;
+  renderer.toneMappingExposure = DEFAULT_TONE_MAPPING_EXPOSURE;
   renderer.domElement.style.cssText =
     'display:block;width:100%;height:100%;object-fit:cover;outline:none;vertical-align:top';
   renderer.domElement.style.pointerEvents = 'none';
@@ -389,6 +392,7 @@ export async function mountHeroVoxelScene(
     } else {
       extrusionBoost = 1;
       depthBuffer = null;
+      renderer.toneMappingExposure = DEFAULT_TONE_MAPPING_EXPOSURE;
       idleCameraBase.set(0, 0, cameraDistanceForAspect(camera.aspect));
       camera.position.copy(idleCameraBase);
       controls.target.set(0, 0, 0);

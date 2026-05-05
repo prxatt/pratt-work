@@ -158,6 +158,8 @@ function HeroInner() {
   const { isTouch, isLowEnd, prefersReducedMotion } = useDeviceCapabilities();
   const { liveDepthActive } = useHeroLiveDepth();
   const [contentReady, setContentReady] = useState(false);
+  /** After first bottom-meta intro, skip stagger delays when toggling live depth. */
+  const [metaIntroPlayed, setMetaIntroPlayed] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -176,6 +178,10 @@ function HeroInner() {
 
   const lite = prefersReducedMotion || isLowEnd;
   const textReveal = contentReady;
+  const showBottomMeta = contentReady && !liveDepthActive;
+  const bottomRowDelay = showBottomMeta && !metaIntroPlayed ? 1.35 : 0;
+  const bottomMetaChildDelay = (offset: number) =>
+    showBottomMeta && !metaIntroPlayed ? offset : 0;
 
   return (
     <LazyMotion features={domAnimation} strict>
@@ -288,15 +294,25 @@ function HeroInner() {
         }`}
         initial={{ opacity: 0, y: 20 }}
         animate={{
-          opacity: contentReady && !liveDepthActive ? 1 : 0,
-          y: contentReady && !liveDepthActive ? 0 : 20,
+          opacity: showBottomMeta ? 1 : 0,
+          y: showBottomMeta ? 0 : 20,
         }}
-        transition={{ duration: 0.7, delay: 1.35, ease: HERO_EASE }}
+        transition={{ duration: 0.7, delay: bottomRowDelay, ease: HERO_EASE }}
+        onAnimationComplete={() => {
+          if (showBottomMeta && !metaIntroPlayed) setMetaIntroPlayed(true);
+        }}
+        {...(liveDepthActive ? { inert: true } : {})}
       >
         <m.span
           initial={{ opacity: 0, y: 6 }}
-          animate={textReveal ? { opacity: 1, y: 0 } : { opacity: 0, y: 6 }}
-          transition={{ duration: 0.45, delay: 1.46, ease: HERO_EASE }}
+          animate={
+            showBottomMeta ? { opacity: 1, y: 0 } : { opacity: 0, y: 6 }
+          }
+          transition={{
+            duration: 0.45,
+            delay: bottomMetaChildDelay(1.46),
+            ease: HERO_EASE,
+          }}
           className="font-mono text-[10px] sm:text-[11px] tracking-[0.18em] sm:tracking-[0.2em] uppercase whitespace-nowrap text-[#B5B5B0] shrink-0 min-w-0"
           style={{
             textShadow:
@@ -308,12 +324,20 @@ function HeroInner() {
 
         <m.div
           initial={{ opacity: 0, y: 6 }}
-          animate={textReveal ? { opacity: 1, y: 0 } : { opacity: 0, y: 6 }}
-          transition={{ duration: 0.45, delay: 1.56, ease: HERO_EASE }}
+          animate={
+            showBottomMeta ? { opacity: 1, y: 0 } : { opacity: 0, y: 6 }
+          }
+          transition={{
+            duration: 0.45,
+            delay: bottomMetaChildDelay(1.56),
+            ease: HERO_EASE,
+          }}
           className="shrink-0"
         >
           <Link
             href="/work"
+            tabIndex={liveDepthActive ? -1 : undefined}
+            aria-hidden={liveDepthActive ? true : undefined}
             className="flex flex-row items-center gap-2 sm:gap-3 text-[#B5B5B0] hover:text-[#F5F5F3] transition-colors duration-500 group py-1 -my-1"
             style={{
               textShadow:

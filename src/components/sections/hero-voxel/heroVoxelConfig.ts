@@ -30,14 +30,12 @@ export function gridDimensionsForTier(tier: HeroVoxelTier): { gx: number; gz: nu
  *
  *   - `mirrorX`         : flips X so a hand on the user's RIGHT pushes voxels
  *                         on screen RIGHT (standard selfie-mirror convention).
- *   - `invertPolarity`  : In production webcam captures, raw model/fallback
- *                         polarity can appear reversed against perceived relief
- *                         on some devices. This is enabled so final buffer
- *                         values consistently map to "high = near" in the scene.
+ *   - `invertPolarity`  : Applied only to Depth Anything ONNX samples (after
+ *                         min–max normalization). Luminance fallback already
+ *                         stores brighter = nearer and must not be inverted.
  *
  * Centralizing the convention here is the single source of truth and prevents
- * the historical bug where the ONNX path and the luminance path used opposite
- * conventions, causing the live view to appear inverted.
+ * mixed polarity between paths.
  */
 export const liveDepthOrientation = {
   mirrorX: true,
