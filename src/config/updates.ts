@@ -25,37 +25,13 @@ export const staticUpdates: Update[] = [
   {
     id: 'website-online',
     title: 'pratt.work is now online',
-    description: 'Shipped with playful details: cinematic transitions, hidden hover moments, and a menu built like a control panel.',
+    description: 'Live now with a refined interface and continuously refreshed update center.',
     url: '/',
-    date: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), // 2 hours ago
+    date: new Date().toISOString(),
     type: 'website',
     source: 'manual',
-    badge: 'NEW',
+    badge: 'LIVE',
     priority: 'high',
-    external: false,
-  },
-  {
-    id: 'website-easter-egg',
-    title: 'Menu update: notification center upgraded',
-    description: 'Live Twitter pulse + manual website notes now share one timeline.',
-    url: '/',
-    date: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(), // 6 hours ago
-    type: 'website',
-    source: 'manual',
-    badge: 'UPDATED',
-    priority: 'normal',
-    external: false,
-  },
-  {
-    id: 'website-motion-pass',
-    title: 'Hero performance pass shipped',
-    description: 'Homepage and About hero animation stack tuned for smoother motion and cleaner typography.',
-    url: '/about',
-    date: new Date(Date.now() - 18 * 60 * 60 * 1000).toISOString(), // 18 hours ago
-    type: 'website',
-    source: 'manual',
-    badge: 'UPDATED',
-    priority: 'normal',
     external: false,
   },
 ];
