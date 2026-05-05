@@ -202,7 +202,7 @@ export async function mountHeroVoxelScene(
   controls.enableRotate = false;
   controls.autoRotate = false;
   controls.target.set(0, 0, 0);
-  controls.minDistance = 22;
+  controls.minDistance = 14;
   controls.maxDistance = 60;
   controls.maxPolarAngle = Math.PI * 0.62;
   controls.minPolarAngle = Math.PI * 0.32;
@@ -385,7 +385,7 @@ export async function mountHeroVoxelScene(
       idleCameraBase.set(0, 0, cameraDistanceForAspect(camera.aspect));
       camera.position.copy(idleCameraBase);
       controls.target.set(0, 0, 0);
-      controls.minDistance = 22;
+      controls.minDistance = 14;
       controls.maxDistance = 60;
       controls.rotateSpeed = 1;
       controls.zoomSpeed = 1;
