@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, useInView } from 'framer-motion';
 import Link from 'next/link';
 import { useDeviceCapabilities } from '@/hooks/useReducedMotion';
+import { HeroAmbientScreen } from '@/components/sections/HeroAmbientScreen';
 
 const HERO_EASE = [0.16, 1, 0.3, 1] as const;
 
@@ -143,21 +144,6 @@ export const Hero = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const { isTouch, isLowEnd, prefersReducedMotion } = useDeviceCapabilities();
   const [contentReady, setContentReady] = useState(false);
-  const [viewport, setViewport] = useState<'mobile' | 'tablet' | 'desktop'>('desktop');
-
-  // Breakpoint-aware profile
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const compute = () => {
-      const w = window.innerWidth;
-      if (w < 768) setViewport('mobile');
-      else if (w < 1280) setViewport('tablet');
-      else setViewport('desktop');
-    };
-    compute();
-    window.addEventListener('resize', compute);
-    return () => window.removeEventListener('resize', compute);
-  }, []);
 
   useEffect(() => {
     const contentTimer = window.setTimeout(() => setContentReady(true), 120);
@@ -172,60 +158,7 @@ export const Hero = () => {
 
   return (
     <section className="relative h-[100dvh] w-full overflow-hidden flex flex-col bg-[#0a0a0a]">
-      {/* Deep background */}
-      <div className="absolute inset-0 z-0 bg-[#0a0a0a]" />
-
-      {/* Directional light plane — upper-right key light for depth */}
-      <motion.div
-        aria-hidden
-        className="absolute inset-0 z-[2] pointer-events-none"
-        initial={{ opacity: 0 }}
-        animate={contentReady ? { opacity: 1 } : { opacity: 0 }}
-        transition={{ duration: 1.6, ease: HERO_EASE }}
-        style={{
-          background:
-            viewport === 'mobile'
-              ? 'radial-gradient(ellipse 75% 55% at 78% 18%, rgba(245,245,243,0.10) 0%, rgba(245,245,243,0.02) 38%, transparent 64%)'
-              : 'radial-gradient(ellipse 60% 55% at 72% 22%, rgba(245,245,243,0.11) 0%, rgba(245,245,243,0.03) 40%, transparent 68%)',
-          mixBlendMode: 'screen',
-        }}
-      />
-
-      {/* Organic vignette — asymmetric on desktop, centered on mobile */}
-      <div
-        className="absolute inset-0 z-[2] pointer-events-none md:hidden"
-        style={{
-          background:
-            'radial-gradient(ellipse 96% 62% at 50% 40%, transparent 44%, rgba(0,0,0,0.12) 72%, rgba(0,0,0,0.24) 100%)',
-        }}
-      />
-      <div
-        className="absolute inset-0 z-[2] pointer-events-none hidden md:block"
-        style={{
-          background:
-            'radial-gradient(ellipse 86% 62% at 28% 42%, transparent 48%, rgba(0,0,0,0.16) 100%)',
-        }}
-      />
-
-      {/* Fine scanlines */}
-      <div
-        className="absolute inset-0 z-[3] pointer-events-none opacity-[0.02]"
-        style={{
-          backgroundImage:
-            'repeating-linear-gradient(0deg, transparent, transparent 4px, rgba(255,255,255,0.015) 4px, rgba(255,255,255,0.015) 8px)',
-          backgroundSize: '100% 8px',
-        }}
-      />
-
-      {/* Grain */}
-      <div
-        className="absolute inset-0 z-[3] pointer-events-none"
-        style={{
-          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`,
-          opacity: 0.025,
-          mixBlendMode: 'overlay',
-        }}
-      />
+      <HeroAmbientScreen variant="hero" baseBgClass="bg-[#0a0a0a]" />
 
       {/* Main content */}
       <motion.div

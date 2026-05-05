@@ -4,10 +4,10 @@ import { MDXRemote } from 'next-mdx-remote/rsc';
 import { mdxComponents } from '@/components/mdx/MDXComponents';
 import { WorkProjectFooter } from '@/components/work/WorkProjectFooter';
 import { OptimizedHorizontalGallery } from '@/components/work/OptimizedHorizontalGallery';
-import { VideoMuteToggle } from '@/components/work/VideoMuteToggle';
 import { Metadata } from 'next';
 import { getImageUrl, getVideoUrl } from '@/lib/media';
 import { HeroBackgroundVideo } from '@/components/work/HeroBackgroundVideo';
+import { SurfaceTensionStMobileVideo } from '@/components/work/SurfaceTensionStMobileVideo';
 
 export async function generateMetadata(): Promise<Metadata> {
   const project = await getFileBySlug('work', 'surface-tension-digital-drip');
@@ -154,11 +154,6 @@ export default async function DigitalDripPage() {
           mp4Src={getVideoUrl('/work/st-mapped.mp4')}
           className="absolute inset-0 w-full h-full object-cover z-0"
         />
-        
-        {/* Mute toggle for hero video */}
-        <div className="absolute bottom-24 right-6 z-20 md:hidden">
-          <VideoMuteToggle phosphor={phosphor} />
-        </div>
 
         {/* Dark overlay for text readability */}
         <div className="absolute inset-0 bg-black/60 z-[1]" />
@@ -519,24 +514,25 @@ export default async function DigitalDripPage() {
               <div className="border border-[#444] rounded-[1.5rem] overflow-hidden">
                 {/* Vertical video area */}
                 <div className="aspect-[9/16] bg-[#111] relative">
-                  {/* Background video - st-mobile */}
-                  <HeroBackgroundVideo
+                  {/* Background video - st-mobile (mute UI only on this layout) */}
+                  <SurfaceTensionStMobileVideo
                     webmSrc={getVideoUrl('/work/st-mobile.webm')}
                     mp4Src={getVideoUrl('/work/st-mobile.mp4')}
                     className="absolute inset-0 w-full h-full object-cover z-0"
+                    accentColor={amber}
                   />
 
                   {/* Phone notch area */}
-                  <div className="absolute top-0 left-1/2 -translate-x-1/2 w-20 h-6 bg-[#1a1a1a] rounded-b-lg z-20" />
+                  <div className="pointer-events-none absolute top-0 left-1/2 z-20 h-6 w-20 -translate-x-1/2 rounded-b-lg bg-[#1a1a1a]" />
                   
                   {/* Corner markers */}
-                  <div className="absolute top-4 left-4 w-4 h-4 border-l border-t z-10" style={{ borderColor: amber }} />
-                  <div className="absolute top-4 right-4 w-4 h-4 border-r border-t z-10" style={{ borderColor: amber }} />
-                  <div className="absolute bottom-4 left-4 w-4 h-4 border-l border-b z-10" style={{ borderColor: amber }} />
-                  <div className="absolute bottom-4 right-4 w-4 h-4 border-r border-b z-10" style={{ borderColor: amber }} />
+                  <div className="pointer-events-none absolute top-4 left-4 z-10 h-4 w-4 border-l border-t" style={{ borderColor: amber }} />
+                  <div className="pointer-events-none absolute top-4 right-4 z-10 h-4 w-4 border-r border-t" style={{ borderColor: amber }} />
+                  <div className="pointer-events-none absolute bottom-4 left-4 z-10 h-4 w-4 border-l border-b" style={{ borderColor: amber }} />
+                  <div className="pointer-events-none absolute bottom-4 right-4 z-10 h-4 w-4 border-r border-b" style={{ borderColor: amber }} />
                   
                   {/* Recording UI */}
-                  <div className="absolute top-6 right-4 flex items-center gap-1 z-10">
+                  <div className="pointer-events-none absolute top-6 right-4 z-20 flex items-center gap-1">
                     <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" style={{ animationDuration: '2s' }} />
                     <span className="font-mono text-[8px] text-[#666]">REC</span>
                   </div>
