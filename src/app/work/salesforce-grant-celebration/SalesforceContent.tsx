@@ -671,7 +671,7 @@ export default function SalesforceContent({ metadata, content, mainDescriptionMd
           variants={containerVariants}
         >
           {/* Section header */}
-          <motion.div className="flex items-center justify-between mb-16" variants={slideInLeft}>
+            <motion.div className="flex flex-wrap items-center justify-between gap-4 mb-16" variants={slideInLeft}>
             <div className="flex items-center gap-4">
               <motion.span 
                 className="font-mono text-[10px] tracking-[0.3em] uppercase" 
@@ -686,8 +686,8 @@ export default function SalesforceContent({ metadata, content, mainDescriptionMd
                 <ScrambleText text="Execution" enabled={processInView} delay={400} speed={40} />
               </span>
             </div>
-            <motion.span 
-              className="font-display text-2xl text-white uppercase"
+              <motion.span 
+                className="font-display text-2xl text-white uppercase [overflow-wrap:anywhere]"
               initial={{ opacity: 0, x: 20 }}
               animate={processInView ? { opacity: 1, x: 0 } : { opacity: 0, x: 20 }}
               transition={{ duration: 0.5, delay: 0.2 }}
@@ -701,7 +701,7 @@ export default function SalesforceContent({ metadata, content, mainDescriptionMd
             {approachSections.map((approach) => (
               <motion.div 
                 key={approach.title}
-                className="flex items-stretch border-l-4 will-change-transform"
+                className="flex flex-col sm:flex-row items-stretch border-l-4 will-change-transform"
                 style={{ borderColor: approach.index === 0 ? sfBlue : approach.index === 1 ? sfLight : sfDark }}
                 initial={{ opacity: 0, x: -30 }}
                 animate={processInView ? { opacity: 1, x: 0 } : { opacity: 0, x: -30 }}
@@ -709,7 +709,7 @@ export default function SalesforceContent({ metadata, content, mainDescriptionMd
               >
                 {/* Step number */}
                 <motion.div 
-                  className="w-16 sm:w-20 md:w-32 flex items-center justify-center border-r border-[#222] shrink-0 touch-manipulation"
+                  className="w-full sm:w-20 md:w-32 py-3 sm:py-0 flex items-center justify-center border-b sm:border-b-0 sm:border-r border-[#222] shrink-0 touch-manipulation"
                   style={{ backgroundColor: approach.index === 0 ? `${sfBlue}10` : approach.index === 1 ? `${sfLight}10` : `${sfDark}10` }}
                   whileHover={{ backgroundColor: approach.index === 0 ? `${sfBlue}20` : approach.index === 1 ? `${sfLight}20` : `${sfDark}20` }}
                   whileTap={{ backgroundColor: approach.index === 0 ? `${sfBlue}30` : approach.index === 1 ? `${sfLight}30` : `${sfDark}30` }}
@@ -723,12 +723,12 @@ export default function SalesforceContent({ metadata, content, mainDescriptionMd
                 {/* Content */}
                 <div className="flex-1 p-4 sm:p-6 md:p-8 min-w-0">
                   <h3 
-                    className="font-display text-lg sm:text-xl md:text-2xl uppercase tracking-tight mb-3 md:mb-4 break-words"
+                    className="font-display text-lg sm:text-xl md:text-2xl uppercase tracking-tight mb-3 md:mb-4 [overflow-wrap:anywhere]"
                     style={{ color: approach.index === 0 ? sfBlue : approach.index === 1 ? sfLight : white }}
                   >
                     {approach.title}
                   </h3>
-                  <div className="font-sans text-xs sm:text-sm uppercase tracking-wide leading-[1.8] md:leading-[1.9] text-[#888] max-w-3xl break-words">
+                  <div className="font-sans text-xs sm:text-sm uppercase tracking-wide leading-[1.8] md:leading-[1.9] text-[#888] max-w-3xl [overflow-wrap:anywhere] hyphens-none">
                     {approachMdx[approach.index]}
                   </div>
                 </div>
@@ -870,6 +870,75 @@ export default function SalesforceContent({ metadata, content, mainDescriptionMd
           </motion.div>
         </motion.div>
       </section>
+
+      <AnimatePresence>
+        {activeImageIndex !== null && (
+          <motion.div
+            className="fixed inset-0 z-[220] bg-black/95 backdrop-blur-sm p-3 sm:p-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setActiveImageIndex(null)}
+          >
+            <motion.div
+              className="relative w-full h-full max-w-7xl mx-auto"
+              initial={{ opacity: 0, scale: 0.98 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.98 }}
+              transition={{ duration: 0.2 }}
+              onClick={(e) => e.stopPropagation()}
+              onTouchStart={handleTouchStartModal}
+              onTouchEnd={handleTouchEndModal}
+            >
+              <img
+                src={galleryImages[activeImageIndex].src}
+                alt={galleryImages[activeImageIndex].alt}
+                className="w-full h-full object-contain"
+                loading="eager"
+                decoding="async"
+              />
+
+              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-4 md:p-6 pointer-events-none">
+                <p className="font-mono text-[10px] tracking-[0.2em] uppercase" style={{ color: sfBlue }}>
+                  {galleryImages[activeImageIndex].label}
+                </p>
+                <p className="font-mono text-[9px] tracking-[0.12em] uppercase text-white/60 mt-1">
+                  {galleryImages[activeImageIndex].subtitle}
+                </p>
+                <p className="font-mono text-[8px] tracking-[0.1em] uppercase text-white/40 mt-2 sm:hidden">
+                  Swipe left/right
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setActiveImageIndex(null)}
+                className="absolute top-3 right-3 w-9 h-9 rounded-full border border-white/30 bg-black/60 text-white text-lg leading-none"
+                aria-label="Close image"
+              >
+                ×
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveImageIndex((activeImageIndex - 1 + galleryImages.length) % galleryImages.length)}
+                className="absolute left-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full border border-white/30 bg-black/60 text-white hidden sm:flex items-center justify-center"
+                aria-label="Previous image"
+              >
+                ‹
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveImageIndex((activeImageIndex + 1) % galleryImages.length)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full border border-white/30 bg-black/60 text-white hidden sm:flex items-center justify-center"
+                aria-label="Next image"
+              >
+                ›
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Project Footer */}
       <WorkProjectFooter currentSlug="salesforce-grant-celebration" />
