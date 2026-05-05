@@ -228,14 +228,21 @@ export async function mountHeroVoxelScene(
     if (cameraMode && bufOk) {
       updateLiveMesh(surface, buf, pointCount, dt);
     } else {
-      updateIdleDots(surface, GRID_X, GRID_Z, t);
+      updateIdleDots(surface, GRID_X, GRID_Z, t, dt);
     }
 
     controls.update();
     renderer.render(scene, camera);
   };
 
-  function updateIdleDots(pack: HeroSurfacePack, gridX: number, gridZ: number, t: number) {
+  function updateIdleDots(
+    pack: HeroSurfacePack,
+    gridX: number,
+    gridZ: number,
+    t: number,
+    dt: number
+  ) {
+    const lerp = Math.min(1, IDLE_LERP * (dt / (1 / 60)) + 0.02);
     for (let i = 0; i < pointCount; i++) {
       const ix = i % gridX;
       const iz = Math.floor(i / gridX);
@@ -246,8 +253,8 @@ export async function mountHeroVoxelScene(
       const targetY = 0.03 + wave * IDLE_HEIGHT;
       const targetZ = pack.basePositions[base + 2] + idleZWave(nx, nz, t) * IDLE_Z_SWELL;
 
-      pack.idlePositions[base + 1] += (targetY - pack.idlePositions[base + 1]) * IDLE_LERP;
-      pack.idlePositions[base + 2] += (targetZ - pack.idlePositions[base + 2]) * IDLE_LERP;
+      pack.idlePositions[base + 1] += (targetY - pack.idlePositions[base + 1]) * lerp;
+      pack.idlePositions[base + 2] += (targetZ - pack.idlePositions[base + 2]) * lerp;
       writeIdleColor(pack.idleColors, i, wave);
     }
     pack.idlePositionAttr.needsUpdate = true;
