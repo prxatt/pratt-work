@@ -28,41 +28,41 @@ import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeom
 import { gridDimensionsForTier, type HeroVoxelTier } from './heroVoxelConfig';
 
 // ── Voxel geometry ─────────────────────────────────────────────────────────
-const VOXEL_SIZE = 0.22;
-const VOXEL_RADIUS = 0.05;
+const VOXEL_SIZE = 0.17;
+const VOXEL_RADIUS = 0.035;
 const VOXEL_SEGMENTS = 1;
-const VOXEL_SPACING = 0.315;
+const VOXEL_SPACING = 0.29;
 const WALL_ROOT_SCALE = 0.88;
 
 // ── Idle wave field ────────────────────────────────────────────────────────
-const IDLE_HEIGHT = 1.4;
+const IDLE_HEIGHT = 1.06;
 const IDLE_HEIGHT_BIAS = 0.34; // never fully flatten — keeps grid readable
-const IDLE_Z_SWELL = 0.78;
-const IDLE_LERP_BASE = 0.075;
+const IDLE_Z_SWELL = 0.52;
+const IDLE_LERP_BASE = 0.058;
 
 // ── Live volumetric extrusion ──────────────────────────────────────────────
-const LIVE_Y_RELIEF = 13.4; // peak voxel height (perceived "thickness" toward camera)
+const LIVE_Y_RELIEF = 11.4; // peak voxel height (perceived "thickness" toward camera)
 const LIVE_Y_BIAS = 0.22; // minimum height for "far" voxels — avoid invisible cells
-const LIVE_Z_RELIEF = 7.2; // forward/backward parallax range
-const LIVE_DEPTH_CONTRAST = 1.5; // pow exponent — deeper midtone push
+const LIVE_Z_RELIEF = 5.9; // forward/backward parallax range
+const LIVE_DEPTH_CONTRAST = 1.4; // pow exponent — deeper midtone push
 const LIVE_DEPTH_SHAPE_LO = 0.12; // smoothstep low edge for shaped curve
-const LIVE_DEPTH_SHAPE_HI = 0.9; // smoothstep high edge for shaped curve
-const LIVE_DEPTH_SHAPE_MIX = 0.7; // mix(d1, d2, blend) — 0 = pure pow, 1 = pure smoothstep
-const LIVE_FOREGROUND_BOOST = 0.1; // selectively amplify near regions
-const LIVE_FOREGROUND_THRESHOLD = 0.74; // start foreground amplification here
-const LIVE_NORMALIZE_BLEND = 0.18; // blend global [0,1] with per-frame min/max remap
-const LIVE_LERP_BASE = 0.7;
-const LIVE_INITIAL_BOOST = 1.16; // extrusion amplifier on activation
+const LIVE_DEPTH_SHAPE_HI = 0.88; // smoothstep high edge for shaped curve
+const LIVE_DEPTH_SHAPE_MIX = 0.62; // mix(d1, d2, blend) — 0 = pure pow, 1 = pure smoothstep
+const LIVE_FOREGROUND_BOOST = 0.06; // selectively amplify near regions
+const LIVE_FOREGROUND_THRESHOLD = 0.78; // start foreground amplification here
+const LIVE_NORMALIZE_BLEND = 0.14; // blend global [0,1] with per-frame min/max remap
+const LIVE_LERP_BASE = 0.5;
+const LIVE_INITIAL_BOOST = 1.05; // extrusion amplifier on activation
 
 // ── Brand palette ──────────────────────────────────────────────────────────
-const COLOR_SHADOW = new THREE.Color('#0d1014');
-const COLOR_MID = new THREE.Color('#1e4250');
-const COLOR_TEAL_BRIGHT = new THREE.Color('#46c4d8');
-const COLOR_HIGHLIGHT = new THREE.Color('#cfd7db');
+const COLOR_SHADOW = new THREE.Color('#06090d');
+const COLOR_MID = new THREE.Color('#122e39');
+const COLOR_TEAL_BRIGHT = new THREE.Color('#5bcde1');
+const COLOR_HIGHLIGHT = new THREE.Color('#eef6f8');
 
-const IDLE_COLOR_LO = new THREE.Color('#0c1116');
-const IDLE_COLOR_MID = new THREE.Color('#1a2b32');
-const IDLE_COLOR_HI = new THREE.Color('#88a9ad');
+const IDLE_COLOR_LO = new THREE.Color('#06090c');
+const IDLE_COLOR_MID = new THREE.Color('#10242c');
+const IDLE_COLOR_HI = new THREE.Color('#4b7a84');
 
 function smoothstepScalar(edge0: number, edge1: number, x: number): number {
   const d = edge1 - edge0 || 1;
@@ -301,6 +301,8 @@ export async function mountHeroVoxelScene(
         0,
         1
       );
+      // Suppress background spill so distant regions don't project toward camera.
+      dFinal = smoothstepScalar(0.06, 0.94, dFinal);
       if (dFinal > LIVE_FOREGROUND_THRESHOLD) {
         const fg = smoothstepScalar(LIVE_FOREGROUND_THRESHOLD, 1, dFinal);
         dFinal = THREE.MathUtils.clamp(dFinal + fg * LIVE_FOREGROUND_BOOST, 0, 1);
@@ -308,7 +310,7 @@ export async function mountHeroVoxelScene(
 
       const targetY = LIVE_Y_BIAS + dFinal * LIVE_Y_RELIEF * extrusionBoost;
       // Keep near voxels from collapsing into a front clipping band.
-      const targetZ = (dFinal - 0.5) * 1.38 * LIVE_Z_RELIEF * extrusionBoost;
+      const targetZ = (dFinal - 0.5) * 1.2 * LIVE_Z_RELIEF * extrusionBoost;
 
       voxels.currentScaleY[i] += (targetY - voxels.currentScaleY[i]) * lerp;
       voxels.currentZPush[i] += (targetZ - voxels.currentZPush[i]) * lerp;
@@ -542,19 +544,19 @@ function createVoxelGrid(
 
 function createLights(scene: THREE.Scene) {
   // Hemisphere — soft sky/ground fill rooted in brand palette
-  scene.add(new THREE.HemisphereLight(0x365163, 0x070a10, 0.62));
+  scene.add(new THREE.HemisphereLight(0x263946, 0x05070b, 0.5));
   // Ambient — bottom-floor light so deep shadows don't crush
-  scene.add(new THREE.AmbientLight(0x151d27, 0.32));
+  scene.add(new THREE.AmbientLight(0x0d131b, 0.26));
   // Key — bright warm-white from upper-right, drives primary specular
-  const key = new THREE.DirectionalLight(0xf2f5ff, 1.38);
+  const key = new THREE.DirectionalLight(0xf4f9ff, 1.45);
   key.position.set(8, 26, 22);
   scene.add(key);
   // Fill — cool blue from upper-left, opens shadows without crushing contrast
-  const fill = new THREE.DirectionalLight(0x6c86a6, 0.4);
+  const fill = new THREE.DirectionalLight(0x476887, 0.28);
   fill.position.set(-18, 12, 14);
   scene.add(fill);
   // Rim — teal-cyan from behind, etches voxel silhouettes against dark void
-  const rim = new THREE.DirectionalLight(0x54d5e8, 0.84);
+  const rim = new THREE.DirectionalLight(0x6be8ff, 0.92);
   rim.position.set(0, 8, -36);
   scene.add(rim);
   // Warm accent point — adds occasional sparkle to clearcoat reflections

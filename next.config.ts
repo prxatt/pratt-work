@@ -92,36 +92,40 @@ const nextConfig: NextConfig = {
           { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains; preload' },
         ],
       },
-      {
-        source: '/images/:path*',
-        headers: [
-          { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' }
-        ],
-      },
-      {
-        source: '/videos/:path*',
-        headers: [
-          { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' }
-        ],
-      },
-      {
-        source: '/fonts/:path*',
-        headers: [
-          { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' }
-        ],
-      },
-      {
-        source: '/:path*.js',
-        headers: [
-          { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' }
-        ],
-      },
-      {
-        source: '/:path*.css',
-        headers: [
-          { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' }
-        ],
-      },
+      ...(!isDev
+        ? [
+            {
+              source: '/images/:path*',
+              headers: [
+                { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' }
+              ],
+            },
+            {
+              source: '/videos/:path*',
+              headers: [
+                { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' }
+              ],
+            },
+            {
+              source: '/fonts/:path*',
+              headers: [
+                { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' }
+              ],
+            },
+            {
+              source: '/:path*.js',
+              headers: [
+                { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' }
+              ],
+            },
+            {
+              source: '/:path*.css',
+              headers: [
+                { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' }
+              ],
+            },
+          ]
+        : []),
       // Optional crawler guardrails for non-public/internal paths.
       {
         source: '/api/:path*',
