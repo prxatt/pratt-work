@@ -28,8 +28,8 @@ import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeom
 import { gridDimensionsForTier, type HeroVoxelTier } from './heroVoxelConfig';
 
 // ── Voxel geometry ─────────────────────────────────────────────────────────
-const VOXEL_SIZE = 0.19;
-const VOXEL_RADIUS = 0.05;
+const VOXEL_SIZE = 0.18;
+const VOXEL_RADIUS = 0.015;
 const VOXEL_SEGMENTS = 1;
 const VOXEL_SPACING = 0.27;
 const WALL_ROOT_SCALE = 1.06;
@@ -41,9 +41,9 @@ const IDLE_Z_SWELL = 0.82;
 const IDLE_LERP_BASE = 0.056;
 
 // ── Live volumetric extrusion ──────────────────────────────────────────────
-const LIVE_Y_RELIEF = 9.6; // reduce cylinder-like stretching while preserving relief
-const LIVE_Y_BIAS = 0.32; // minimum height for "far" voxels — keeps subject readable
-const LIVE_Z_RELIEF = 5.8; // keep depth readable without crowding camera
+const LIVE_Y_RELIEF = 6.8; // avoid long cylinder streaking in live mode
+const LIVE_Y_BIAS = 0.22; // keep far voxels subtle
+const LIVE_Z_RELIEF = 4.6; // tighter parallax closer to reference
 const LIVE_DEPTH_CONTRAST = 1.34; // slightly stronger local separation (detail)
 const LIVE_DEPTH_SHAPE_LO = 0.14; // widen mid-band so fine depth reads on subject
 const LIVE_DEPTH_SHAPE_HI = 0.86; // smoothstep high edge for shaped curve
@@ -55,6 +55,8 @@ const LIVE_SUBJECT_EDGE_SOFTNESS = 0.16; // soften cutoff to avoid harsh depth p
 
 /** Baseline exposure for idle; live mode adjusts dynamically and must reset on exit. */
 const DEFAULT_TONE_MAPPING_EXPOSURE = 1.58;
+const BG_COLOR_DEEP = new THREE.Color('#0a1d4a');
+const BG_COLOR_MID = new THREE.Color('#123470');
 
 // ── Cinematic magical-realism palette ─────────────────────────────────────
 const COLOR_FAR_SHADOW = new THREE.Color('#090b14');
@@ -102,6 +104,12 @@ function idleColor(out: THREE.Color, mix01: number) {
   } else {
     out.copy(IDLE_COLOR_MID).lerp(IDLE_COLOR_HI, smoothstepScalar(0.55, 1, m));
   }
+}
+
+function backgroundColor(out: THREE.Color, t: number) {
+  // Deep blue cinematic field instead of black void.
+  const pulse = 0.5 + Math.sin(t * 0.11) * 0.5;
+  out.copy(BG_COLOR_DEEP).lerp(BG_COLOR_MID, 0.2 + pulse * 0.16);
 }
 
 function depthColor(out: THREE.Color, depth01: number, glowMix: number) {
@@ -156,6 +164,7 @@ export async function mountHeroVoxelScene(
   let extrusionBoost = 1;
 
   const scene = new THREE.Scene();
+  const bgColor = new THREE.Color();
 
   const measure = () => {
     const r = container.getBoundingClientRect();
@@ -185,7 +194,7 @@ export async function mountHeroVoxelScene(
     Math.min(window.devicePixelRatio || 1, tier === 'medium' ? 1 : 1.25)
   );
   renderer.setSize(cw, ch);
-  renderer.setClearColor(0x000000, 0);
+  renderer.setClearColor(BG_COLOR_DEEP, 1);
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = DEFAULT_TONE_MAPPING_EXPOSURE;
   renderer.domElement.style.cssText =
@@ -333,7 +342,7 @@ export async function mountHeroVoxelScene(
       voxels.mesh.setMatrixAt(i, dummy.matrix);
 
       const centerBias = 1 - Math.abs((i % GRID_X) / Math.max(GRID_X - 1, 1) - 0.5) * 2;
-      const glowMix = smoothstepScalar(0.54, 1, dShaped) * (0.06 + centerBias * 0.06);
+      const glowMix = smoothstepScalar(0.54, 1, dShaped) * (0.05 + centerBias * 0.05);
       depthColor(tmpColor, dShaped, glowMix);
       voxels.mesh.setColorAt(i, tmpColor);
     }
@@ -407,6 +416,8 @@ export async function mountHeroVoxelScene(
       updateIdle(t, dt);
       updateIdleCameraDrift(t);
     }
+    backgroundColor(bgColor, t);
+    renderer.setClearColor(bgColor, 1);
 
     controls.update();
     renderer.render(scene, camera);
@@ -498,13 +509,13 @@ function createVoxelGrid(
 
   const material = new THREE.MeshPhysicalMaterial({
     vertexColors: true,
-    metalness: 0.3,
-    roughness: 0.34,
-    clearcoat: 0.45,
-    clearcoatRoughness: 0.3,
-    reflectivity: 0.5,
-    emissive: new THREE.Color('#123547'),
-    emissiveIntensity: 0.38,
+    metalness: 0.12,
+    roughness: 0.5,
+    clearcoat: 0.16,
+    clearcoatRoughness: 0.62,
+    reflectivity: 0.2,
+    emissive: new THREE.Color('#0f3442'),
+    emissiveIntensity: 0.24,
   });
 
   const mesh = new THREE.InstancedMesh(geometry, material, count);
