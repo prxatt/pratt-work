@@ -284,7 +284,6 @@ export const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const pathname = usePathname();
-  const isHomePage = pathname === '/';
 
   /** Controlled transform: imperative styles were cleared whenever React re-rendered (menu/Motion). */
   const [navTransform, setNavTransform] = useState(() =>
@@ -297,63 +296,28 @@ export const Navbar = () => {
   const scrollOffset = useRef(0);
   const lastScrollY = useRef(0);
   const navHeight = useRef(64);
-  /** Cached 0.88 × innerHeight; updated on mount and resize only (not on every scroll). */
-  const heroExitThresholdRef = useRef(0);
-  /** Tracks hero zone on / so leaving it reveals the bar once before scroll-hide applies. */
-  const prevInHeroRef = useRef(false);
 
   const syncNavTransform = useCallback(() => {
     setNavTransform(`translateY(-${scrollOffset.current}px)`);
   }, []);
 
-  // Physical scroll handler - direct coupling to scroll delta
+  // Physical scroll handler - direct coupling to scroll delta.
+  // Home hero follows the same hide/show behavior as other sections.
   useEffect(() => {
-    /** Home only: hide nav in first ~88vh (hero). Past that, same scroll-hide loop as other pages. */
-    const updateHeroExitThreshold = () => {
-      heroExitThresholdRef.current = Math.round(window.innerHeight * 0.88);
-    };
-
     const syncNavHeight = () => {
       if (!navRef.current) return;
       navHeight.current = navRef.current.getBoundingClientRect().height;
     };
 
-    updateHeroExitThreshold();
     syncNavHeight();
     lastScrollY.current = window.scrollY;
-    prevInHeroRef.current = isHomePage && window.scrollY < heroExitThresholdRef.current;
-
-    if (isHomePage) {
-      const pastHero = window.scrollY >= heroExitThresholdRef.current;
-      if (!pastHero) {
-        scrollOffset.current = navHeight.current;
-      } else {
-        scrollOffset.current = 0;
-      }
-    } else {
-      scrollOffset.current = 0;
-    }
+    scrollOffset.current = 0;
     syncNavTransform();
 
     const handleScroll = () => {
       const currentScrollY = window.scrollY;
       const delta = currentScrollY - lastScrollY.current;
       lastScrollY.current = currentScrollY;
-
-      const inHero = isHomePage && currentScrollY < heroExitThresholdRef.current;
-      if (inHero) {
-        prevInHeroRef.current = true;
-        scrollOffset.current = navHeight.current;
-        syncNavTransform();
-        return;
-      }
-
-      if (isHomePage && prevInHeroRef.current) {
-        prevInHeroRef.current = false;
-        scrollOffset.current = 0;
-        syncNavTransform();
-        return;
-      }
 
       if (currentScrollY <= 0) {
         scrollOffset.current = 0;
@@ -377,17 +341,7 @@ export const Navbar = () => {
     };
 
     const handleResize = () => {
-      updateHeroExitThreshold();
       syncNavHeight();
-
-      prevInHeroRef.current = isHomePage && window.scrollY < heroExitThresholdRef.current;
-
-      if (isHomePage && window.scrollY < heroExitThresholdRef.current) {
-        scrollOffset.current = navHeight.current;
-        syncNavTransform();
-        return;
-      }
-
       scrollOffset.current = Math.min(scrollOffset.current, navHeight.current);
       syncNavTransform();
     };
@@ -400,7 +354,7 @@ export const Navbar = () => {
       window.removeEventListener('scroll', handleScroll);
       window.removeEventListener('resize', handleResize);
     };
-  }, [isHomePage, syncNavTransform]);
+  }, [syncNavTransform]);
   
   useEffect(() => {
     const handleBackdrop = () => {

@@ -31,7 +31,7 @@ import { gridDimensionsForTier, type HeroVoxelTier } from './heroVoxelConfig';
 const VOXEL_SIZE = 0.22;
 const VOXEL_RADIUS = 0.05;
 const VOXEL_SEGMENTS = 1;
-const VOXEL_SPACING = 0.34;
+const VOXEL_SPACING = 0.31;
 const WALL_ROOT_SCALE = 0.92;
 
 // ── Idle wave field ────────────────────────────────────────────────────────
@@ -44,20 +44,20 @@ const IDLE_LERP_BASE = 0.056;
 const LIVE_Y_RELIEF = 10.6; // peak voxel height (perceived "thickness" toward camera)
 const LIVE_Y_BIAS = 0.32; // minimum height for "far" voxels — keeps subject readable
 const LIVE_Z_RELIEF = 6.4; // forward/backward parallax range
-const LIVE_DEPTH_CONTRAST = 1.18; // gentler curve — avoids crushing mids to black
+const LIVE_DEPTH_CONTRAST = 1.1; // gentler curve — avoids crushing mids to black
 const LIVE_DEPTH_SHAPE_LO = 0.18; // smoothstep low edge for shaped curve
 const LIVE_DEPTH_SHAPE_HI = 0.82; // smoothstep high edge for shaped curve
 const LIVE_DEPTH_SHAPE_MIX = 0.55; // mix(d1, d2, blend) — 0 = pure pow, 1 = pure smoothstep
-const LIVE_LERP_BASE = 0.42;
+const LIVE_LERP_BASE = 0.5;
 const LIVE_INITIAL_BOOST = 1.4; // extrusion amplifier on activation
 
 /** Baseline exposure for idle; live mode adjusts dynamically and must reset on exit. */
-const DEFAULT_TONE_MAPPING_EXPOSURE = 1.48;
+const DEFAULT_TONE_MAPPING_EXPOSURE = 1.46;
 
 // ── Brand palette ──────────────────────────────────────────────────────────
-const COLOR_SHADOW = new THREE.Color('#243445');
-const COLOR_TEAL_DEEP = new THREE.Color('#285a78');
-const COLOR_TEAL_BRIGHT = new THREE.Color('#5ee0ff');
+const COLOR_SHADOW = new THREE.Color('#223248');
+const COLOR_TEAL_DEEP = new THREE.Color('#3a79a1');
+const COLOR_TEAL_BRIGHT = new THREE.Color('#73ecff');
 const COLOR_PAPER = new THREE.Color('#faf6ec');
 
 const IDLE_COLOR_LO = new THREE.Color('#0c1116');
@@ -275,8 +275,10 @@ export async function mountHeroVoxelScene(
       if (dFinal > dMax) dMax = dFinal;
       dSum += dFinal;
 
-      const targetY = LIVE_Y_BIAS + dFinal * LIVE_Y_RELIEF * extrusionBoost;
-      const targetZ = (dFinal - 0.5) * 2 * LIVE_Z_RELIEF * extrusionBoost;
+      const nearBoost = smoothstepScalar(0.6, 1, dFinal);
+      const dShaped = THREE.MathUtils.clamp(dFinal * (1 + nearBoost * 0.34), 0, 1);
+      const targetY = LIVE_Y_BIAS + dShaped * LIVE_Y_RELIEF * extrusionBoost;
+      const targetZ = (dShaped - 0.5) * 2 * LIVE_Z_RELIEF * extrusionBoost;
 
       voxels.currentScaleY[i] += (targetY - voxels.currentScaleY[i]) * lerp;
       voxels.currentZPush[i] += (targetZ - voxels.currentZPush[i]) * lerp;
@@ -293,18 +295,18 @@ export async function mountHeroVoxelScene(
       voxels.mesh.setMatrixAt(i, dummy.matrix);
 
       const centerBias = 1 - Math.abs((i % GRID_X) / Math.max(GRID_X - 1, 1) - 0.5) * 2;
-      const glowMix = smoothstepScalar(0.55, 1, dFinal) * (0.08 + centerBias * 0.07);
-      depthColor(tmpColor, dFinal, glowMix);
+      const glowMix = smoothstepScalar(0.48, 1, dShaped) * (0.13 + centerBias * 0.1);
+      depthColor(tmpColor, dShaped, glowMix);
       voxels.mesh.setColorAt(i, tmpColor);
     }
     const dRange = dMax - dMin;
     const dAvg = dSum / Math.max(voxelCount, 1);
     const exposureTarget = THREE.MathUtils.clamp(
-      1.38 + (0.5 - dAvg) * 0.18 + (0.3 - dRange) * 0.2,
-      1.32,
-      1.75
+      1.38 + (0.48 - dAvg) * 0.2 + (0.24 - dRange) * 0.22,
+      1.3,
+      1.72
     );
-    renderer.toneMappingExposure += (exposureTarget - renderer.toneMappingExposure) * 0.05;
+    renderer.toneMappingExposure += (exposureTarget - renderer.toneMappingExposure) * 0.06;
     voxels.mesh.instanceMatrix.needsUpdate = true;
     if (voxels.mesh.instanceColor) voxels.mesh.instanceColor.needsUpdate = true;
   }
@@ -323,7 +325,7 @@ export async function mountHeroVoxelScene(
       controls.target.set(0, 0, 0);
     }
     renderer.setSize(w, h);
-    const cap = cameraMode ? (tier === 'medium' ? 0.92 : 1) : tier === 'medium' ? 1 : 1.2;
+    const cap = cameraMode ? (tier === 'medium' ? 0.9 : 0.95) : tier === 'medium' ? 1 : 1.2;
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, cap));
   };
 
@@ -453,13 +455,13 @@ function createVoxelGrid(
 
   const material = new THREE.MeshPhysicalMaterial({
     vertexColors: true,
-    metalness: 0.22,
-    roughness: 0.38,
-    clearcoat: 0.42,
-    clearcoatRoughness: 0.28,
-    reflectivity: 0.48,
-    emissive: new THREE.Color('#0e2a38'),
-    emissiveIntensity: 0.3,
+    metalness: 0.3,
+    roughness: 0.34,
+    clearcoat: 0.45,
+    clearcoatRoughness: 0.3,
+    reflectivity: 0.5,
+    emissive: new THREE.Color('#123547'),
+    emissiveIntensity: 0.38,
   });
 
   const mesh = new THREE.InstancedMesh(geometry, material, count);
@@ -517,26 +519,24 @@ function createVoxelGrid(
 }
 
 function createLights(scene: THREE.Scene) {
-  // Hemisphere — lift ground bounce slightly so default (head-on) view isn't mud
-  scene.add(new THREE.HemisphereLight(0x4a6280, 0x0c1218, 0.78));
-  scene.add(new THREE.AmbientLight(0x1e2836, 0.52));
-  // Front fill — near camera axis so the sculpture reads without orbiting for light
-  const front = new THREE.DirectionalLight(0xf2f7ff, 0.72);
-  front.position.set(0, 4, 38);
-  scene.add(front);
-  // Key — warm from upper-right
-  const key = new THREE.DirectionalLight(0xf8faff, 1.52);
-  key.position.set(10, 24, 20);
+  // Hemisphere — soft sky/ground fill rooted in brand palette
+  scene.add(new THREE.HemisphereLight(0x3a4e60, 0x070b10, 0.64));
+  // Ambient — bottom-floor light so deep shadows don't crush
+  scene.add(new THREE.AmbientLight(0x18202a, 0.42));
+  // Key — bright warm-white from upper-right, drives primary specular
+  const key = new THREE.DirectionalLight(0xf0f4ff, 1.36);
+  key.position.set(8, 26, 22);
   scene.add(key);
-  // Fill — cool from upper-left
-  const fill = new THREE.DirectionalLight(0x8eb0d8, 0.68);
-  fill.position.set(-16, 14, 16);
+  // Fill — cool blue from upper-left, opens shadows without crushing contrast
+  const fill = new THREE.DirectionalLight(0x7f9fc6, 0.54);
+  fill.position.set(-18, 12, 14);
   scene.add(fill);
-  // Rim — toned down so head-on view isn't silhouette-heavy
-  const rim = new THREE.DirectionalLight(0x6dd8eb, 0.52);
-  rim.position.set(0, 6, -34);
+  // Rim — teal-cyan from behind, etches voxel silhouettes against dark void
+  const rim = new THREE.DirectionalLight(0x5fd3e6, 0.78);
+  rim.position.set(0, 8, -36);
   scene.add(rim);
-  const warm = new THREE.PointLight(0xfff0d8, 0.45, 240);
-  warm.position.set(12, 10, 24);
+  // Warm accent point — adds occasional sparkle to clearcoat reflections
+  const warm = new THREE.PointLight(0xf7dfb0, 0.32, 220);
+  warm.position.set(18, 14, 26);
   scene.add(warm);
 }
