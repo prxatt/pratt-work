@@ -39,8 +39,8 @@ function useViewportWidth(): number {
 }
 
 /** Slightly lower cadence than 15 Hz to keep main thread headroom for 12K instance updates. */
-const INFER_INTERVAL_MS = 80;
-const INFER_INTERVAL_LOW_FPS_MS = 130;
+const INFER_INTERVAL_MS = 90;
+const INFER_INTERVAL_LOW_FPS_MS = 145;
 const FPS_LOW_THRESHOLD = 24;
 
 export function HeroVoxelBackdrop() {
