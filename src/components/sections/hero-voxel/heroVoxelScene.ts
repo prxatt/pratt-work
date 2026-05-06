@@ -44,9 +44,9 @@ const IDLE_LERP_BASE = 0.056;
 const LIVE_Y_RELIEF = 12.2; // peak voxel height (perceived "thickness" toward camera)
 const LIVE_Y_BIAS = 0.32; // minimum height for "far" voxels — keeps subject readable
 const LIVE_Z_RELIEF = 6.9; // forward/backward parallax range
-const LIVE_DEPTH_CONTRAST = 1.3; // increase near/mid separation for clearer subject relief
-const LIVE_DEPTH_SHAPE_LO = 0.18; // smoothstep low edge for shaped curve
-const LIVE_DEPTH_SHAPE_HI = 0.82; // smoothstep high edge for shaped curve
+const LIVE_DEPTH_CONTRAST = 1.34; // slightly stronger local separation (detail)
+const LIVE_DEPTH_SHAPE_LO = 0.14; // widen mid-band so fine depth reads on subject
+const LIVE_DEPTH_SHAPE_HI = 0.86; // smoothstep high edge for shaped curve
 const LIVE_DEPTH_SHAPE_MIX = 0.55; // mix(d1, d2, blend) — 0 = pure pow, 1 = pure smoothstep
 const LIVE_LERP_BASE = 0.56;
 const LIVE_INITIAL_BOOST = 1.4; // extrusion amplifier on activation
@@ -280,8 +280,8 @@ export async function mountHeroVoxelScene(
       if (dFinal > dMax) dMax = dFinal;
       dSum += dFinal;
 
-      const nearBoost = smoothstepScalar(0.56, 1, dFinal);
-      const dShaped = THREE.MathUtils.clamp(dFinal * (1 + nearBoost * 0.28), 0, 1);
+      const nearBoost = smoothstepScalar(0.52, 1, dFinal);
+      const dShaped = THREE.MathUtils.clamp(dFinal * (1 + nearBoost * 0.32), 0, 1);
       const targetY = LIVE_Y_BIAS + dShaped * LIVE_Y_RELIEF * extrusionBoost;
       const targetZ = (dShaped - 0.5) * 2 * LIVE_Z_RELIEF * extrusionBoost;
 

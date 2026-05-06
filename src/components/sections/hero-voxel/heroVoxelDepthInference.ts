@@ -114,13 +114,15 @@ export function createDepthInference(opts: {
   }
 
   function sampleTensorToGrid(rawData: Float32Array, dW: number, dH: number) {
-    let dMin = Infinity;
-    let dMax = -Infinity;
-    for (let i = 0; i < rawData.length; i++) {
-      const v = rawData[i];
-      if (v < dMin) dMin = v;
-      if (v > dMax) dMax = v;
-    }
+    const n = rawData.length;
+    if (n === 0) return;
+    // Inner-percentile stretch: outliers no longer crush the visible depth range.
+    const sorted = Float32Array.from(rawData);
+    sorted.sort();
+    const loIdx = Math.max(0, Math.floor(n * 0.04));
+    const hiIdx = Math.min(n - 1, Math.floor(n * 0.96));
+    const dMin = sorted[loIdx];
+    const dMax = sorted[hiIdx];
     const dRange = dMax - dMin || 1;
     for (let iz = 0; iz < GRID_Z; iz++) {
       for (let ix = 0; ix < GRID_X; ix++) {
@@ -133,6 +135,8 @@ export function createDepthInference(opts: {
           dH - 1
         );
         let norm = (rawData[srcY * dW + srcX] - dMin) / dRange;
+        if (norm < 0) norm = 0;
+        else if (norm > 1) norm = 1;
         if (liveDepthOrientation.invertPolarity) norm = 1 - norm;
         writeCell(ix, iz, norm);
       }
