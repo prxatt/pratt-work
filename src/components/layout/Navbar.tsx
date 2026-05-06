@@ -4,7 +4,6 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { Search } from 'lucide-react';
-import { usePathname } from 'next/navigation';
 import { siteConfig } from '@/config/site.config';
 import { useCursor } from '@/context/CursorContext';
 import { MenuOverlay } from './MenuOverlay';
@@ -283,12 +282,9 @@ const GlitchText = () => {
 export const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const pathname = usePathname();
 
   /** Controlled transform: imperative styles were cleared whenever React re-rendered (menu/Motion). */
-  const [navTransform, setNavTransform] = useState(() =>
-    pathname === '/' ? 'translateY(-100%)' : 'translateY(0px)'
-  );
+  const [navTransform, setNavTransform] = useState('translateY(0px)');
   const [navScrolled, setNavScrolled] = useState(false);
   const { setCursorState } = useCursor();
 
