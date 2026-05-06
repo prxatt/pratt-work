@@ -48,21 +48,21 @@ const LIVE_DEPTH_CONTRAST = 1.34; // slightly stronger local separation (detail)
 const LIVE_DEPTH_SHAPE_LO = 0.14; // widen mid-band so fine depth reads on subject
 const LIVE_DEPTH_SHAPE_HI = 0.86; // smoothstep high edge for shaped curve
 const LIVE_DEPTH_SHAPE_MIX = 0.55; // mix(d1, d2, blend) — 0 = pure pow, 1 = pure smoothstep
-const LIVE_FAR_CUTOFF_PERCENTILE = 0.34; // drop far background; keep nearest ~66%
-const LIVE_FAR_CUTOFF_FEATHER = 0.14; // soften separation edge to avoid harsh clipping
 const LIVE_LERP_BASE = 0.56;
 const LIVE_INITIAL_BOOST = 1.4; // extrusion amplifier on activation
+const LIVE_FAR_REJECT_QUANTILE = 0.56; // approximate "ignore background beyond ~10ft"
+const LIVE_SUBJECT_EDGE_SOFTNESS = 0.16; // soften cutoff to avoid harsh depth popping
 
 /** Baseline exposure for idle; live mode adjusts dynamically and must reset on exit. */
 const DEFAULT_TONE_MAPPING_EXPOSURE = 1.58;
 
 // ── Cinematic magical-realism palette ─────────────────────────────────────
 const COLOR_FAR_SHADOW = new THREE.Color('#090b14');
-const COLOR_FAR_INDIGO = new THREE.Color('#2a2a64');
-const COLOR_MID_MAGENTA = new THREE.Color('#9a4fd6');
-const COLOR_NEAR_EMERALD = new THREE.Color('#4bd6b7');
-const COLOR_NEAR_GOLD = new THREE.Color('#ffd79a');
-const COLOR_SPEC = new THREE.Color('#fff3dc');
+const COLOR_FAR_INDIGO = new THREE.Color('#122b63');
+const COLOR_MID_TEAL = new THREE.Color('#1d8d9f');
+const COLOR_NEAR_MINT = new THREE.Color('#78f3b5');
+const COLOR_NEAR_GLOW = new THREE.Color('#c9ffe4');
+const COLOR_SPEC = new THREE.Color('#eafff3');
 
 const IDLE_COLOR_LO = new THREE.Color('#0c1116');
 const IDLE_COLOR_MID = new THREE.Color('#1a2b32');
@@ -106,18 +106,14 @@ function idleColor(out: THREE.Color, mix01: number) {
 
 function depthColor(out: THREE.Color, depth01: number, glowMix: number) {
   const t = THREE.MathUtils.clamp(depth01, 0, 1);
-  if (t < 0.24) {
-    out.copy(COLOR_FAR_SHADOW).lerp(COLOR_FAR_INDIGO, smoothstepScalar(0, 0.24, t));
-  } else if (t < 0.58) {
-    out
-      .copy(COLOR_FAR_INDIGO)
-      .lerp(COLOR_MID_MAGENTA, smoothstepScalar(0.24, 0.58, t));
-  } else if (t < 0.84) {
-    out
-      .copy(COLOR_MID_MAGENTA)
-      .lerp(COLOR_NEAR_EMERALD, smoothstepScalar(0.58, 0.84, t));
+  if (t < 0.2) {
+    out.copy(COLOR_FAR_SHADOW).lerp(COLOR_FAR_INDIGO, smoothstepScalar(0, 0.2, t));
+  } else if (t < 0.62) {
+    out.copy(COLOR_FAR_INDIGO).lerp(COLOR_MID_TEAL, smoothstepScalar(0.2, 0.62, t));
+  } else if (t < 0.88) {
+    out.copy(COLOR_MID_TEAL).lerp(COLOR_NEAR_MINT, smoothstepScalar(0.62, 0.88, t));
   } else {
-    out.copy(COLOR_NEAR_EMERALD).lerp(COLOR_NEAR_GOLD, smoothstepScalar(0.84, 1, t));
+    out.copy(COLOR_NEAR_MINT).lerp(COLOR_NEAR_GLOW, smoothstepScalar(0.88, 1, t));
   }
   out.lerp(COLOR_SPEC, glowMix);
 }
@@ -127,9 +123,9 @@ type VoxelPack = {
   mesh: THREE.InstancedMesh;
   basePositions: Float32Array; // (x, y, 0) per instance — fixed per frame
   smoothDepths: Float32Array; // per-frame smoothed depth in [0,1]
-  frameDepths: Float32Array; // per-frame shaped depth before subject isolation
   currentScaleY: Float32Array; // dt-smoothed Y scale (voxel height)
   currentZPush: Float32Array; // dt-smoothed Z parallax (forward push)
+  workDepth: Float32Array; // per-frame shaped depth (pre-threshold)
   count: number;
 };
 
@@ -277,6 +273,7 @@ export async function mountHeroVoxelScene(
     let dMin = 1;
     let dMax = 0;
     let dSum = 0;
+    const histogram = new Uint16Array(32);
     for (let i = 0; i < voxelCount; i++) {
       // Canonical "high = near" — orientation handled in inference layer.
       const raw = buf[i];
@@ -289,34 +286,35 @@ export async function mountHeroVoxelScene(
         0,
         1
       );
-      voxels.frameDepths[i] = dFinal;
+      voxels.workDepth[i] = dFinal;
       if (dFinal < dMin) dMin = dFinal;
       if (dFinal > dMax) dMax = dFinal;
       dSum += dFinal;
+      const bin = Math.min(31, Math.max(0, Math.floor(dFinal * 31)));
+      histogram[bin] += 1;
     }
-    const dRange = dMax - dMin;
-    const dAvg = dSum / Math.max(voxelCount, 1);
-
-    // Adaptive far-plane removal (pseudo "within ~10ft"): compute a per-frame
-    // cutoff from the depth distribution and softly attenuate farther voxels.
-    const sortedDepths = Float32Array.from(voxels.frameDepths);
-    sortedDepths.sort();
-    const cutIdx = Math.max(
-      0,
-      Math.min(voxelCount - 1, Math.floor(voxelCount * LIVE_FAR_CUTOFF_PERCENTILE))
-    );
-    const farCutoff = sortedDepths[cutIdx];
-    const farFeatherHi = Math.min(1, farCutoff + LIVE_FAR_CUTOFF_FEATHER);
-
+    const rejectCount = Math.floor(voxelCount * LIVE_FAR_REJECT_QUANTILE);
+    let acc = 0;
+    let thresholdBin = 0;
+    for (let i = 0; i < histogram.length; i++) {
+      acc += histogram[i];
+      if (acc >= rejectCount) {
+        thresholdBin = i;
+        break;
+      }
+    }
+    const farCut = thresholdBin / 31;
     for (let i = 0; i < voxelCount; i++) {
-      const dFinal = voxels.frameDepths[i];
-      const keep = smoothstepScalar(farCutoff, farFeatherHi, dFinal);
-      const dIsolated = dFinal * keep;
-      if (dFinal < dMin) dMin = dFinal;
-      if (dFinal > dMax) dMax = dFinal;
+      const dFinal = voxels.workDepth[i];
+      const subjectMask = smoothstepScalar(
+        farCut,
+        Math.min(1, farCut + LIVE_SUBJECT_EDGE_SOFTNESS),
+        dFinal
+      );
+      const dMasked = dFinal * subjectMask;
 
-      const nearBoost = smoothstepScalar(0.52, 1, dIsolated);
-      const dShaped = THREE.MathUtils.clamp(dIsolated * (1 + nearBoost * 0.32), 0, 1);
+      const nearBoost = smoothstepScalar(0.52, 1, dFinal);
+      const dShaped = THREE.MathUtils.clamp(dMasked * (1 + nearBoost * 0.32), 0, 1);
       const targetY = LIVE_Y_BIAS + dShaped * LIVE_Y_RELIEF * extrusionBoost;
       const targetZ = (dShaped - 0.5) * 2 * LIVE_Z_RELIEF * extrusionBoost;
 
@@ -335,11 +333,12 @@ export async function mountHeroVoxelScene(
       voxels.mesh.setMatrixAt(i, dummy.matrix);
 
       const centerBias = 1 - Math.abs((i % GRID_X) / Math.max(GRID_X - 1, 1) - 0.5) * 2;
-      const glowMix =
-        smoothstepScalar(0.5, 1, dShaped) * (0.08 + centerBias * 0.07) * (0.8 + keep * 0.2);
+      const glowMix = smoothstepScalar(0.54, 1, dShaped) * (0.06 + centerBias * 0.06);
       depthColor(tmpColor, dShaped, glowMix);
       voxels.mesh.setColorAt(i, tmpColor);
     }
+    const dRange = dMax - dMin;
+    const dAvg = dSum / Math.max(voxelCount, 1);
     updateLiveLights(liveLightRig, dAvg, dRange, t);
     const exposureTarget = THREE.MathUtils.clamp(
       1.46 + (0.48 - dAvg) * 0.18 + (0.24 - dRange) * 0.2,
@@ -515,9 +514,9 @@ function createVoxelGrid(
 
   const basePositions = new Float32Array(count * 3);
   const smoothDepths = new Float32Array(count).fill(0.5);
-  const frameDepths = new Float32Array(count).fill(0.5);
   const currentScaleY = new Float32Array(count).fill(IDLE_HEIGHT_BIAS);
   const currentZPush = new Float32Array(count);
+  const workDepth = new Float32Array(count);
 
   const offsetX = (GRID_X - 1) * VOXEL_SPACING * 0.5;
   const offsetY = (GRID_Z - 1) * VOXEL_SPACING * 0.5;
@@ -557,9 +556,9 @@ function createVoxelGrid(
     mesh,
     basePositions,
     smoothDepths,
-    frameDepths,
     currentScaleY,
     currentZPush,
+    workDepth,
     count,
   };
 }
@@ -568,16 +567,16 @@ function createLights(scene: THREE.Scene) {
   // Darker base keeps background legible while near voxels remain luminous.
   scene.add(new THREE.HemisphereLight(0x344168, 0x05070d, 0.56));
   scene.add(new THREE.AmbientLight(0x101522, 0.34));
-  const key = new THREE.DirectionalLight(0xc8d4ff, 1.22);
+  const key = new THREE.DirectionalLight(0xbfd2ff, 1.16);
   key.position.set(8, 26, 22);
   scene.add(key);
-  const fill = new THREE.DirectionalLight(0x7a56cc, 0.68);
-  fill.position.set(-18, 10, 12);
+  const fill = new THREE.DirectionalLight(0x4ea6b8, 0.62);
+  fill.position.set(-18, 11, 11);
   scene.add(fill);
-  const rim = new THREE.DirectionalLight(0x57d8ff, 1.02);
+  const rim = new THREE.DirectionalLight(0x73ffc5, 1.06);
   rim.position.set(0, 8, -36);
   scene.add(rim);
-  const subjectGlow = new THREE.PointLight(0xffc78f, 0.42, 180);
+  const subjectGlow = new THREE.PointLight(0xb6ffd6, 0.46, 180);
   subjectGlow.position.set(0, 2, 20);
   scene.add(subjectGlow);
   return { key, fill, rim, subjectGlow };
@@ -587,9 +586,9 @@ function updateLiveLights(rig: LiveLightRig, dAvg: number, dRange: number, t: nu
   const nearEnergy = smoothstepScalar(0.4, 0.78, dAvg);
   const detailEnergy = smoothstepScalar(0.12, 0.42, dRange);
   rig.key.intensity = 1.14 + nearEnergy * 0.44;
-  rig.fill.intensity = 0.56 + detailEnergy * 0.42;
-  rig.rim.intensity = 0.84 + nearEnergy * 0.58;
-  rig.subjectGlow.intensity = 0.28 + nearEnergy * 0.6 + detailEnergy * 0.22;
+  rig.fill.intensity = 0.52 + detailEnergy * 0.36;
+  rig.rim.intensity = 0.9 + nearEnergy * 0.5;
+  rig.subjectGlow.intensity = 0.24 + nearEnergy * 0.58 + detailEnergy * 0.2;
   rig.subjectGlow.position.set(
     Math.sin(t * 0.72) * 5.5,
     3.2 + Math.sin(t * 0.51 + 1.2) * 1.4,
