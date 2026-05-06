@@ -41,9 +41,9 @@ const IDLE_Z_SWELL = 0.82;
 const IDLE_LERP_BASE = 0.056;
 
 // ── Live volumetric extrusion ──────────────────────────────────────────────
-const LIVE_Y_RELIEF = 12.2; // peak voxel height (perceived "thickness" toward camera)
+const LIVE_Y_RELIEF = 9.6; // reduce cylinder-like stretching while preserving relief
 const LIVE_Y_BIAS = 0.32; // minimum height for "far" voxels — keeps subject readable
-const LIVE_Z_RELIEF = 8.2; // stronger forward parallax range
+const LIVE_Z_RELIEF = 5.8; // keep depth readable without crowding camera
 const LIVE_DEPTH_CONTRAST = 1.34; // slightly stronger local separation (detail)
 const LIVE_DEPTH_SHAPE_LO = 0.14; // widen mid-band so fine depth reads on subject
 const LIVE_DEPTH_SHAPE_HI = 0.86; // smoothstep high edge for shaped curve
@@ -56,10 +56,10 @@ const DEFAULT_TONE_MAPPING_EXPOSURE = 1.58;
 
 // ── Cinematic magical-realism palette ─────────────────────────────────────
 const COLOR_FAR_SHADOW = new THREE.Color('#090b14');
-const COLOR_FAR_INDIGO = new THREE.Color('#1d2d68');
-const COLOR_MID_VIOLET = new THREE.Color('#6942a9');
-const COLOR_NEAR_CYAN = new THREE.Color('#59dcff');
-const COLOR_NEAR_GOLD = new THREE.Color('#ffd8a0');
+const COLOR_FAR_INDIGO = new THREE.Color('#2a2a64');
+const COLOR_MID_MAGENTA = new THREE.Color('#9a4fd6');
+const COLOR_NEAR_EMERALD = new THREE.Color('#4bd6b7');
+const COLOR_NEAR_GOLD = new THREE.Color('#ffd79a');
 const COLOR_SPEC = new THREE.Color('#fff3dc');
 
 const IDLE_COLOR_LO = new THREE.Color('#0c1116');
@@ -104,18 +104,18 @@ function idleColor(out: THREE.Color, mix01: number) {
 
 function depthColor(out: THREE.Color, depth01: number, glowMix: number) {
   const t = THREE.MathUtils.clamp(depth01, 0, 1);
-  if (t < 0.28) {
-    out.copy(COLOR_FAR_SHADOW).lerp(COLOR_FAR_INDIGO, smoothstepScalar(0, 0.28, t));
-  } else if (t < 0.6) {
+  if (t < 0.24) {
+    out.copy(COLOR_FAR_SHADOW).lerp(COLOR_FAR_INDIGO, smoothstepScalar(0, 0.24, t));
+  } else if (t < 0.58) {
     out
       .copy(COLOR_FAR_INDIGO)
-      .lerp(COLOR_MID_VIOLET, smoothstepScalar(0.28, 0.6, t));
-  } else if (t < 0.86) {
+      .lerp(COLOR_MID_MAGENTA, smoothstepScalar(0.24, 0.58, t));
+  } else if (t < 0.84) {
     out
-      .copy(COLOR_MID_VIOLET)
-      .lerp(COLOR_NEAR_CYAN, smoothstepScalar(0.6, 0.86, t));
+      .copy(COLOR_MID_MAGENTA)
+      .lerp(COLOR_NEAR_EMERALD, smoothstepScalar(0.58, 0.84, t));
   } else {
-    out.copy(COLOR_NEAR_CYAN).lerp(COLOR_NEAR_GOLD, smoothstepScalar(0.86, 1, t));
+    out.copy(COLOR_NEAR_EMERALD).lerp(COLOR_NEAR_GOLD, smoothstepScalar(0.84, 1, t));
   }
   out.lerp(COLOR_SPEC, glowMix);
 }
@@ -206,8 +206,8 @@ export async function mountHeroVoxelScene(
   controls.maxDistance = 60;
   controls.maxPolarAngle = Math.PI * 0.62;
   controls.minPolarAngle = Math.PI * 0.32;
-  controls.minAzimuthAngle = -Math.PI * 0.38;
-  controls.maxAzimuthAngle = Math.PI * 0.38;
+  controls.minAzimuthAngle = -Infinity;
+  controls.maxAzimuthAngle = Infinity;
   controls.mouseButtons.LEFT = THREE.MOUSE.ROTATE;
   controls.mouseButtons.MIDDLE = THREE.MOUSE.DOLLY;
   controls.mouseButtons.RIGHT = THREE.MOUSE.ROTATE;
@@ -293,7 +293,7 @@ export async function mountHeroVoxelScene(
       const nearBoost = smoothstepScalar(0.52, 1, dFinal);
       const dShaped = THREE.MathUtils.clamp(dFinal * (1 + nearBoost * 0.32), 0, 1);
       const targetY = LIVE_Y_BIAS + dShaped * LIVE_Y_RELIEF * extrusionBoost;
-      const targetZ = (dShaped * 1.15 - 0.2) * LIVE_Z_RELIEF * extrusionBoost;
+      const targetZ = (dShaped - 0.5) * 2 * LIVE_Z_RELIEF * extrusionBoost;
 
       voxels.currentScaleY[i] += (targetY - voxels.currentScaleY[i]) * lerp;
       voxels.currentZPush[i] += (targetZ - voxels.currentZPush[i]) * lerp;
@@ -406,8 +406,8 @@ export async function mountHeroVoxelScene(
       // Don't snap currentScale/currentZPush — let them lerp naturally from idle.
       controls.minDistance = 14;
       controls.maxDistance = 90;
-      controls.minAzimuthAngle = -Math.PI * 0.38;
-      controls.maxAzimuthAngle = Math.PI * 0.38;
+      controls.minAzimuthAngle = -Infinity;
+      controls.maxAzimuthAngle = Infinity;
       controls.rotateSpeed = 0.7;
       controls.zoomSpeed = 0.95;
     } else {
