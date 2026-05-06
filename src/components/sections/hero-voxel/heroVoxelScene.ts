@@ -48,6 +48,8 @@ const LIVE_DEPTH_CONTRAST = 1.34; // slightly stronger local separation (detail)
 const LIVE_DEPTH_SHAPE_LO = 0.14; // widen mid-band so fine depth reads on subject
 const LIVE_DEPTH_SHAPE_HI = 0.86; // smoothstep high edge for shaped curve
 const LIVE_DEPTH_SHAPE_MIX = 0.55; // mix(d1, d2, blend) — 0 = pure pow, 1 = pure smoothstep
+const LIVE_FAR_CUTOFF_PERCENTILE = 0.34; // drop far background; keep nearest ~66%
+const LIVE_FAR_CUTOFF_FEATHER = 0.14; // soften separation edge to avoid harsh clipping
 const LIVE_LERP_BASE = 0.56;
 const LIVE_INITIAL_BOOST = 1.4; // extrusion amplifier on activation
 
@@ -125,6 +127,7 @@ type VoxelPack = {
   mesh: THREE.InstancedMesh;
   basePositions: Float32Array; // (x, y, 0) per instance — fixed per frame
   smoothDepths: Float32Array; // per-frame smoothed depth in [0,1]
+  frameDepths: Float32Array; // per-frame shaped depth before subject isolation
   currentScaleY: Float32Array; // dt-smoothed Y scale (voxel height)
   currentZPush: Float32Array; // dt-smoothed Z parallax (forward push)
   count: number;
@@ -286,12 +289,34 @@ export async function mountHeroVoxelScene(
         0,
         1
       );
+      voxels.frameDepths[i] = dFinal;
       if (dFinal < dMin) dMin = dFinal;
       if (dFinal > dMax) dMax = dFinal;
       dSum += dFinal;
+    }
+    const dRange = dMax - dMin;
+    const dAvg = dSum / Math.max(voxelCount, 1);
 
-      const nearBoost = smoothstepScalar(0.52, 1, dFinal);
-      const dShaped = THREE.MathUtils.clamp(dFinal * (1 + nearBoost * 0.32), 0, 1);
+    // Adaptive far-plane removal (pseudo "within ~10ft"): compute a per-frame
+    // cutoff from the depth distribution and softly attenuate farther voxels.
+    const sortedDepths = Float32Array.from(voxels.frameDepths);
+    sortedDepths.sort();
+    const cutIdx = Math.max(
+      0,
+      Math.min(voxelCount - 1, Math.floor(voxelCount * LIVE_FAR_CUTOFF_PERCENTILE))
+    );
+    const farCutoff = sortedDepths[cutIdx];
+    const farFeatherHi = Math.min(1, farCutoff + LIVE_FAR_CUTOFF_FEATHER);
+
+    for (let i = 0; i < voxelCount; i++) {
+      const dFinal = voxels.frameDepths[i];
+      const keep = smoothstepScalar(farCutoff, farFeatherHi, dFinal);
+      const dIsolated = dFinal * keep;
+      if (dFinal < dMin) dMin = dFinal;
+      if (dFinal > dMax) dMax = dFinal;
+
+      const nearBoost = smoothstepScalar(0.52, 1, dIsolated);
+      const dShaped = THREE.MathUtils.clamp(dIsolated * (1 + nearBoost * 0.32), 0, 1);
       const targetY = LIVE_Y_BIAS + dShaped * LIVE_Y_RELIEF * extrusionBoost;
       const targetZ = (dShaped - 0.5) * 2 * LIVE_Z_RELIEF * extrusionBoost;
 
@@ -310,12 +335,11 @@ export async function mountHeroVoxelScene(
       voxels.mesh.setMatrixAt(i, dummy.matrix);
 
       const centerBias = 1 - Math.abs((i % GRID_X) / Math.max(GRID_X - 1, 1) - 0.5) * 2;
-      const glowMix = smoothstepScalar(0.5, 1, dShaped) * (0.1 + centerBias * 0.08);
+      const glowMix =
+        smoothstepScalar(0.5, 1, dShaped) * (0.08 + centerBias * 0.07) * (0.8 + keep * 0.2);
       depthColor(tmpColor, dShaped, glowMix);
       voxels.mesh.setColorAt(i, tmpColor);
     }
-    const dRange = dMax - dMin;
-    const dAvg = dSum / Math.max(voxelCount, 1);
     updateLiveLights(liveLightRig, dAvg, dRange, t);
     const exposureTarget = THREE.MathUtils.clamp(
       1.46 + (0.48 - dAvg) * 0.18 + (0.24 - dRange) * 0.2,
@@ -491,6 +515,7 @@ function createVoxelGrid(
 
   const basePositions = new Float32Array(count * 3);
   const smoothDepths = new Float32Array(count).fill(0.5);
+  const frameDepths = new Float32Array(count).fill(0.5);
   const currentScaleY = new Float32Array(count).fill(IDLE_HEIGHT_BIAS);
   const currentZPush = new Float32Array(count);
 
@@ -532,6 +557,7 @@ function createVoxelGrid(
     mesh,
     basePositions,
     smoothDepths,
+    frameDepths,
     currentScaleY,
     currentZPush,
     count,
