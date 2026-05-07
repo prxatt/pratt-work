@@ -10,8 +10,11 @@ const fs = require('fs');
 const path = require('path');
 
 if (process.env.VERCEL !== '1') process.exit(0);
-if ((process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || '').trim()) process.exit(0);
-if (/^(off|0|false)$/i.test((process.env.NEXT_PUBLIC_CLOUDINARY_MEDIA || '').trim())) process.exit(0);
+const cloudinaryMediaFlag = (process.env.NEXT_PUBLIC_CLOUDINARY_MEDIA || '').trim();
+const cloudinaryEnabled = !/^(off|0|false)$/i.test(cloudinaryMediaFlag);
+// In this repo, Cloudinary is the default media path. Only enforce LFS-byte checks
+// when Cloudinary delivery is explicitly disabled.
+if (cloudinaryEnabled) process.exit(0);
 const root = path.join(process.cwd(), 'public');
 if (!fs.existsSync(root)) process.exit(0);
 
@@ -51,7 +54,7 @@ function checkFile(p) {
     console.error('[verify-public-media] Git LFS pointer in public/ (not real media bytes):');
     console.error('  ' + rel);
     console.error('');
-    console.error('Without Cloudinary enabled, this app serves root-relative/public media.');
+    console.error('Cloudinary delivery is disabled and this app serves root-relative/public media.');
     console.error('LFS pointers break next/image (400) and video playback in production.');
     console.error('');
     console.error('Fix: set NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME on Vercel for Cloudinary delivery,');
