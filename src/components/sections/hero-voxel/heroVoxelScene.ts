@@ -4,7 +4,8 @@
  * Homepage hero — single InstancedMesh voxel grid (~12K voxels @ tier 'full').
  *
  * Idle: RoundedBoxGeometry + MeshPhysicalMaterial + transparent canvas (page gradient shows through).
- * Live: BoxGeometry + custom ShaderMaterial — GPU pow() on per-instance `instanceDepth` for Z extrusion.
+ * Live: BoxGeometry + custom ShaderMaterial — GPU pow(instanceDepth) vertex extrusion; fragment uses
+ * multi-light Blinn–Phong, Schlick Fresnel, clearcoat lobe, and gradient env reflection (depth-weighted).
  *
  * Three.js r183+: `instanceMatrix` / `instanceColor` are injected by the renderer when
  * USE_INSTANCING / USE_INSTANCING_COLOR are enabled — never redeclare them in custom shaders.
@@ -25,9 +26,11 @@ const VOXEL_SPACING = 0.27;
 const WALL_ROOT_SCALE = 1.06;
 
 // ── Live GPU extrusion (shader) ───────────────────────────────────────────
-const EXTRUDE_Z_LIVE_MIN = 0.28;
-const EXTRUDE_Z_LIVE_MAX = 14.2;
-const VERTEX_DEPTH_POW_LIVE = 2.18;
+// Keep Z stretch modest so instances read as voxels, not long rods (Z-only * 14 on a thin box = cylinders).
+const EXTRUDE_Z_LIVE_MIN = 0.88;
+const EXTRUDE_Z_LIVE_MAX = 3.85;
+const VERTEX_DEPTH_POW_LIVE = 1.95;
+const LIVE_XY_PINCH = 0.94; // near-cube silhouette; Z extrusion does depth read
 
 // ── Idle wave ──────────────────────────────────────────────────────────────
 const IDLE_HEIGHT = 1.4;
@@ -48,9 +51,10 @@ const LIVE_SUBJECT_EDGE_SOFTNESS = 0.12;
 
 const DEFAULT_TONE_MAPPING_EXPOSURE = 1.58;
 
-// Live-only backdrop (hidden in idle)
-const BG_TOP = new THREE.Color('#1a4a9e');
-const BG_BOTTOM = new THREE.Color('#0a1838');
+// Live-only: black environment; blue grid lines for depth separation (no blue fill).
+const LIVE_CLEAR = new THREE.Color('#000000');
+const GRID_BG = new THREE.Color('#000000');
+const GRID_LINE = new THREE.Color('#4da3ff');
 const GRID_PLANE_Z = -72;
 const GRID_SCALE = 220;
 
@@ -59,12 +63,13 @@ const IDLE_COLOR_LO = new THREE.Color('#0c1116');
 const IDLE_COLOR_MID = new THREE.Color('#1a2b32');
 const IDLE_COLOR_HI = new THREE.Color('#88a9ad');
 
-const COLOR_FAR_SHADOW = new THREE.Color('#090b14');
-const COLOR_FAR_INDIGO = new THREE.Color('#122b63');
-const COLOR_MID_TEAL = new THREE.Color('#1d8d9f');
-const COLOR_NEAR_MINT = new THREE.Color('#78f3b5');
-const COLOR_NEAR_GLOW = new THREE.Color('#c9ffe4');
-const COLOR_SPEC = new THREE.Color('#eafff3');
+/** Live albedo: far = darker (still above black field), near = bright cyan/white so subject reads as foreground. */
+const COLOR_FAR_SHADOW = new THREE.Color('#0e1b2e');
+const COLOR_FAR_INDIGO = new THREE.Color('#1c4a7a');
+const COLOR_MID_TEAL = new THREE.Color('#3db8d8');
+const COLOR_NEAR_MINT = new THREE.Color('#9cf0ff');
+const COLOR_NEAR_GLOW = new THREE.Color('#f0fdff');
+const COLOR_SPEC = new THREE.Color('#ffffff');
 
 function smoothstepScalar(edge0: number, edge1: number, x: number): number {
   const d = edge1 - edge0 || 1;
@@ -129,6 +134,8 @@ type VoxelPack = {
   currentZPush: Float32Array;
   workDepth: Float32Array;
   instanceDepth: THREE.InstancedBufferAttribute;
+  /** Reused every live frame — avoids Bugbot path: allocate + sort O(n log n). */
+  depthHistogram: Uint16Array;
   count: number;
 };
 
@@ -155,6 +162,7 @@ attribute float instanceDepth;
 uniform float uDepthPow;
 uniform float uZScaleMin;
 uniform float uZScaleMax;
+uniform float uXYPinch;
 
 varying vec3 vWorldPos;
 varying vec3 vWorldNormal;
@@ -172,8 +180,10 @@ void main() {
   float d = clamp( instanceDepth, 0.0, 1.0 );
   vDepthShaded = pow( d, uDepthPow );
   float zScale = mix( uZScaleMin, uZScaleMax, vDepthShaded );
+  float xyScale = mix( 1.0, uXYPinch, vDepthShaded );
 
   vec3 transformed = vec3( position );
+  transformed.xy *= xyScale;
   transformed.z *= zScale;
 
   vec4 mvPosition = vec4( transformed, 1.0 );
@@ -189,7 +199,7 @@ void main() {
 
 #ifdef USE_INSTANCING
   mat3 im3 = mat3( instanceMatrix );
-  vec3 n = im3 * vec3( normal.x, normal.y, normal.z / max( zScale, 0.001 ) );
+  vec3 n = im3 * vec3( normal.x / max( xyScale, 0.001 ), normal.y / max( xyScale, 0.001 ), normal.z / max( zScale, 0.001 ) );
   vWorldNormal = normalize( mat3( modelMatrix ) * n );
 #else
   vWorldNormal = normalize( mat3( modelMatrix ) * normal );
@@ -217,6 +227,9 @@ uniform float uWrap;
 uniform float uShininess;
 uniform float uClearcoat;
 uniform float uFresnelPow;
+uniform float uSpecStrength;
+uniform float uEnvReflectivity;
+uniform float uDepthEnvBoost;
 
 varying vec3 vWorldPos;
 varying vec3 vWorldNormal;
@@ -229,30 +242,54 @@ void main() {
   vec3 V = normalize( vViewDir );
 
   float wrap = uWrap;
-  float diffA = max( 0.0, ( dot( N, uLightDirA ) + wrap ) / ( 1.0 + wrap ) );
-  float diffB = max( 0.0, ( dot( N, uLightDirB ) + wrap ) / ( 1.0 + wrap ) );
-  float diffC = max( 0.0, ( dot( N, uLightDirC ) + wrap ) / ( 1.0 + wrap ) );
+  vec3 La = normalize( uLightDirA );
+  vec3 Lb = normalize( uLightDirB );
+  vec3 Lc = normalize( uLightDirC );
+
+  // Blinn–Phong: per-light diffuse (wrapped Lambert) + spec from half-vector.
+  float diffA = max( 0.0, ( dot( N, La ) + wrap ) / ( 1.0 + wrap ) );
+  float diffB = max( 0.0, ( dot( N, Lb ) + wrap ) / ( 1.0 + wrap ) );
+  float diffC = max( 0.0, ( dot( N, Lc ) + wrap ) / ( 1.0 + wrap ) );
+
+  vec3 Ha = normalize( La + V );
+  vec3 Hb = normalize( Lb + V );
+  vec3 Hc = normalize( Lc + V );
+  float sh = uShininess;
+  float specA = pow( max( dot( N, Ha ), 0.0 ), sh );
+  float specB = pow( max( dot( N, Hb ), 0.0 ), sh );
+  float specC = pow( max( dot( N, Hc ), 0.0 ), sh );
+
   float hemi = N.y * 0.5 + 0.5;
   float fillCam = dot( N, V ) * 0.5 + 0.5;
-  float diffuse = diffA * 0.28 + diffB * 0.22 + diffC * 0.18 + fillCam * 0.14 + hemi * 0.12 + 0.14;
+  vec3 diffCol =
+    uLightColorA * diffA * 0.38 +
+    uLightColorB * diffB * 0.28 +
+    uLightColorC * diffC * 0.22 +
+    uAmbient * ( 0.18 + hemi * 0.12 + fillCam * 0.1 );
 
-  vec3 Lm = normalize( uLightDirA + uLightDirB );
-  vec3 H = normalize( Lm + V );
-  float spec = pow( max( dot( N, H ), 0.0 ), uShininess );
-  float cc = pow( max( dot( N, H ), 0.0 ), uShininess * 1.35 ) * uClearcoat;
+  vec3 specCol =
+    uLightColorA * specA * 0.55 +
+    uLightColorB * specB * 0.35 +
+    uLightColorC * specC * 0.28;
 
-  float fresnel = pow( clamp( 1.0 - max( dot( N, V ), 0.0 ), 0.0, 1.0 ), uFresnelPow );
-  vec3 env = mix( uEnvHorizon, uEnvZenith, clamp( N.y * 0.5 + 0.5, 0.0, 1.0 ) );
-  float envMix = fresnel * 0.55 + vDepthShaded * 0.12;
-  vec3 envSpec = mix( env, uRimColor, fresnel * 0.4 );
+  vec3 Hk = normalize( La + Lb + V );
+  float cc = pow( max( dot( N, Hk ), 0.0 ), sh * 1.45 ) * uClearcoat;
+
+  float cosNV = max( dot( N, V ), 0.0 );
+  float fresnelTerm = pow( clamp( 1.0 - cosNV, 0.0, 1.0 ), uFresnelPow );
+  float F0 = 0.028;
+  float Fsch = F0 + ( 1.0 - F0 ) * pow( 1.0 - cosNV, 5.0 );
+
+  vec3 R = reflect( -V, N );
+  float envT = clamp( R.y * 0.5 + 0.5, 0.0, 1.0 );
+  vec3 envC = mix( uEnvHorizon, uEnvZenith, envT );
+  float depthGlow = vDepthShaded * uDepthEnvBoost;
+  vec3 envRef = mix( envC, uRimColor, Fsch * 0.55 ) * uEnvReflectivity * ( 0.35 + depthGlow );
 
   vec3 base = vColor;
-  vec3 lit = base * diffuse;
-  lit *= ( uLightColorA * 0.22 + uLightColorB * 0.18 + uLightColorC * 0.14 + uAmbient );
-  lit += uLightColorA * spec * 0.45;
-  lit += vec3( 1.0 ) * cc * 0.35;
-  lit += envSpec * envMix * 0.42;
-  lit += uRimColor * fresnel * 0.95;
+  vec3 lit = base * diffCol + specCol * uSpecStrength + vec3( 1.0 ) * cc * 0.42;
+  lit += envRef;
+  lit += uRimColor * fresnelTerm * ( 0.65 + vDepthShaded * 0.35 );
 
   gl_FragColor = vec4( lit, 1.0 );
 #include <logdepthbuf_fragment>
@@ -277,7 +314,7 @@ void main() {
   vec2 g = abs( fract( vUv * uGrid ) - 0.5 ) / fwidth( vUv * uGrid );
   float line = 1.0 - min( min( g.x, g.y ), 1.0 );
   line = pow( line, 0.65 );
-  vec3 col = mix( uColor, uLine, line * 0.22 );
+  vec3 col = mix( uColor, uLine, line * 0.42 );
   gl_FragColor = vec4( col, 1.0 );
 }
 `;
@@ -288,20 +325,24 @@ function createLiveVoxelMaterial(): THREE.ShaderMaterial {
       uDepthPow: { value: VERTEX_DEPTH_POW_LIVE },
       uZScaleMin: { value: EXTRUDE_Z_LIVE_MIN },
       uZScaleMax: { value: EXTRUDE_Z_LIVE_MAX },
+      uXYPinch: { value: LIVE_XY_PINCH },
       uLightDirA: { value: new THREE.Vector3(0.45, 0.75, 0.48).normalize() },
       uLightDirB: { value: new THREE.Vector3(-0.62, 0.35, 0.42).normalize() },
       uLightDirC: { value: new THREE.Vector3(0.1, -0.2, 0.98).normalize() },
       uLightColorA: { value: new THREE.Color('#ffffff') },
       uLightColorB: { value: new THREE.Color('#bfe8ff') },
       uLightColorC: { value: new THREE.Color('#7ad0ff') },
-      uAmbient: { value: new THREE.Color('#b8d9ff').multiplyScalar(0.42) },
-      uEnvZenith: { value: new THREE.Color('#6eb6ff') },
-      uEnvHorizon: { value: new THREE.Color('#1c3566') },
-      uRimColor: { value: new THREE.Color('#e8fbff') },
+      uAmbient: { value: new THREE.Color('#d8f0ff').multiplyScalar(0.22) },
+      uEnvZenith: { value: new THREE.Color('#7ec8ff') },
+      uEnvHorizon: { value: new THREE.Color('#05070a') },
+      uRimColor: { value: new THREE.Color('#ffffff') },
       uWrap: { value: 0.48 },
       uShininess: { value: 96.0 },
       uClearcoat: { value: 0.85 },
       uFresnelPow: { value: 3.2 },
+      uSpecStrength: { value: 1.15 },
+      uEnvReflectivity: { value: 1.05 },
+      uDepthEnvBoost: { value: 0.85 },
     },
     vertexShader: VOXEL_VERT,
     fragmentShader: VOXEL_FRAG,
@@ -312,8 +353,8 @@ function createBackdropGrid(): THREE.Mesh {
   const geo = new THREE.PlaneGeometry(GRID_SCALE, GRID_SCALE, 1, 1);
   const mat = new THREE.ShaderMaterial({
     uniforms: {
-      uColor: { value: BG_BOTTOM.clone().lerp(BG_TOP, 0.35) },
-      uLine: { value: new THREE.Color('#9ec8ff') },
+      uColor: { value: GRID_BG.clone() },
+      uLine: { value: GRID_LINE.clone() },
       uGrid: { value: 56.0 },
     },
     vertexShader: GRID_VERT,
@@ -461,7 +502,8 @@ export async function mountHeroVoxelScene(
     let dMin = 1;
     let dMax = 0;
     let dSum = 0;
-    const histogram = new Uint16Array(32);
+    const histogram = voxels.depthHistogram;
+    histogram.fill(0);
     for (let i = 0; i < voxelCount; i++) {
       const raw = buf[i];
       voxels.smoothDepths[i] += (raw - voxels.smoothDepths[i]) * lerp;
@@ -540,7 +582,7 @@ export async function mountHeroVoxelScene(
   function applyRendererMode(live: boolean) {
     if (live) {
       backdrop.visible = true;
-      renderer.setClearColor(BG_BOTTOM.clone().lerp(BG_TOP, 0.28), 1);
+      renderer.setClearColor(LIVE_CLEAR, 1);
     } else {
       backdrop.visible = false;
       renderer.setClearColor(0x000000, 0);
@@ -744,6 +786,7 @@ function createVoxelGrid(
   const currentScaleY = new Float32Array(count).fill(IDLE_HEIGHT_BIAS);
   const currentZPush = new Float32Array(count);
   const workDepth = new Float32Array(count);
+  const depthHistogram = new Uint16Array(32);
 
   const offsetX = (GRID_X - 1) * VOXEL_SPACING * 0.5;
   const offsetY = (GRID_Z - 1) * VOXEL_SPACING * 0.5;
@@ -791,6 +834,7 @@ function createVoxelGrid(
     currentZPush,
     workDepth,
     instanceDepth,
+    depthHistogram,
     count,
   };
 }
