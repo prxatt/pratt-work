@@ -1,21 +1,27 @@
 'use client';
 
 /**
- * CryptVolumetric3D — Photorealistic volumetric depth from one composite master video.
+ * CryptVolumetric3D — True photorealistic volumetric depth sculpture from pre-recorded video.
  *
- * The source is a **single file** tiling six simultaneous captures (multi-angle RGB + Kinect-style
- * thermal depth). We **fuse** them — not six independent depth runs:
- *
- *   • **Colour**: weighted blend of the three RGB tiles at the same canonical subject UV.
- *   • **Depth**: Depth-Anything v2 runs **once** on the full composite, then each voxel samples
- *     normalized disparity at that subject UV inside **every** tile and merges them (weighted mean,
- *     max lift, and Kinect luminance overlay).
- *
- * Default layout: **3×2** — row 0 = three RGB angles, row 1 = three Kinect / thermal feeds
- * (see `defaultCryptCompositeCells()`).
+ * Architecture:
+ *   • ~14 400 voxels (160 × 90, 16:9) rendered as a single InstancedMesh draw call.
+ *   • VideoTexture: primary capture RGB (first fusion slot) — photorealistic voxel colour.
+ *   • Multi-capture fusion (optional `fusionSources`): all angles + Kinect-style thermal are
+ *     composited with canvas "lighten" into ONE frame before a single Depth-Anything v2 pass —
+ *     not six separate depth maps. Keeps true volumetric cues from the combined signal.
+ *   • Identical Cloudinary URLs are deduped → one decoder when the composite is a single file.
+ *   • Depth-Anything v2 (ONNX WASM) every ~90 ms on that fused frame; luminance fallback uses
+ *     the same fusion path.
+ *   • Per-voxel `instanceDepth` attribute (DynamicDrawUsage) drives Z-extrusion in the vertex
+ *     shader — near voxels push toward the camera, creating genuine 3-D parallax visible on orbit.
+ *   • CPU-side exponential lerp (~60 Hz render ÷ ~11 Hz inference) keeps depth smooth between
+ *     inference frames without artefacts.
+ *   • Professional 3-light rig (key + fill + rim) in the fragment shader responds to real surface
+ *     normals, making the depth relief feel physically solid.
+ *   • Lite tier (low-end / reduced-motion): 80 × 45 = 3 600 voxels, no antialias, 1× pixel ratio.
  */
 
-import { useEffect, useRef, useCallback, useState } from 'react';
+import { useEffect, useRef, useCallback, useState, useMemo } from 'react';
 import { Maximize2, Minimize2 } from 'lucide-react';
 import { useDeviceCapabilities } from '@/hooks/useReducedMotion';
 
@@ -48,110 +54,92 @@ const DEPTH_POW = 1.18;
 /** Exponential lerp factor per render frame — smooths depth transitions. */
 const DEPTH_LERP = 0.13;
 
-// ── Six-tile composite fusion (single video file) ─────────────────────────────
-type CompositeCellRole = 'rgb' | 'kinect';
-
-export type CompositeCell = {
-  u0: number;
-  v0: number;
-  u1: number;
-  v1: number;
-  role: CompositeCellRole;
+// ── Multi-capture fusion ──────────────────────────────────────────────────────
+export type CryptFusionSource = {
+  webmSrc?: string;
+  /** Required for Safari / fallback; may match other slots when using one composite asset. */
+  mp4Src: string;
 };
 
-/** 3×2 grid: top row RGB (3 angles), bottom row Kinect / thermal-style depth feeds. */
-export function defaultCryptCompositeCells(): CompositeCell[] {
-  const cols = 3;
-  const rows = 2;
-  const cells: CompositeCell[] = [];
-  for (let r = 0; r < rows; r++) {
-    for (let c = 0; c < cols; c++) {
-      cells.push({
-        u0: c / cols,
-        v0: r / rows,
-        u1: (c + 1) / cols,
-        v1: (r + 1) / rows,
-        role: r === 0 ? 'rgb' : 'kinect',
-      });
+function captureKey(s: CryptFusionSource): string {
+  return `${s.mp4Src.trim()}\n${(s.webmSrc ?? '').trim()}`;
+}
+
+/** Drop duplicate URLs so we never decode the same stream six times. */
+export function dedupeFusionSources(sources: CryptFusionSource[]): CryptFusionSource[] {
+  const seen = new Set<string>();
+  const out: CryptFusionSource[] = [];
+  for (const s of sources) {
+    const key = captureKey(s);
+    if (!key.trim() || seen.has(key)) continue;
+    seen.add(key);
+    out.push(s);
+  }
+  return out;
+}
+
+function createCaptureVideo(entry: CryptFusionSource, poster?: string): HTMLVideoElement {
+  const v = document.createElement('video');
+  v.autoplay = true;
+  v.muted = true;
+  v.loop = true;
+  v.playsInline = true;
+  v.crossOrigin = 'anonymous';
+  if (poster) v.poster = poster;
+  if (entry.webmSrc?.trim()) {
+    const sw = document.createElement('source');
+    sw.src = entry.webmSrc;
+    sw.type = 'video/webm';
+    v.appendChild(sw);
+  }
+  const sm = document.createElement('source');
+  sm.src = entry.mp4Src;
+  sm.type = 'video/mp4';
+  v.appendChild(sm);
+  return v;
+}
+
+/**
+ * Stack captures into one raster: first draw establishes the plate, then `lighten` merges
+ * RGB angles + thermal/depth-camera greys so salient structure from any view reinforces DA-V2.
+ */
+function fuseCapturesToCtx(
+  ctx: CanvasRenderingContext2D,
+  w: number,
+  h: number,
+  videos: HTMLVideoElement[],
+) {
+  if (videos.length === 0) return;
+  const ready = videos.filter((v) => v.videoWidth > 0);
+  if (ready.length === 0) return;
+  if (ready.length === 1) {
+    ctx.drawImage(ready[0], 0, 0, w, h);
+    return;
+  }
+  ctx.save();
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, w, h);
+  let first = true;
+  for (const v of ready) {
+    ctx.globalCompositeOperation = first ? 'source-over' : 'lighten';
+    ctx.drawImage(v, 0, 0, w, h);
+    first = false;
+  }
+  ctx.restore();
+}
+
+function syncSlaveVideos(master: HTMLVideoElement, slaves: HTMLVideoElement[]) {
+  for (const s of slaves) {
+    if (!master.videoWidth || !s.videoWidth) continue;
+    if (Math.abs(s.currentTime - master.currentTime) > 0.08) {
+      try {
+        s.currentTime = master.currentTime;
+      } catch {
+        /* seek may fail briefly */
+      }
     }
   }
-  return cells;
-}
-
-const CRYPT_COMPOSITE_CELLS = defaultCryptCompositeCells();
-
-/** ONNX disparity sample weights — Kinect tiles carry structured depth cues. */
-const ONNX_FUSE_WEIGHT_RGB = 1.0;
-const ONNX_FUSE_WEIGHT_KINECT = 1.72;
-/** Blend mean vs max across views (higher = more conservative “nearest wins”). */
-const ONNX_FUSE_MAX_LIFT = 0.4;
-/** How strongly Kinect raw luminance modulates fused ONNX depth (thermal ≈ near). */
-const KINECT_THERMAL_MOD = 0.38;
-
-/** Downscaled full-frame read for bilinear fusion (keeps getImageData cost bounded). */
-const FRAME_SNAP_MAX_W = 960;
-
-function sampleBilinearFloatGrid(
-  buf: Float32Array,
-  dW: number,
-  dH: number,
-  tu: number,
-  tv: number
-): number {
-  const u = Math.max(0, Math.min(1, tu));
-  const v = Math.max(0, Math.min(1, tv));
-  const x = u * (dW - 1);
-  const y = v * (dH - 1);
-  const x0 = Math.floor(x);
-  const y0 = Math.floor(y);
-  const x1 = Math.min(dW - 1, x0 + 1);
-  const y1 = Math.min(dH - 1, y0 + 1);
-  const fx = x - x0;
-  const fy = y - y0;
-  const i00 = y0 * dW + x0;
-  const i01 = y0 * dW + x1;
-  const i10 = y1 * dW + x0;
-  const i11 = y1 * dW + x1;
-  return (
-    buf[i00]! * (1 - fx) * (1 - fy) +
-    buf[i01]! * fx * (1 - fy) +
-    buf[i10]! * (1 - fx) * fy +
-    buf[i11]! * fx * fy
-  );
-}
-
-function sampleBilinearLumFromRgba(
-  src: Uint8ClampedArray,
-  sw: number,
-  sh: number,
-  tu: number,
-  tv: number
-): number {
-  const u = Math.max(0, Math.min(1, tu));
-  const v = Math.max(0, Math.min(1, tv));
-  const x = u * (sw - 1);
-  const y = v * (sh - 1);
-  const x0 = Math.floor(x);
-  const y0 = Math.floor(y);
-  const x1 = Math.min(sw - 1, x0 + 1);
-  const y1 = Math.min(sh - 1, y0 + 1);
-  const fx = x - x0;
-  const fy = y - y0;
-
-  const lumAt = (px: number, py: number) => {
-    const i = (py * sw + px) * 4;
-    const r = src[i]!;
-    const g = src[i + 1]!;
-    const b = src[i + 2]!;
-    return (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-  };
-
-  return (
-    lumAt(x0, y0) * (1 - fx) * (1 - fy) +
-    lumAt(x1, y0) * fx * (1 - fy) +
-    lumAt(x0, y1) * (1 - fx) * fy +
-    lumAt(x1, y1) * fx * fy
-  );
 }
 
 // ── Vertex Shader ─────────────────────────────────────────────────────────────
@@ -215,10 +203,6 @@ uniform float uKeyI;
 uniform float uFillI;
 uniform float uRimI;
 uniform float uAmbient;
-// min.xy → max.zw in UV space for each RGB tile (top row of composite)
-uniform vec4 uRgbUv0;
-uniform vec4 uRgbUv1;
-uniform vec4 uRgbUv2;
 
 varying vec2  vVideoUV;
 varying vec3  vNormalWorld;
@@ -226,14 +210,8 @@ varying vec3  vWorldPos;
 varying float vDepthShaded;
 
 void main() {
-  // Canonical subject UV vVideoUV → three RGB angles, blended (center weighted)
-  vec2 uv0 = mix(uRgbUv0.xy, uRgbUv0.zw, vVideoUV);
-  vec2 uv1 = mix(uRgbUv1.xy, uRgbUv1.zw, vVideoUV);
-  vec2 uv2 = mix(uRgbUv2.xy, uRgbUv2.zw, vVideoUV);
-  vec3 c0 = texture2D(uVideoTexture, uv0).rgb;
-  vec3 c1 = texture2D(uVideoTexture, uv1).rgb;
-  vec3 c2 = texture2D(uVideoTexture, uv2).rgb;
-  vec3 base = c0 * 0.38 + c1 * 0.34 + c2 * 0.28;
+  // ── Photorealistic base colour — directly from the video frame ───────────
+  vec3 base = texture2D(uVideoTexture, vVideoUV).rgb;
 
   vec3 N = normalize(vNormalWorld);
   vec3 V = normalize(cameraPosition - vWorldPos);
@@ -273,6 +251,12 @@ void main() {
 interface CryptVolumetric3DProps {
   webmSrc?: string;
   mp4Src?: string;
+  /**
+   * Six (or fewer) synchronized captures — RGB angles + Kinect/thermal. Same composite file
+   * may be listed multiple times (deduped). Fused with canvas `lighten` into one frame; a single
+   * Depth-Anything v2 run consumes that fusion (not per-video depth).
+   */
+  fusionSources?: CryptFusionSource[];
   posterSrc?: string;
   /** Legacy — kept for backward compatibility; unused. */
   depthIntensity?: number;
@@ -285,6 +269,7 @@ interface CryptVolumetric3DProps {
 export default function CryptVolumetric3D({
   webmSrc = '',
   mp4Src = '',
+  fusionSources,
   posterSrc,
   height = '70vh',
 }: CryptVolumetric3DProps) {
@@ -296,6 +281,16 @@ export default function CryptVolumetric3D({
 
   const { isLowEnd, prefersReducedMotion } = useDeviceCapabilities();
   const lite = isLowEnd || prefersReducedMotion;
+
+  const captureSignature = useMemo(() => {
+    if (fusionSources && fusionSources.length > 0) {
+      return `fusion:${fusionSources.map(captureKey).join('|')}`;
+    }
+    return `legacy:${mp4Src}\n${webmSrc ?? ''}`;
+  }, [fusionSources, mp4Src, webmSrc]);
+
+  const fallbackWebm = fusionSources?.[0]?.webmSrc?.trim() || webmSrc;
+  const fallbackMp4 = fusionSources?.[0]?.mp4Src?.trim() || mp4Src;
 
   const [isFullscreen,     setIsFullscreen]     = useState(false);
   const [pseudoFullscreen, setPseudoFullscreen] = useState(false);
@@ -425,14 +420,27 @@ export default function CryptVolumetric3D({
         renderer.domElement.addEventListener('pointerdown', pauseAutoRotate);
         renderer.domElement.addEventListener('wheel', pauseAutoRotate, { passive: true });
 
-        // ── Video element ────────────────────────────────────────────────────
-        const video = document.createElement('video');
-        video.autoplay    = true;
-        video.muted       = true;
-        video.loop        = true;
-        video.playsInline = true;
-        video.crossOrigin = 'anonymous';
-        if (posterSrc) video.poster = posterSrc;
+        // ── Video capture(s): deduped fusion list + primary RGB for voxel colour ──
+        let fusionEntries: CryptFusionSource[] =
+          fusionSources && fusionSources.length > 0
+            ? dedupeFusionSources(fusionSources)
+            : dedupeFusionSources(
+                [{ webmSrc: webmSrc?.trim() || undefined, mp4Src: mp4Src.trim() }].filter(
+                  (e) => Boolean(e.mp4Src || e.webmSrc)
+                )
+              );
+        if (fusionEntries.length === 0) {
+          fusionEntries = [
+            { webmSrc: webmSrc?.trim() || undefined, mp4Src: mp4Src.trim() || '' },
+          ];
+        }
+
+        const captureVideos = fusionEntries.map((e) => createCaptureVideo(e, posterSrc));
+        const video = captureVideos[0]!;
+        const slaveVideos = captureVideos.slice(1);
+        const multiCapture = captureVideos.length > 1;
+
+        let resumePlayHandler: (() => void) | null = null;
 
         let videoHasFrame = false;
         const onVideoLoaded = () => {
@@ -445,26 +453,24 @@ export default function CryptVolumetric3D({
         video.addEventListener('loadeddata', onVideoLoaded);
         video.addEventListener('error', onVideoError);
 
-        // Sources added before play() to prevent race conditions
-        const sWebm = document.createElement('source');
-        sWebm.src  = webmSrc;
-        sWebm.type = 'video/webm';
-        const sMp4 = document.createElement('source');
-        sMp4.src   = mp4Src;
-        sMp4.type  = 'video/mp4';
-        video.appendChild(sWebm);
-        video.appendChild(sMp4);
-
         const videoFailTimer = window.setTimeout(() => {
           if (!videoHasFrame && !aborted) setShowFallback(true);
         }, 3000);
 
-        video.play().catch(() => {
-          const resume = () => {
-            video.play();
-            container.removeEventListener('click', resume);
+        const playAllCaptures = () =>
+          Promise.all(captureVideos.map((v) => v.play()));
+
+        playAllCaptures().catch(() => {
+          if (resumePlayHandler) {
+            container.removeEventListener('click', resumePlayHandler);
+            resumePlayHandler = null;
+          }
+          resumePlayHandler = () => {
+            void playAllCaptures();
+            container.removeEventListener('click', resumePlayHandler!);
+            resumePlayHandler = null;
           };
-          container.addEventListener('click', resume);
+          container.addEventListener('click', resumePlayHandler);
         });
 
         const videoTexture          = new THREE.VideoTexture(video);
@@ -508,10 +514,6 @@ export default function CryptVolumetric3D({
         geo.setAttribute('instanceDepth', instanceDepthAttr);
         geo.setAttribute('instanceUV',    instanceUVAttr);
 
-        const rgb0 = CRYPT_COMPOSITE_CELLS[0]!;
-        const rgb1 = CRYPT_COMPOSITE_CELLS[1]!;
-        const rgb2 = CRYPT_COMPOSITE_CELLS[2]!;
-
         // ── Shader material: video colour + 3-light rig ──────────────────────
         const uniforms = {
           uVideoTexture:  { value: videoTexture },
@@ -519,15 +521,6 @@ export default function CryptVolumetric3D({
           uExtrusionFar:  { value: EXTRUSION_FAR  },
           uDepthPow:      { value: DEPTH_POW       },
           uTime:          { value: 0               },
-          uRgbUv0: {
-            value: new THREE.Vector4(rgb0.u0, rgb0.v0, rgb0.u1, rgb0.v1),
-          },
-          uRgbUv1: {
-            value: new THREE.Vector4(rgb1.u0, rgb1.v0, rgb1.u1, rgb1.v1),
-          },
-          uRgbUv2: {
-            value: new THREE.Vector4(rgb2.u0, rgb2.v0, rgb2.u1, rgb2.v1),
-          },
           // Key: warm 45° upper-left front
           uKeyDir:  { value: new THREE.Vector3(0.52, 1.0, 0.80).normalize() },
           // Fill: cool 120° opposite side
@@ -588,14 +581,16 @@ export default function CryptVolumetric3D({
           scene.add(new THREE.Points(pGeo, pMat));
         }
 
-        // ── Depth inference: Depth-Anything v2 on full composite + multi-tile fusion ─
+        // ── Depth inference: Depth-Anything v2 (ONNX WASM) ──────────────────
         const inferCanvas   = document.createElement('canvas');
         inferCanvas.width   = INFER_W;
         inferCanvas.height  = INFER_H;
         const inferCtx      = inferCanvas.getContext('2d', { willReadFrequently: true });
 
-        const frameSnapCanvas = document.createElement('canvas');
-        const frameSnapCtx    = frameSnapCanvas.getContext('2d', { willReadFrequently: true });
+        const lumCanvas  = document.createElement('canvas');
+        lumCanvas.width  = gx;
+        lumCanvas.height = gz;
+        const lumCtx     = lumCanvas.getContext('2d', { willReadFrequently: true });
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         let depthPipeline: any    = null;
@@ -625,6 +620,27 @@ export default function CryptVolumetric3D({
             depthModelReady = false;
           }
         })();
+
+        /** Fast luminance proxy — fused captures, same path as DA-V2 input. */
+        function runLumFallback() {
+          if (!lumCtx || !video.videoWidth) return;
+          if (multiCapture) syncSlaveVideos(video, slaveVideos);
+          fuseCapturesToCtx(lumCtx, gx, gz, captureVideos);
+          const px  = lumCtx.getImageData(0, 0, gx, gz).data;
+          let lo = 1, hi = 0;
+          const lums = new Float32Array(count);
+          for (let i = 0; i < count; i++) {
+            const p = i * 4;
+            const l = (0.299 * px[p] + 0.587 * px[p + 1] + 0.114 * px[p + 2]) / 255;
+            lums[i] = l;
+            if (l < lo) lo = l;
+            if (l > hi) hi = l;
+          }
+          const span = Math.max(hi - lo, 0.01);
+          for (let i = 0; i < count; i++) {
+            depthArr[i] = Math.pow(Math.min(1, Math.max(0, (lums[i] - lo) / span)), 0.72);
+          }
+        }
 
         /**
          * ~4th / ~96th percentile stretch (matches hero voxel intent) without O(n log n) sort.
@@ -677,129 +693,23 @@ export default function CryptVolumetric3D({
           return { dMin, dMax: Math.max(dMax, dMin + 1e-6) };
         }
 
-        function captureFrameSnap():
-          | { src: Uint8ClampedArray; sw: number; sh: number }
-          | null {
-          if (!frameSnapCtx || !video.videoWidth) return null;
-          const vw = video.videoWidth;
-          const vh = video.videoHeight;
-          const sw = Math.min(FRAME_SNAP_MAX_W, vw);
-          const sh = Math.max(1, Math.round((sw * vh) / vw));
-          if (frameSnapCanvas.width !== sw) {
-            frameSnapCanvas.width = sw;
-            frameSnapCanvas.height = sh;
-          }
-          frameSnapCtx.drawImage(video, 0, 0, sw, sh);
-          return {
-            src: frameSnapCtx.getImageData(0, 0, sw, sh).data,
-            sw,
-            sh,
-          };
-        }
-
-        /** Per-pixel normalized [0,1] ONNX disparity (higher = nearer). */
-        function normalizeOnnxDepthTensor(raw: Float32Array): Float32Array {
-          const { dMin, dMax } = depthPercentileMinMax(raw);
-          const range = dMax - dMin;
-          const out = new Float32Array(raw.length);
-          for (let i = 0; i < raw.length; i++) {
-            out[i] = Math.min(1, Math.max(0, (raw[i]! - dMin) / range));
-          }
-          return out;
-        }
-
         /**
-         * Merge Depth-Anything output from all six mosaic tiles at each subject UV,
-         * then overlay Kinect thermal luminance so structured depth and raw IR agree.
+         * Samples the depth tensor into our grid.
+         * depth-anything v2 outputs relative (disparity-style) depth:
+         * HIGHER value = NEARER to camera → no inversion needed.
+         * No mirror for pre-recorded video (unlike webcam which flips X).
          */
-        function fuseOnnxMultiViewToGrid(
-          normOnnx: Float32Array,
-          dW: number,
-          dH: number,
-          snap: { src: Uint8ClampedArray; sw: number; sh: number } | null
-        ) {
-          const cells = CRYPT_COMPOSITE_CELLS;
+        function sampleTensorToGrid(raw: Float32Array, dW: number, dH: number) {
+          const n = raw.length;
+          if (n === 0) return;
+          const { dMin, dMax } = depthPercentileMinMax(raw);
+          const dRange = dMax - dMin;
           for (let iz = 0; iz < gz; iz++) {
             for (let ix = 0; ix < gx; ix++) {
-              const su = (ix + 0.5) / gx;
-              const sv = 1.0 - (iz + 0.5) / gz;
-              let wAcc = 0;
-              let sAcc = 0;
-              let dMax = 0;
-              let thermAcc = 0;
-              let thermW = 0;
-              for (const c of cells) {
-                const tu = c.u0 + su * (c.u1 - c.u0);
-                const tv = c.v0 + sv * (c.v1 - c.v0);
-                const onnxVal = sampleBilinearFloatGrid(normOnnx, dW, dH, tu, tv);
-                const w =
-                  c.role === 'kinect' ? ONNX_FUSE_WEIGHT_KINECT : ONNX_FUSE_WEIGHT_RGB;
-                sAcc += onnxVal * w;
-                wAcc += w;
-                if (onnxVal > dMax) dMax = onnxVal;
-                if (snap && c.role === 'kinect') {
-                  const lum = sampleBilinearLumFromRgba(
-                    snap.src,
-                    snap.sw,
-                    snap.sh,
-                    tu,
-                    tv
-                  );
-                  thermAcc += lum * w;
-                  thermW += w;
-                }
-              }
-              let fused =
-                (sAcc / wAcc) * (1 - ONNX_FUSE_MAX_LIFT) + dMax * ONNX_FUSE_MAX_LIFT;
-              if (thermW > 0 && snap) {
-                const therm01 = Math.pow(Math.min(1, thermAcc / thermW), 0.9);
-                fused = fused * (1 - KINECT_THERMAL_MOD) + therm01 * KINECT_THERMAL_MOD;
-                fused = Math.min(1, fused * (0.86 + 0.28 * therm01));
-              }
-              depthArr[iz * gx + ix] = Math.min(1, Math.max(0, fused));
-            }
-          }
-        }
-
-        /** Fast luminance-only multi-view fusion (no ONNX). */
-        function runLumFallback() {
-          const snap = captureFrameSnap();
-          if (!snap) return;
-          const cells = CRYPT_COMPOSITE_CELLS;
-          for (let iz = 0; iz < gz; iz++) {
-            for (let ix = 0; ix < gx; ix++) {
-              const su = (ix + 0.5) / gx;
-              const sv = 1.0 - (iz + 0.5) / gz;
-              let rgbSum = 0;
-              let rgbN = 0;
-              let rgbMax = 0;
-              let thermSum = 0;
-              let thermN = 0;
-              for (const c of cells) {
-                const tu = c.u0 + su * (c.u1 - c.u0);
-                const tv = c.v0 + sv * (c.v1 - c.v0);
-                const lum = sampleBilinearLumFromRgba(
-                  snap.src,
-                  snap.sw,
-                  snap.sh,
-                  tu,
-                  tv
-                );
-                if (c.role === 'kinect') {
-                  thermSum += lum;
-                  thermN++;
-                } else {
-                  rgbSum += lum;
-                  rgbN++;
-                  if (lum > rgbMax) rgbMax = lum;
-                }
-              }
-              const meanRgb = rgbN ? rgbSum / rgbN : 0;
-              const dRgb = rgbMax * 0.58 + meanRgb * 0.42;
-              const thermMean = thermN ? thermSum / thermN : 0;
-              const dTh = Math.pow(thermMean, 0.72);
-              const fused = dTh * 0.52 + Math.max(dRgb, dTh * 0.88) * 0.48;
-              depthArr[iz * gx + ix] = Math.pow(Math.min(1, fused), 0.7);
+              const srcX = Math.min(Math.floor((ix / Math.max(gx - 1, 1)) * (dW - 1)), dW - 1);
+              const srcY = Math.min(Math.floor((iz / Math.max(gz - 1, 1)) * (dH - 1)), dH - 1);
+              const norm = Math.min(1, Math.max(0, (raw[srcY * dW + srcX] - dMin) / dRange));
+              depthArr[iz * gx + ix] = norm;
             }
           }
         }
@@ -812,7 +722,8 @@ export default function CryptVolumetric3D({
               runLumFallback();
               return;
             }
-            inferCtx.drawImage(video, 0, 0, INFER_W, INFER_H);
+            if (multiCapture) syncSlaveVideos(video, slaveVideos);
+            fuseCapturesToCtx(inferCtx, INFER_W, INFER_H, captureVideos);
             const result = await (depthPipeline as (input: HTMLCanvasElement) => Promise<{
               predicted_depth?: { data: Float32Array | number[]; dims: number[] };
               depth?: { data: Float32Array | number[]; dims: number[] };
@@ -825,9 +736,7 @@ export default function CryptVolumetric3D({
             const dH   = dims[dims.length - 2];
             const dW   = dims[dims.length - 1];
             const buf  = rawData instanceof Float32Array ? rawData : Float32Array.from(rawData);
-            const norm = normalizeOnnxDepthTensor(buf);
-            const snap = captureFrameSnap();
-            fuseOnnxMultiViewToGrid(norm, dW, dH, snap);
+            sampleTensorToGrid(buf, dW, dH);
           } catch {
             runLumFallback();
           } finally {
@@ -861,6 +770,8 @@ export default function CryptVolumetric3D({
           const elapsed = clock.getElapsedTime();
           uniforms.uTime.value = elapsed;
 
+          if (multiCapture) syncSlaveVideos(video, slaveVideos);
+
           // Exponential lerp: smooths depth between sparse inference frames (smoothArr backs GPU attr)
           for (let i = 0; i < count; i++) {
             smoothArr[i] += (depthArr[i] - smoothArr[i]) * DEPTH_LERP;
@@ -887,6 +798,10 @@ export default function CryptVolumetric3D({
           window.clearTimeout(videoFailTimer);
           video.removeEventListener('loadeddata', onVideoLoaded);
           video.removeEventListener('error', onVideoError);
+          if (resumePlayHandler) {
+            container.removeEventListener('click', resumePlayHandler);
+            resumePlayHandler = null;
+          }
           renderer.domElement.removeEventListener('pointerdown', pauseAutoRotate);
           renderer.domElement.removeEventListener('wheel', pauseAutoRotate);
           if (autoRotateTimer) clearTimeout(autoRotateTimer);
@@ -895,9 +810,12 @@ export default function CryptVolumetric3D({
           geo.dispose();
           mat.dispose();
           videoTexture.dispose();
-          video.pause();
-          video.src = '';
-          video.load();
+          for (const v of captureVideos) {
+            v.pause();
+            v.removeAttribute('src');
+            while (v.firstChild) v.removeChild(v.firstChild);
+            v.load();
+          }
           controls.dispose();
           renderer.dispose();
           if (container.contains(renderer.domElement)) {
@@ -921,7 +839,7 @@ export default function CryptVolumetric3D({
       cleanupRef.current?.();
       cleanupRef.current = null;
     };
-  }, []); // intentionally empty — Three.js scene initialises once
+  }, [lite, captureSignature, posterSrc]);
 
   useEffect(() => {
     const cleanup = initScene();
@@ -1010,8 +928,8 @@ export default function CryptVolumetric3D({
           className="absolute inset-0 z-[3] h-full w-full object-cover"
           aria-label="Volumetric video playback fallback"
         >
-          <source src={webmSrc} type="video/webm" />
-          <source src={mp4Src}  type="video/mp4"  />
+          {fallbackWebm ? <source src={fallbackWebm} type="video/webm" /> : null}
+          {fallbackMp4 ? <source src={fallbackMp4} type="video/mp4" /> : null}
         </video>
       )}
 

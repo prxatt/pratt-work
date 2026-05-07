@@ -426,19 +426,6 @@ export default function TheCryptPage() {
 
   const { enableParallax, prefersReducedMotion } = useDeviceCapabilities();
 
-  /** Six time-synchronized angles; all are fused for one depth tensor — slot `00` is hero RGB. */
-  const cryptSixCaptureFusion = useMemo(
-    () =>
-      Array.from({ length: 6 }, (_, i) => {
-        const id = String(i).padStart(2, '0');
-        return {
-          webmSrc: getVideoUrl(`/work/crypt-6cap-${id}.webm`),
-          mp4Src: getVideoUrl(`/work/crypt-6cap-${id}.mp4`),
-        };
-      }),
-    []
-  );
-
   const springConfig = { damping: 30, stiffness: 200 };
   const mouseX = useSpring(0, springConfig);
   const mouseY = useSpring(0, springConfig);
@@ -457,6 +444,16 @@ export default function TheCryptPage() {
     sec.addEventListener('mousemove', onMove);
     return () => sec.removeEventListener('mousemove', onMove);
   }, [enableParallax, mouseX, mouseY]);
+
+  /** Six synchronized captures (RGB + Kinect-style thermal); URLs deduped in the viewer when the same composite file is used. */
+  const cryptSixCaptureFusion = useMemo(
+    () =>
+      Array.from({ length: 6 }, (_, i) => ({
+        webmSrc: getVideoUrl(`/work/crypt-6cap-${i + 1}.webm`),
+        mp4Src: getVideoUrl(`/work/crypt-6cap-${i + 1}.mp4`),
+      })),
+    []
+  );
 
   // Accurate technical specs - 4 depth sensors only (numeric for AnimatedCounter)
   const technicalSpecs = useMemo(() => [
