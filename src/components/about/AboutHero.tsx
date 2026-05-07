@@ -178,7 +178,7 @@ export const AboutHero = () => {
   return (
     <section
       ref={containerRef}
-      className="min-h-[145dvh] md:min-h-[155dvh] bg-[#0D0D0D] relative overflow-hidden contain-layout gpu-accelerated"
+      className="min-h-[112dvh] md:min-h-[118dvh] bg-[#0D0D0D] relative overflow-hidden contain-layout gpu-accelerated"
     >
       {/* Layer 0: base dark field — static */}
       <div className="absolute inset-0 z-0">
