@@ -98,17 +98,38 @@ export function createDepthInference(opts: {
     if (!lumCtx || !opts.video.videoWidth) return;
     lumCtx.drawImage(opts.video, 0, 0, GRID_X, GRID_Z);
     const pixels = lumCtx.getImageData(0, 0, GRID_X, GRID_Z).data;
+    const lums = new Float32Array(cellCount);
+    let lumSum = 0;
+
+    for (let i = 0; i < cellCount; i++) {
+      const pi = i * 4;
+      const lum =
+        (0.299 * pixels[pi] +
+          0.587 * pixels[pi + 1] +
+          0.114 * pixels[pi + 2]) /
+        255;
+      lums[i] = lum;
+      lumSum += lum;
+    }
+
+    // Adaptive low-light stretch: preserves depth readability when the feed is dark.
+    const sorted = Float32Array.from(lums);
+    sorted.sort();
+    const lo = sorted[Math.max(0, Math.floor(cellCount * 0.06))];
+    const hi = sorted[Math.min(cellCount - 1, Math.floor(cellCount * 0.94))];
+    const span = Math.max(hi - lo, 1e-4);
+    const avgLum = lumSum / Math.max(cellCount, 1);
+    const darkBoost = avgLum < 0.28 ? 1 + (0.28 - avgLum) * 1.8 : 1;
+
     for (let iz = 0; iz < GRID_Z; iz++) {
       for (let ix = 0; ix < GRID_X; ix++) {
-        const pi = (iz * GRID_X + ix) * 4;
-        const lum =
-          (0.299 * pixels[pi] +
-            0.587 * pixels[pi + 1] +
-            0.114 * pixels[pi + 2]) /
-          255;
+        const idx = iz * GRID_X + ix;
+        const lum = lums[idx];
+        const stretched = Math.min(1, Math.max(0, (lum - lo) / span));
+        const boosted = Math.min(1, Math.max(0, stretched * darkBoost));
         // Luminance is a heuristic depth proxy: well-lit pixels tend to be
         // near. Stored directly under the canonical "high = near" convention.
-        writeCell(ix, iz, Math.pow(lum, 0.65));
+        writeCell(ix, iz, Math.pow(boosted, 0.62));
       }
     }
   }

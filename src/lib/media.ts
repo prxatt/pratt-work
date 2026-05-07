@@ -180,8 +180,10 @@ const STATIC_PUBLIC_ID_MAP: PublicIdMap = {
   '/recognition/alone-poster.webp': 'alone-poster_aavsoe',
 };
 const ENV_PUBLIC_ID_MAP = parsePublicIdMap(PUBLIC_ID_MAP_RAW);
-const PUBLIC_ID_MAP: PublicIdMap =
-  Object.keys(ENV_PUBLIC_ID_MAP).length > 0 ? ENV_PUBLIC_ID_MAP : STATIC_PUBLIC_ID_MAP;
+const PUBLIC_ID_MAP: PublicIdMap = {
+  ...STATIC_PUBLIC_ID_MAP,
+  ...ENV_PUBLIC_ID_MAP,
+};
 
 function resolveMappedPublicId(localPath: string): string | null {
   const t = localPath.trim();
