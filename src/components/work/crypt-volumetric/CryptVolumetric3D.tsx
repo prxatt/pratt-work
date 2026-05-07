@@ -143,6 +143,8 @@ export default function CryptVolumetric3D({
   const [isFullscreen, setIsFullscreen] = useState(false);
   /** iOS / browsers without element fullscreen: fixed-viewport fallback */
   const [pseudoFullscreen, setPseudoFullscreen] = useState(false);
+  /** If WebGL/video init fails, show plain video fallback in-frame. */
+  const [showFallbackVideo, setShowFallbackVideo] = useState(false);
 
   const immersive = isFullscreen || pseudoFullscreen;
 
@@ -205,6 +207,7 @@ export default function CryptVolumetric3D({
     // Dynamically import Three.js to avoid SSR issues in Next.js
     // All Three.js logic lives inside this async block
     (async () => {
+      try {
       // -----------------------------------------------------------------------
       // Lazy imports — Next.js will bundle Three.js client-side only
       // -----------------------------------------------------------------------
@@ -302,6 +305,21 @@ export default function CryptVolumetric3D({
       sourceMp4.src = mp4Src;
       sourceMp4.type = 'video/mp4';
       video.appendChild(sourceMp4);
+
+      let videoHasFrame = false;
+      const onVideoLoaded = () => {
+        videoHasFrame = true;
+        if (!aborted) setShowFallbackVideo(false);
+      };
+      const onVideoError = () => {
+        if (!aborted) setShowFallbackVideo(true);
+      };
+      video.addEventListener('loadeddata', onVideoLoaded);
+      video.addEventListener('error', onVideoError);
+      // If no frame arrives quickly, fail over to a plain video render.
+      const videoFailTimer = window.setTimeout(() => {
+        if (!videoHasFrame && !aborted) setShowFallbackVideo(true);
+      }, 2500);
 
       // Attempt autoplay (browsers may block until user gesture)
       video.play().catch(() => {
@@ -461,6 +479,9 @@ export default function CryptVolumetric3D({
         renderer.domElement.removeEventListener('pointerdown', pauseAutoRotate);
         renderer.domElement.removeEventListener('wheel', pauseAutoRotate);
         if (autoRotateTimeout) clearTimeout(autoRotateTimeout);
+        window.clearTimeout(videoFailTimer);
+        video.removeEventListener('loadeddata', onVideoLoaded);
+        video.removeEventListener('error', onVideoError);
 
         // Dispose geometry, materials, textures
         planeGeo.dispose();
@@ -483,6 +504,9 @@ export default function CryptVolumetric3D({
         }
         canvasElRef.current = null;
       };
+      } catch {
+        if (!aborted) setShowFallbackVideo(true);
+      }
     })();
 
     // Return synchronous cleanup that calls the async-populated ref
@@ -566,6 +590,22 @@ export default function CryptVolumetric3D({
         className="absolute inset-0 w-full h-full"
         aria-label="Interactive volumetric capture — drag to orbit, scroll to zoom"
       />
+
+      {showFallbackVideo && (
+        <video
+          autoPlay
+          muted
+          loop
+          playsInline
+          preload="metadata"
+          className="absolute inset-0 z-[3] h-full w-full object-cover"
+        >
+          <source src={webmSrc} type="video/webm" />
+          <source src={mp4Src} type="video/mp4" />
+          <source src="/work/crypt-demo.webm" type="video/webm" />
+          <source src="/work/crypt-demo.mp4" type="video/mp4" />
+        </video>
+      )}
 
       {/* CSS vignette */}
       <div
