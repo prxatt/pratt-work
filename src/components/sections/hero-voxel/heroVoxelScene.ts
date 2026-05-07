@@ -3,14 +3,23 @@
 /**
  * Homepage hero — single InstancedMesh voxel grid (~12K voxels @ tier 'full').
  *
- * Idle: RoundedBoxGeometry + MeshPhysicalMaterial + transparent canvas (page gradient shows through).
- * Live: BoxGeometry + custom ShaderMaterial — GPU pow(instanceDepth) vertex extrusion; fragment uses
- * multi-light Blinn–Phong, Schlick Fresnel, clearcoat lobe, and gradient env reflection (depth-weighted).
+ * Architecture:
+ *   - One InstancedMesh + one RoundedBoxGeometry + one MeshPhysicalMaterial.
+ *   - Idle: slow multi-axis wave drives per-instance Y scale + Z parallax.
+ *   - Live: webcam depth (high = near after orientation) drives per-instance
+ *           voxel HEIGHT and Z PARALLAX simultaneously for true layered relief.
  *
- * Three.js r183+: `instanceMatrix` / `instanceColor` are injected by the renderer when
- * USE_INSTANCING / USE_INSTANCING_COLOR are enabled — never redeclare them in custom shaders.
+ * Orientation/polarity is canonicalized in `heroVoxelDepthInference.ts`. This
+ * file consumes the depth buffer as "high = near" and never inverts it again.
  *
- * Orientation/polarity: `heroVoxelDepthInference.ts` (high = near).
+ * Performance notes:
+ *   - Single draw call. Per-frame work is dominated by JS matrix composition
+ *     (12K × ~16 floats/instance/frame ≈ 12 MB/s — well within budget).
+ *   - `frustumCulled = false` because per-instance transforms invalidate the
+ *     mesh's static bounding sphere.
+ *   - `instanceMatrix` set to DynamicDrawUsage for cheap GPU re-uploads.
+ *   - dt-compensated lerp keeps motion identical at 60 / 90 / 120 Hz.
+ *   - WebGLRenderer only (no WebGPU probe) for faster mount and a smaller module graph.
  */
 
 import * as THREE from 'three';
@@ -18,58 +27,51 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { gridDimensionsForTier, type HeroVoxelTier } from './heroVoxelConfig';
 
-// ── Shared layout ───────────────────────────────────────────────────────────
-const VOXEL_SIZE = 0.18;
-const VOXEL_RADIUS = 0.015;
+// ── Voxel geometry ─────────────────────────────────────────────────────────
+const IDLE_VOXEL_SIZE = 0.18;
+const IDLE_VOXEL_RADIUS = 0.015;
+const LIVE_VOXEL_SIZE = 0.155;
 const VOXEL_SEGMENTS = 1;
 const VOXEL_SPACING = 0.27;
 const WALL_ROOT_SCALE = 1.06;
 
-// ── Live GPU extrusion (shader) ───────────────────────────────────────────
-// Keep Z stretch modest so instances read as voxels, not long rods (Z-only * 14 on a thin box = cylinders).
-const EXTRUDE_Z_LIVE_MIN = 0.88;
-const EXTRUDE_Z_LIVE_MAX = 3.85;
-const VERTEX_DEPTH_POW_LIVE = 1.95;
-const LIVE_XY_PINCH = 0.94; // near-cube silhouette; Z extrusion does depth read
-
-// ── Idle wave ──────────────────────────────────────────────────────────────
+// ── Idle wave field ────────────────────────────────────────────────────────
 const IDLE_HEIGHT = 1.4;
-const IDLE_HEIGHT_BIAS = 0.34;
+const IDLE_HEIGHT_BIAS = 0.34; // never fully flatten — keeps grid readable
 const IDLE_Z_SWELL = 0.82;
 const IDLE_LERP_BASE = 0.056;
 
-// ── Live CPU depth shaping ─────────────────────────────────────────────────
-const LIVE_Z_RELIEF = 4.6;
-const LIVE_DEPTH_CONTRAST = 1.34;
-const LIVE_DEPTH_SHAPE_LO = 0.14;
-const LIVE_DEPTH_SHAPE_HI = 0.86;
-const LIVE_DEPTH_SHAPE_MIX = 0.55;
+// ── Live volumetric extrusion ──────────────────────────────────────────────
+const LIVE_Y_RELIEF = 1.05; // live uses shader Z extrusion; Y stays voxel-like
+const LIVE_Y_BIAS = 0.84; // keep square voxel particles instead of columns
+const LIVE_Z_RELIEF = 2.85; // parallax only; shader performs actual extrusion
+const LIVE_DEPTH_CONTRAST = 1.34; // slightly stronger local separation (detail)
+const LIVE_DEPTH_SHAPE_LO = 0.14; // widen mid-band so fine depth reads on subject
+const LIVE_DEPTH_SHAPE_HI = 0.86; // smoothstep high edge for shaped curve
+const LIVE_DEPTH_SHAPE_MIX = 0.55; // mix(d1, d2, blend) — 0 = pure pow, 1 = pure smoothstep
 const LIVE_LERP_BASE = 0.56;
-const LIVE_INITIAL_BOOST = 1.4;
-const LIVE_FAR_REJECT_QUANTILE = 0.68;
-const LIVE_SUBJECT_EDGE_SOFTNESS = 0.12;
+const LIVE_INITIAL_BOOST = 1.4; // extrusion amplifier on activation
+const LIVE_FAR_REJECT_QUANTILE = 0.56; // approximate "ignore background beyond ~10ft"
+const LIVE_SUBJECT_EDGE_SOFTNESS = 0.16; // soften cutoff to avoid harsh depth popping
+const LIVE_SHADER_Z_SCALE = 28;
+const LIVE_SHADER_DEPTH_POW = 1.75;
 
+/** Baseline exposure for idle; live mode adjusts dynamically and must reset on exit. */
 const DEFAULT_TONE_MAPPING_EXPOSURE = 1.58;
+const LIVE_BG_COLOR = new THREE.Color('#020512');
+const LIVE_GRID_COLOR = new THREE.Color('#1f7dff');
 
-// Live-only: black environment; blue grid lines for depth separation (no blue fill).
-const LIVE_CLEAR = new THREE.Color('#000000');
-const GRID_BG = new THREE.Color('#000000');
-const GRID_LINE = new THREE.Color('#4da3ff');
-const GRID_PLANE_Z = -72;
-const GRID_SCALE = 220;
+// ── Cinematic magical-realism palette ─────────────────────────────────────
+const COLOR_FAR_SHADOW = new THREE.Color('#1d5dba');
+const COLOR_FAR_INDIGO = new THREE.Color('#3d8eff');
+const COLOR_MID_TEAL = new THREE.Color('#62d8ff');
+const COLOR_NEAR_MINT = new THREE.Color('#9affc8');
+const COLOR_NEAR_GLOW = new THREE.Color('#f2fff7');
+const COLOR_SPEC = new THREE.Color('#ffffff');
 
-// Idle + live shared palette helpers
 const IDLE_COLOR_LO = new THREE.Color('#0c1116');
 const IDLE_COLOR_MID = new THREE.Color('#1a2b32');
 const IDLE_COLOR_HI = new THREE.Color('#88a9ad');
-
-/** Live albedo: far = darker (still above black field), near = bright cyan/white so subject reads as foreground. */
-const COLOR_FAR_SHADOW = new THREE.Color('#0e1b2e');
-const COLOR_FAR_INDIGO = new THREE.Color('#1c4a7a');
-const COLOR_MID_TEAL = new THREE.Color('#3db8d8');
-const COLOR_NEAR_MINT = new THREE.Color('#9cf0ff');
-const COLOR_NEAR_GLOW = new THREE.Color('#f0fdff');
-const COLOR_SPEC = new THREE.Color('#ffffff');
 
 function smoothstepScalar(edge0: number, edge1: number, x: number): number {
   const d = edge1 - edge0 || 1;
@@ -128,14 +130,12 @@ type VoxelPack = {
   liveGeometry: THREE.BufferGeometry;
   idleMaterial: THREE.MeshPhysicalMaterial;
   liveMaterial: THREE.ShaderMaterial;
-  basePositions: Float32Array;
-  smoothDepths: Float32Array;
-  currentScaleY: Float32Array;
-  currentZPush: Float32Array;
-  workDepth: Float32Array;
-  instanceDepth: THREE.InstancedBufferAttribute;
-  /** Reused every live frame — avoids Bugbot path: allocate + sort O(n log n). */
-  depthHistogram: Uint16Array;
+  depthAttribute: THREE.InstancedBufferAttribute;
+  basePositions: Float32Array; // (x, y, 0) per instance — fixed per frame
+  smoothDepths: Float32Array; // per-frame smoothed depth in [0,1]
+  currentScaleY: Float32Array; // dt-smoothed Y scale (voxel height)
+  currentZPush: Float32Array; // dt-smoothed Z parallax (forward push)
+  workDepth: Float32Array; // per-frame shaped depth (pre-threshold)
   count: number;
 };
 
@@ -144,6 +144,7 @@ type LiveLightRig = {
   fill: THREE.DirectionalLight;
   rim: THREE.DirectionalLight;
   subjectGlow: THREE.PointLight;
+  liveMaterial: THREE.ShaderMaterial;
 };
 
 export type HeroVoxelSceneApi = {
@@ -151,222 +152,6 @@ export type HeroVoxelSceneApi = {
   setCameraActive: (active: boolean) => void;
   bindDepthBuffer: (buffer: Float32Array | null) => void;
 };
-
-/** Do not declare `instanceMatrix` / `instanceColor` — Three r183 injects them. */
-const VOXEL_VERT = /* glsl */ `
-#include <common>
-#include <logdepthbuf_pars_vertex>
-
-attribute float instanceDepth;
-
-uniform float uDepthPow;
-uniform float uZScaleMin;
-uniform float uZScaleMax;
-uniform float uXYPinch;
-
-varying vec3 vWorldPos;
-varying vec3 vWorldNormal;
-varying vec3 vViewDir;
-varying vec3 vColor;
-varying float vDepthShaded;
-
-void main() {
-#if defined( USE_INSTANCING_COLOR )
-  vColor = instanceColor;
-#else
-  vColor = vec3( 1.0 );
-#endif
-
-  float d = clamp( instanceDepth, 0.0, 1.0 );
-  vDepthShaded = pow( d, uDepthPow );
-  float zScale = mix( uZScaleMin, uZScaleMax, vDepthShaded );
-  float xyScale = mix( 1.0, uXYPinch, vDepthShaded );
-
-  vec3 transformed = vec3( position );
-  transformed.xy *= xyScale;
-  transformed.z *= zScale;
-
-  vec4 mvPosition = vec4( transformed, 1.0 );
-#ifdef USE_INSTANCING
-  mvPosition = instanceMatrix * mvPosition;
-#endif
-  mvPosition = modelViewMatrix * mvPosition;
-  gl_Position = projectionMatrix * mvPosition;
-
-  vec4 worldPos = modelMatrix * instanceMatrix * vec4( transformed, 1.0 );
-  vWorldPos = worldPos.xyz;
-  vViewDir = normalize( cameraPosition - vWorldPos );
-
-#ifdef USE_INSTANCING
-  mat3 im3 = mat3( instanceMatrix );
-  vec3 n = im3 * vec3( normal.x / max( xyScale, 0.001 ), normal.y / max( xyScale, 0.001 ), normal.z / max( zScale, 0.001 ) );
-  vWorldNormal = normalize( mat3( modelMatrix ) * n );
-#else
-  vWorldNormal = normalize( mat3( modelMatrix ) * normal );
-#endif
-
-#include <logdepthbuf_vertex>
-}
-`;
-
-const VOXEL_FRAG = /* glsl */ `
-#include <common>
-#include <logdepthbuf_pars_fragment>
-
-uniform vec3 uLightDirA;
-uniform vec3 uLightDirB;
-uniform vec3 uLightDirC;
-uniform vec3 uLightColorA;
-uniform vec3 uLightColorB;
-uniform vec3 uLightColorC;
-uniform vec3 uAmbient;
-uniform vec3 uEnvZenith;
-uniform vec3 uEnvHorizon;
-uniform vec3 uRimColor;
-uniform float uWrap;
-uniform float uShininess;
-uniform float uClearcoat;
-uniform float uFresnelPow;
-uniform float uSpecStrength;
-uniform float uEnvReflectivity;
-uniform float uDepthEnvBoost;
-
-varying vec3 vWorldPos;
-varying vec3 vWorldNormal;
-varying vec3 vViewDir;
-varying vec3 vColor;
-varying float vDepthShaded;
-
-void main() {
-  vec3 N = normalize( vWorldNormal );
-  vec3 V = normalize( vViewDir );
-
-  float wrap = uWrap;
-  vec3 La = normalize( uLightDirA );
-  vec3 Lb = normalize( uLightDirB );
-  vec3 Lc = normalize( uLightDirC );
-
-  // Blinn–Phong: per-light diffuse (wrapped Lambert) + spec from half-vector.
-  float diffA = max( 0.0, ( dot( N, La ) + wrap ) / ( 1.0 + wrap ) );
-  float diffB = max( 0.0, ( dot( N, Lb ) + wrap ) / ( 1.0 + wrap ) );
-  float diffC = max( 0.0, ( dot( N, Lc ) + wrap ) / ( 1.0 + wrap ) );
-
-  vec3 Ha = normalize( La + V );
-  vec3 Hb = normalize( Lb + V );
-  vec3 Hc = normalize( Lc + V );
-  float sh = uShininess;
-  float specA = pow( max( dot( N, Ha ), 0.0 ), sh );
-  float specB = pow( max( dot( N, Hb ), 0.0 ), sh );
-  float specC = pow( max( dot( N, Hc ), 0.0 ), sh );
-
-  float hemi = N.y * 0.5 + 0.5;
-  float fillCam = dot( N, V ) * 0.5 + 0.5;
-  vec3 diffCol =
-    uLightColorA * diffA * 0.38 +
-    uLightColorB * diffB * 0.28 +
-    uLightColorC * diffC * 0.22 +
-    uAmbient * ( 0.18 + hemi * 0.12 + fillCam * 0.1 );
-
-  vec3 specCol =
-    uLightColorA * specA * 0.55 +
-    uLightColorB * specB * 0.35 +
-    uLightColorC * specC * 0.28;
-
-  vec3 Hk = normalize( La + Lb + V );
-  float cc = pow( max( dot( N, Hk ), 0.0 ), sh * 1.45 ) * uClearcoat;
-
-  float cosNV = max( dot( N, V ), 0.0 );
-  float fresnelTerm = pow( clamp( 1.0 - cosNV, 0.0, 1.0 ), uFresnelPow );
-  float F0 = 0.028;
-  float Fsch = F0 + ( 1.0 - F0 ) * pow( 1.0 - cosNV, 5.0 );
-
-  vec3 R = reflect( -V, N );
-  float envT = clamp( R.y * 0.5 + 0.5, 0.0, 1.0 );
-  vec3 envC = mix( uEnvHorizon, uEnvZenith, envT );
-  float depthGlow = vDepthShaded * uDepthEnvBoost;
-  vec3 envRef = mix( envC, uRimColor, Fsch * 0.55 ) * uEnvReflectivity * ( 0.35 + depthGlow );
-
-  vec3 base = vColor;
-  vec3 lit = base * diffCol + specCol * uSpecStrength + vec3( 1.0 ) * cc * 0.42;
-  lit += envRef;
-  lit += uRimColor * fresnelTerm * ( 0.65 + vDepthShaded * 0.35 );
-
-  gl_FragColor = vec4( lit, 1.0 );
-#include <logdepthbuf_fragment>
-}
-`;
-
-const GRID_VERT = /* glsl */ `
-varying vec2 vUv;
-void main() {
-  vUv = uv;
-  gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
-}
-`;
-
-const GRID_FRAG = /* glsl */ `
-uniform vec3 uColor;
-uniform vec3 uLine;
-uniform float uGrid;
-varying vec2 vUv;
-
-void main() {
-  vec2 g = abs( fract( vUv * uGrid ) - 0.5 ) / fwidth( vUv * uGrid );
-  float line = 1.0 - min( min( g.x, g.y ), 1.0 );
-  line = pow( line, 0.65 );
-  vec3 col = mix( uColor, uLine, line * 0.42 );
-  gl_FragColor = vec4( col, 1.0 );
-}
-`;
-
-function createLiveVoxelMaterial(): THREE.ShaderMaterial {
-  return new THREE.ShaderMaterial({
-    uniforms: {
-      uDepthPow: { value: VERTEX_DEPTH_POW_LIVE },
-      uZScaleMin: { value: EXTRUDE_Z_LIVE_MIN },
-      uZScaleMax: { value: EXTRUDE_Z_LIVE_MAX },
-      uXYPinch: { value: LIVE_XY_PINCH },
-      uLightDirA: { value: new THREE.Vector3(0.45, 0.75, 0.48).normalize() },
-      uLightDirB: { value: new THREE.Vector3(-0.62, 0.35, 0.42).normalize() },
-      uLightDirC: { value: new THREE.Vector3(0.1, -0.2, 0.98).normalize() },
-      uLightColorA: { value: new THREE.Color('#ffffff') },
-      uLightColorB: { value: new THREE.Color('#bfe8ff') },
-      uLightColorC: { value: new THREE.Color('#7ad0ff') },
-      uAmbient: { value: new THREE.Color('#d8f0ff').multiplyScalar(0.22) },
-      uEnvZenith: { value: new THREE.Color('#7ec8ff') },
-      uEnvHorizon: { value: new THREE.Color('#05070a') },
-      uRimColor: { value: new THREE.Color('#ffffff') },
-      uWrap: { value: 0.48 },
-      uShininess: { value: 96.0 },
-      uClearcoat: { value: 0.85 },
-      uFresnelPow: { value: 3.2 },
-      uSpecStrength: { value: 1.15 },
-      uEnvReflectivity: { value: 1.05 },
-      uDepthEnvBoost: { value: 0.85 },
-    },
-    vertexShader: VOXEL_VERT,
-    fragmentShader: VOXEL_FRAG,
-  });
-}
-
-function createBackdropGrid(): THREE.Mesh {
-  const geo = new THREE.PlaneGeometry(GRID_SCALE, GRID_SCALE, 1, 1);
-  const mat = new THREE.ShaderMaterial({
-    uniforms: {
-      uColor: { value: GRID_BG.clone() },
-      uLine: { value: GRID_LINE.clone() },
-      uGrid: { value: 56.0 },
-    },
-    vertexShader: GRID_VERT,
-    fragmentShader: GRID_FRAG,
-    depthWrite: true,
-  });
-  const mesh = new THREE.Mesh(geo, mat);
-  mesh.position.set(0, 0, GRID_PLANE_Z);
-  mesh.renderOrder = -50;
-  mesh.visible = false;
-  return mesh;
-}
 
 export async function mountHeroVoxelScene(
   container: HTMLElement,
@@ -382,8 +167,6 @@ export async function mountHeroVoxelScene(
   let extrusionBoost = 1;
 
   const scene = new THREE.Scene();
-  const backdrop = createBackdropGrid();
-  scene.add(backdrop);
 
   const measure = () => {
     const r = container.getBoundingClientRect();
@@ -394,12 +177,13 @@ export async function mountHeroVoxelScene(
 
   let { w: cw, h: ch } = measure();
 
-  const camera = new THREE.PerspectiveCamera(58, cw / ch, 0.1, 500);
-  const cameraDistanceIdle = (aspect: number) => (aspect < 1 ? 26 : 20.8);
-  const cameraDistanceLive = (aspect: number) => (aspect < 1 ? 32 : 27);
-  camera.position.set(0, 0, cameraDistanceIdle(cw / ch));
+  const camera = new THREE.PerspectiveCamera(52, cw / ch, 0.1, 500);
+  const cameraDistanceForAspect = (aspect: number) => (aspect < 1 ? 32 : 27);
+  camera.position.set(0, 0, cameraDistanceForAspect(cw / ch));
   camera.lookAt(0, 0, 0);
 
+  // WebGL only: avoids WebGPU init latency on every load and keeps the hero
+  // voxel path on the well-supported MeshPhysicalMaterial pipeline.
   const renderer = new THREE.WebGLRenderer({
     antialias: true,
     alpha: true,
@@ -449,24 +233,18 @@ export async function mountHeroVoxelScene(
   const voxels = createVoxelGrid(GRID_X, GRID_Z, voxelCount);
   voxels.root.scale.setScalar(WALL_ROOT_SCALE);
   scene.add(voxels.root);
-  const liveLightRig = createLights(scene);
+  const backdrop = createLiveBackdrop(GRID_X, GRID_Z);
+  backdrop.visible = false;
+  scene.add(backdrop);
+  const liveLightRig = createLights(scene, voxels.liveMaterial);
 
   const dummy = new THREE.Object3D();
   let lastTime = performance.now();
+  // Mutable idle reference camera pose; updated on resize/aspect changes.
   const idleCameraBase = camera.position.clone();
 
   const frameLerp = (base: number, dt: number, floor: number) =>
     Math.min(1, base * (dt / (1 / 60)) + floor);
-
-  /** Unit vector from light target → light position (toward the source); use for N·L in the live shader. */
-  function setDirectionalLightToLightDir(light: THREE.DirectionalLight, out: THREE.Vector3) {
-    out.copy(light.position).sub(light.target.position).normalize();
-  }
-
-  function syncLiveExtrusionUniforms() {
-    const m = voxels.liveMaterial;
-    m.uniforms.uZScaleMax.value = EXTRUDE_Z_LIVE_MAX * extrusionBoost;
-  }
 
   function updateIdle(t: number, dt: number) {
     const lerp = frameLerp(IDLE_LERP_BASE, dt, 0.02);
@@ -501,14 +279,13 @@ export async function mountHeroVoxelScene(
   }
 
   function updateLive(buf: Float32Array, dt: number, t: number) {
-    syncLiveExtrusionUniforms();
     const lerp = frameLerp(LIVE_LERP_BASE, dt, 0.08);
     let dMin = 1;
     let dMax = 0;
     let dSum = 0;
-    const histogram = voxels.depthHistogram;
-    histogram.fill(0);
+    const histogram = new Uint16Array(32);
     for (let i = 0; i < voxelCount; i++) {
+      // Canonical "high = near" — orientation handled in inference layer.
       const raw = buf[i];
       voxels.smoothDepths[i] += (raw - voxels.smoothDepths[i]) * lerp;
       const d0 = THREE.MathUtils.clamp(voxels.smoothDepths[i], 0, 1);
@@ -545,21 +322,24 @@ export async function mountHeroVoxelScene(
         dFinal
       );
       const dMasked = dFinal * subjectMask;
+
       const nearBoost = smoothstepScalar(0.52, 1, dFinal);
       const dShaped = THREE.MathUtils.clamp(dMasked * (1 + nearBoost * 0.32), 0, 1);
-
-      voxels.instanceDepth.array[i] += (dShaped - voxels.instanceDepth.array[i]) * lerp;
-
+      const targetY = LIVE_Y_BIAS + dShaped * LIVE_Y_RELIEF * extrusionBoost;
       const targetZ = (dShaped - 0.5) * 2 * LIVE_Z_RELIEF * extrusionBoost;
+      voxels.depthAttribute.setX(i, dShaped);
+
+      voxels.currentScaleY[i] += (targetY - voxels.currentScaleY[i]) * lerp;
       voxels.currentZPush[i] += (targetZ - voxels.currentZPush[i]) * lerp;
 
       const baseIdx = i * 3;
       const x = voxels.basePositions[baseIdx];
       const y = voxels.basePositions[baseIdx + 1];
+      const sy = Math.max(0.05, voxels.currentScaleY[i]);
       const z = voxels.currentZPush[i];
 
       dummy.position.set(x, y, z);
-      dummy.scale.set(1, 1, 1);
+      dummy.scale.set(1, sy, 1);
       dummy.updateMatrix();
       voxels.mesh.setMatrixAt(i, dummy.matrix);
 
@@ -568,10 +348,6 @@ export async function mountHeroVoxelScene(
       depthColor(tmpColor, dShaped, glowMix);
       voxels.mesh.setColorAt(i, tmpColor);
     }
-    voxels.instanceDepth.needsUpdate = true;
-    voxels.mesh.instanceMatrix.needsUpdate = true;
-    if (voxels.mesh.instanceColor) voxels.mesh.instanceColor.needsUpdate = true;
-
     const dRange = dMax - dMin;
     const dAvg = dSum / Math.max(voxelCount, 1);
     updateLiveLights(liveLightRig, dAvg, dRange, t);
@@ -581,16 +357,9 @@ export async function mountHeroVoxelScene(
       1.78
     );
     renderer.toneMappingExposure += (exposureTarget - renderer.toneMappingExposure) * 0.06;
-  }
-
-  function applyRendererMode(live: boolean) {
-    if (live) {
-      backdrop.visible = true;
-      renderer.setClearColor(LIVE_CLEAR, 1);
-    } else {
-      backdrop.visible = false;
-      renderer.setClearColor(0x000000, 0);
-    }
+    voxels.depthAttribute.needsUpdate = true;
+    voxels.mesh.instanceMatrix.needsUpdate = true;
+    if (voxels.mesh.instanceColor) voxels.mesh.instanceColor.needsUpdate = true;
   }
 
   const applySize = () => {
@@ -602,7 +371,7 @@ export async function mountHeroVoxelScene(
     camera.aspect = aspect;
     camera.updateProjectionMatrix();
     if (!cameraMode) {
-      idleCameraBase.set(0, 0, cameraDistanceIdle(aspect));
+      idleCameraBase.set(0, 0, cameraDistanceForAspect(aspect));
       camera.position.copy(idleCameraBase);
       controls.target.set(0, 0, 0);
     }
@@ -624,6 +393,8 @@ export async function mountHeroVoxelScene(
     window.visualViewport.addEventListener('resize', applySize);
   }
 
+  // Subtle idle camera drift adds life without exposing the back of the grid.
+  // Keep this mutable so resize/aspect changes don't restore stale distance.
   const updateIdleCameraDrift = (t: number) => {
     if (cameraMode || reducedMotion) return;
     const sweepX = Math.sin(t * 0.16) * 0.9;
@@ -649,12 +420,6 @@ export async function mountHeroVoxelScene(
       updateIdleCameraDrift(t);
     }
 
-    if (voxels.mesh.material === voxels.liveMaterial) {
-      setDirectionalLightToLightDir(liveLightRig.key, voxels.liveMaterial.uniforms.uLightDirA.value);
-      setDirectionalLightToLightDir(liveLightRig.fill, voxels.liveMaterial.uniforms.uLightDirB.value);
-      setDirectionalLightToLightDir(liveLightRig.rim, voxels.liveMaterial.uniforms.uLightDirC.value);
-    }
-
     controls.update();
     renderer.render(scene, camera);
   };
@@ -671,42 +436,42 @@ export async function mountHeroVoxelScene(
 
     if (active) {
       extrusionBoost = LIVE_INITIAL_BOOST;
-      renderer.toneMappingExposure = DEFAULT_TONE_MAPPING_EXPOSURE;
-      voxels.smoothDepths.fill(0.5);
-      voxels.instanceDepth.array.fill(0.35);
-      voxels.instanceDepth.needsUpdate = true;
-
+      renderer.setClearColor(LIVE_BG_COLOR, 1);
+      renderer.toneMappingExposure = 1.34;
+      backdrop.visible = true;
       voxels.mesh.geometry = voxels.liveGeometry;
       voxels.mesh.material = voxels.liveMaterial;
-      voxels.mesh.material.needsUpdate = true;
-
-      idleCameraBase.set(0, 0, cameraDistanceLive(camera.aspect));
-      camera.position.copy(idleCameraBase);
+      voxels.smoothDepths.fill(0.5);
+      voxels.depthAttribute.array.fill(0);
+      voxels.depthAttribute.needsUpdate = true;
+      voxels.currentScaleY.fill(1);
+      voxels.currentZPush.fill(0);
+      // Don't snap currentScale/currentZPush — let them lerp naturally from idle.
+      camera.position.set(0, 0, cameraDistanceForAspect(camera.aspect));
       controls.target.set(0, 0, 0);
-
-      controls.minDistance = 18;
-      controls.maxDistance = 100;
+      controls.minDistance = 20;
+      controls.maxDistance = 90;
+      controls.minAzimuthAngle = -Infinity;
+      controls.maxAzimuthAngle = Infinity;
       controls.rotateSpeed = 0.7;
       controls.zoomSpeed = 0.95;
-      syncLiveExtrusionUniforms();
-      applyRendererMode(true);
     } else {
       extrusionBoost = 1;
       depthBuffer = null;
+      renderer.setClearColor(0x000000, 0);
       renderer.toneMappingExposure = DEFAULT_TONE_MAPPING_EXPOSURE;
-
+      backdrop.visible = false;
       voxels.mesh.geometry = voxels.idleGeometry;
       voxels.mesh.material = voxels.idleMaterial;
-      voxels.mesh.material.needsUpdate = true;
-
-      idleCameraBase.set(0, 0, cameraDistanceIdle(camera.aspect));
+      idleCameraBase.set(0, 0, cameraDistanceForAspect(camera.aspect));
       camera.position.copy(idleCameraBase);
       controls.target.set(0, 0, 0);
       controls.minDistance = 14;
       controls.maxDistance = 60;
+      controls.minAzimuthAngle = -Infinity;
+      controls.maxAzimuthAngle = Infinity;
       controls.rotateSpeed = 1;
       controls.zoomSpeed = 1;
-      applyRendererMode(false);
     }
 
     applySize();
@@ -727,17 +492,22 @@ export async function mountHeroVoxelScene(
     controls.dispose();
     voxels.idleGeometry.dispose();
     voxels.liveGeometry.dispose();
-    backdrop.geometry.dispose();
-    (backdrop.material as THREE.Material).dispose();
     voxels.idleMaterial.dispose();
     voxels.liveMaterial.dispose();
+    backdrop.traverse((obj) => {
+      if (obj instanceof THREE.LineSegments) {
+        obj.geometry.dispose();
+        const mat = obj.material;
+        if (Array.isArray(mat)) mat.forEach((m) => m.dispose());
+        else mat.dispose();
+      }
+    });
     renderer.dispose();
     if (renderer.domElement.parentElement === container) {
       container.removeChild(renderer.domElement);
     }
   };
 
-  applyRendererMode(false);
   requestAnimationFrame(applySize);
 
   return { dispose, setCameraActive, bindDepthBuffer };
@@ -748,21 +518,17 @@ function createVoxelGrid(
   GRID_Z: number,
   count: number
 ): VoxelPack {
+  // Voxels live in local XY (Z=0). scale.z grows the voxel toward +Z, which
+  // maps directly to "toward the camera" since the camera looks down -Z.
   const idleGeometry = new RoundedBoxGeometry(
-    VOXEL_SIZE,
-    VOXEL_SIZE,
-    VOXEL_SIZE,
+    IDLE_VOXEL_SIZE,
+    IDLE_VOXEL_SIZE,
+    IDLE_VOXEL_SIZE,
     VOXEL_SEGMENTS,
-    VOXEL_RADIUS
+    IDLE_VOXEL_RADIUS
   );
-  idleGeometry.translate(0, 0, VOXEL_SIZE * 0.5);
-
-  const liveGeometry = new THREE.BoxGeometry(VOXEL_SIZE, VOXEL_SIZE, VOXEL_SIZE);
-  liveGeometry.translate(0, 0, VOXEL_SIZE * 0.5);
-
-  const instanceDepth = new THREE.InstancedBufferAttribute(new Float32Array(count), 1);
-  instanceDepth.setUsage(THREE.DynamicDrawUsage);
-  liveGeometry.setAttribute('instanceDepth', instanceDepth);
+  // Pivot at the back face (z = 0) so scale.z extrudes only forward.
+  idleGeometry.translate(0, 0, IDLE_VOXEL_SIZE * 0.5);
 
   const idleMaterial = new THREE.MeshPhysicalMaterial({
     vertexColors: true,
@@ -775,6 +541,15 @@ function createVoxelGrid(
     emissiveIntensity: 0.24,
   });
 
+  const liveGeometry = new THREE.BoxGeometry(
+    LIVE_VOXEL_SIZE,
+    LIVE_VOXEL_SIZE,
+    LIVE_VOXEL_SIZE
+  );
+  liveGeometry.translate(0, 0, LIVE_VOXEL_SIZE * 0.5);
+  const depthAttribute = new THREE.InstancedBufferAttribute(new Float32Array(count), 1);
+  depthAttribute.setUsage(THREE.DynamicDrawUsage);
+  liveGeometry.setAttribute('instanceDepth', depthAttribute);
   const liveMaterial = createLiveVoxelMaterial();
 
   const mesh = new THREE.InstancedMesh(idleGeometry, idleMaterial, count);
@@ -787,7 +562,6 @@ function createVoxelGrid(
   const currentScaleY = new Float32Array(count).fill(IDLE_HEIGHT_BIAS);
   const currentZPush = new Float32Array(count);
   const workDepth = new Float32Array(count);
-  const depthHistogram = new Uint16Array(32);
 
   const offsetX = (GRID_X - 1) * VOXEL_SPACING * 0.5;
   const offsetY = (GRID_Z - 1) * VOXEL_SPACING * 0.5;
@@ -797,14 +571,15 @@ function createVoxelGrid(
   for (let i = 0; i < count; i++) {
     const ix = i % GRID_X;
     const iz = Math.floor(i / GRID_X);
+    // iz=0 → top of screen (high local Y); iz=GRID_Z-1 → bottom.
+    // This matches the webcam's row-0-on-top convention so vertical orientation
+    // is preserved end-to-end.
     const x = ix * VOXEL_SPACING - offsetX;
     const y = offsetY - iz * VOXEL_SPACING;
     const baseIdx = i * 3;
     basePositions[baseIdx] = x;
     basePositions[baseIdx + 1] = y;
     basePositions[baseIdx + 2] = 0;
-
-    instanceDepth.array[i] = 0.35;
 
     const sy = IDLE_HEIGHT_BIAS;
     dummy.position.set(x, y, 0);
@@ -817,7 +592,6 @@ function createVoxelGrid(
   }
   mesh.instanceMatrix.needsUpdate = true;
   if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
-  instanceDepth.needsUpdate = true;
 
   const root = new THREE.Group();
   root.add(mesh);
@@ -829,33 +603,196 @@ function createVoxelGrid(
     liveGeometry,
     idleMaterial,
     liveMaterial,
+    depthAttribute,
     basePositions,
     smoothDepths,
     currentScaleY,
     currentZPush,
     workDepth,
-    instanceDepth,
-    depthHistogram,
     count,
   };
 }
 
-function createLights(scene: THREE.Scene) {
-  scene.add(new THREE.HemisphereLight(0x344168, 0x05070d, 0.56));
-  scene.add(new THREE.AmbientLight(0x101522, 0.34));
-  const key = new THREE.DirectionalLight(0xbfd2ff, 1.16);
+function createLiveVoxelMaterial() {
+  return new THREE.ShaderMaterial({
+    vertexColors: true,
+    transparent: false,
+    depthWrite: true,
+    depthTest: true,
+    uniforms: {
+      uDepthPow: { value: LIVE_SHADER_DEPTH_POW },
+      uZScale: { value: LIVE_SHADER_Z_SCALE },
+      uMinZScale: { value: 0.22 },
+      uXYPinch: { value: 0.1 },
+      uLightDirA: { value: new THREE.Vector3(0.4, 0.7, 0.6).normalize() },
+      uLightDirB: { value: new THREE.Vector3(-0.65, 0.35, 0.4).normalize() },
+      uLightDirC: { value: new THREE.Vector3(0.05, 0.35, -0.9).normalize() },
+      uLightColorA: { value: new THREE.Color('#e8f7ff') },
+      uLightColorB: { value: new THREE.Color('#6db7ff') },
+      uLightColorC: { value: new THREE.Color('#9affd4') },
+      uEnvZenith: { value: new THREE.Color('#dffcff') },
+      uEnvHorizon: { value: new THREE.Color('#1d63e7') },
+      uSpecStrength: { value: 0.52 },
+      uEnvReflectivity: { value: 0.34 },
+      uDepthEnvBoost: { value: 0.46 },
+    },
+    vertexShader: `
+      attribute float instanceDepth;
+
+      uniform float uDepthPow;
+      uniform float uZScale;
+      uniform float uMinZScale;
+      uniform float uXYPinch;
+
+      varying vec3 vWorldPos;
+      varying vec3 vNormalW;
+      varying vec3 vInstanceColor;
+      varying float vDepthShaded;
+
+      void main() {
+        float d = clamp(instanceDepth, 0.0, 1.0);
+        float shaped = pow(d, uDepthPow);
+        float subject = smoothstep(0.018, 0.12, shaped);
+
+        vec3 transformed = position;
+        float xyScale = mix(0.18, mix(0.92, 1.04, shaped) - (1.0 - shaped) * uXYPinch, subject);
+        transformed.xy *= xyScale;
+        transformed.z *= mix(0.08, uMinZScale + shaped * uZScale, subject);
+
+        vec4 instancePosition = instanceMatrix * vec4(transformed, 1.0);
+        vec4 worldPosition = modelMatrix * instancePosition;
+
+        mat3 instanceNormalMatrix = mat3(instanceMatrix);
+        vNormalW = normalize(mat3(modelMatrix) * instanceNormalMatrix * normal);
+        vWorldPos = worldPosition.xyz;
+        vDepthShaded = shaped;
+
+        #if defined( USE_INSTANCING_COLOR )
+          vInstanceColor = instanceColor;
+        #else
+          vInstanceColor = vec3(0.76, 0.96, 1.0);
+        #endif
+
+        gl_Position = projectionMatrix * viewMatrix * worldPosition;
+      }
+    `,
+    fragmentShader: `
+      precision highp float;
+
+      uniform vec3 uLightDirA;
+      uniform vec3 uLightDirB;
+      uniform vec3 uLightDirC;
+      uniform vec3 uLightColorA;
+      uniform vec3 uLightColorB;
+      uniform vec3 uLightColorC;
+      uniform vec3 uEnvZenith;
+      uniform vec3 uEnvHorizon;
+      uniform float uSpecStrength;
+      uniform float uEnvReflectivity;
+      uniform float uDepthEnvBoost;
+
+      varying vec3 vWorldPos;
+      varying vec3 vNormalW;
+      varying vec3 vInstanceColor;
+      varying float vDepthShaded;
+
+      vec3 lightTerm(vec3 n, vec3 v, vec3 l, vec3 color, float specPower) {
+        float wrapped = clamp(dot(n, l) * 0.42 + 0.58, 0.0, 1.0);
+        vec3 h = normalize(l + v);
+        float spec = pow(max(dot(n, h), 0.0), specPower);
+        return color * (wrapped * 0.72 + spec * uSpecStrength);
+      }
+
+      void main() {
+        if (vDepthShaded < 0.012) discard;
+
+        vec3 n = normalize(vNormalW);
+        vec3 v = normalize(cameraPosition - vWorldPos);
+        float fresnel = pow(1.0 - max(dot(n, v), 0.0), 4.0);
+
+        vec3 base = mix(vec3(0.28, 0.62, 1.0), vec3(0.9, 1.0, 0.95), smoothstep(0.18, 1.0, vDepthShaded));
+        base *= mix(vec3(0.84, 0.95, 1.04), vInstanceColor, 0.36);
+
+        vec3 lighting = vec3(0.62);
+        lighting += lightTerm(n, v, normalize(uLightDirA), uLightColorA, 44.0) * 0.72;
+        lighting += lightTerm(n, v, normalize(uLightDirB), uLightColorB, 30.0) * 0.38;
+        lighting += lightTerm(n, v, normalize(uLightDirC), uLightColorC, 74.0) * 0.46;
+
+        vec3 r = reflect(-v, n);
+        float envMix = clamp(r.y * 0.5 + 0.5, 0.0, 1.0);
+        vec3 env = mix(uEnvHorizon, uEnvZenith, envMix);
+        float clearcoat = pow(max(dot(n, normalize(normalize(uLightDirA) + v)), 0.0), 120.0);
+
+        vec3 color = base * lighting;
+        color = mix(color, env, uEnvReflectivity * (0.38 + vDepthShaded * uDepthEnvBoost));
+        color += fresnel * vec3(0.55, 0.88, 1.0) * (0.24 + vDepthShaded * 0.5);
+        color += clearcoat * vec3(1.0) * 0.72;
+        color = max(color, base * 0.72);
+
+        gl_FragColor = vec4(color, 1.0);
+      }
+    `,
+  });
+}
+
+function createLiveBackdrop(GRID_X: number, GRID_Z: number) {
+  const group = new THREE.Group();
+  const width = (GRID_X - 1) * VOXEL_SPACING * WALL_ROOT_SCALE;
+  const height = (GRID_Z - 1) * VOXEL_SPACING * WALL_ROOT_SCALE;
+  const z = -7.5;
+
+  const positions: number[] = [];
+  const cols = 18;
+  const rows = 12;
+  for (let i = 0; i <= cols; i++) {
+    const x = (i / cols - 0.5) * width * 1.18;
+    positions.push(x, -height * 0.58, z, x, height * 0.58, z);
+  }
+  for (let i = 0; i <= rows; i++) {
+    const y = (i / rows - 0.5) * height * 1.16;
+    positions.push(-width * 0.6, y, z, width * 0.6, y, z);
+  }
+
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  const material = new THREE.LineBasicMaterial({
+    color: LIVE_GRID_COLOR,
+    transparent: true,
+    opacity: 0.22,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+  });
+  group.add(new THREE.LineSegments(geometry, material));
+
+  const floor = new THREE.GridHelper(width * 1.25, 42, 0x2e8cff, 0x0f3978);
+  floor.position.set(0, -height * 0.58, 3.5);
+  floor.rotation.x = Math.PI * 0.5;
+  const floorMat = floor.material as THREE.Material;
+  floorMat.transparent = true;
+  floorMat.opacity = 0.2;
+  floorMat.depthWrite = false;
+  group.add(floor);
+
+  return group;
+}
+
+function createLights(scene: THREE.Scene, liveMaterial: THREE.ShaderMaterial) {
+  // Idle-only standard lights. Live mode shades in the custom shader to avoid dark holes.
+  scene.add(new THREE.HemisphereLight(0x4c6ca0, 0x111827, 0.72));
+  scene.add(new THREE.AmbientLight(0x223047, 0.58));
+  const key = new THREE.DirectionalLight(0xe8f4ff, 1.18);
   key.position.set(8, 26, 22);
   scene.add(key);
-  const fill = new THREE.DirectionalLight(0x4ea6b8, 0.62);
+  const fill = new THREE.DirectionalLight(0x7ebcff, 0.76);
   fill.position.set(-18, 11, 11);
   scene.add(fill);
-  const rim = new THREE.DirectionalLight(0x73ffc5, 1.06);
+  const rim = new THREE.DirectionalLight(0x9affd4, 1.02);
   rim.position.set(0, 8, -36);
   scene.add(rim);
-  const subjectGlow = new THREE.PointLight(0xb6ffd6, 0.46, 180);
+  const subjectGlow = new THREE.PointLight(0xcaffde, 0.5, 180);
   subjectGlow.position.set(0, 2, 20);
   scene.add(subjectGlow);
-  return { key, fill, rim, subjectGlow };
+  return { key, fill, rim, subjectGlow, liveMaterial };
 }
 
 function updateLiveLights(rig: LiveLightRig, dAvg: number, dRange: number, t: number) {
@@ -870,4 +807,28 @@ function updateLiveLights(rig: LiveLightRig, dAvg: number, dRange: number, t: nu
     3.2 + Math.sin(t * 0.51 + 1.2) * 1.4,
     20 + nearEnergy * 5.5
   );
+  setDirectionalLightToLightDir(
+    rig.key,
+    rig.liveMaterial.uniforms.uLightDirA.value as THREE.Vector3
+  );
+  setDirectionalLightToLightDir(
+    rig.fill,
+    rig.liveMaterial.uniforms.uLightDirB.value as THREE.Vector3
+  );
+  setDirectionalLightToLightDir(
+    rig.rim,
+    rig.liveMaterial.uniforms.uLightDirC.value as THREE.Vector3
+  );
+  rig.liveMaterial.uniforms.uSpecStrength.value = 0.44 + detailEnergy * 0.2;
+  rig.liveMaterial.uniforms.uEnvReflectivity.value = 0.3 + nearEnergy * 0.12;
+  rig.liveMaterial.uniforms.uDepthEnvBoost.value = 0.42 + detailEnergy * 0.16;
+}
+
+function setDirectionalLightToLightDir(light: THREE.DirectionalLight, out: THREE.Vector3) {
+  light.updateMatrixWorld();
+  light.target.updateMatrixWorld();
+  out
+    .setFromMatrixPosition(light.matrixWorld)
+    .sub(new THREE.Vector3().setFromMatrixPosition(light.target.matrixWorld))
+    .normalize();
 }

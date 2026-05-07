@@ -38,5 +38,5 @@ export function gridDimensionsForTier(tier: HeroVoxelTier): { gx: number; gz: nu
  */
 export const liveDepthOrientation = {
   mirrorX: true,
-  invertPolarity: true,
+  invertPolarity: false,
 } as const;
