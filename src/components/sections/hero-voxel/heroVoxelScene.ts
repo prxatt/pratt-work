@@ -583,6 +583,7 @@ export async function mountHeroVoxelScene(
     let dSum = 0;
     let centerSum = 0;
     let centerWeightSum = 0;
+    let nearCount = 0;
     const histogram = new Uint16Array(32);
 
     liveUniforms.uExtrusionNear!.value = LIVE_EXTRUSION_NEAR * extrusionBoost;
@@ -602,6 +603,7 @@ export async function mountHeroVoxelScene(
       if (dFinal < dMin) dMin = dFinal;
       if (dFinal > dMax) dMax = dFinal;
       dSum += dFinal;
+      if (dFinal > 0.64) nearCount += 1;
       const centerWeight = voxels.centerWeights[i];
       centerSum += dFinal * centerWeight;
       centerWeightSum += centerWeight;
@@ -624,6 +626,8 @@ export async function mountHeroVoxelScene(
     const centerAvg = centerSum / Math.max(centerWeightSum, 1e-4);
     const centerDominance = Math.max(0, centerAvg - dAvg);
     const farCut = THREE.MathUtils.clamp(farCutBase + centerDominance * 0.22, 0, 1);
+    const foregroundPresent = nearCount > voxelCount * 0.012;
+    const bgSuppression = foregroundPresent ? 0.16 : 1.0;
 
     for (let i = 0; i < voxelCount; i++) {
       const dFinal = voxels.workDepth[i];
@@ -640,7 +644,8 @@ export async function mountHeroVoxelScene(
         1,
         Math.pow(centerWeight, LIVE_CENTER_MASK_EXP)
       );
-      const dMasked = dFinal * subjectMask * centerMask;
+      const dMasked =
+        dFinal * subjectMask * centerMask * THREE.MathUtils.lerp(bgSuppression, 1, subjectMask);
       // Gentle near-boost: only the very nearest 20% of the subject gets a lift
       // so the shape reads correctly without noise being inflated.
       const nearBoost = smoothstepScalar(LIVE_NEAR_BOOST_EDGE, 1, dMasked);
@@ -657,9 +662,13 @@ export async function mountHeroVoxelScene(
       const x = voxels.basePositions[baseIdx];
       const y = voxels.basePositions[baseIdx + 1];
       const z = voxels.currentZPush[i];
+      const visible = foregroundPresent
+        ? smoothstepScalar(0.18, 0.42, dShaped)
+        : smoothstepScalar(0.05, 0.2, dShaped);
+      const particleScale = 0.08 + visible * 0.92;
 
       dummy.position.set(x, y, z);
-      dummy.scale.set(1, 1, 1);
+      dummy.scale.set(particleScale, particleScale, particleScale);
       dummy.updateMatrix();
       voxels.mesh.setMatrixAt(i, dummy.matrix);
 
