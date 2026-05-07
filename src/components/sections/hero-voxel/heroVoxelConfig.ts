@@ -18,8 +18,8 @@ export function tierForViewport(opts: {
  * via this shared module — never duplicate elsewhere.
  */
 export function gridDimensionsForTier(tier: HeroVoxelTier): { gx: number; gz: number } {
-  if (tier === 'medium') return { gx: 88, gz: 64 };
-  return { gx: 132, gz: 96 };
+  if (tier === 'medium') return { gx: 96, gz: 72 };
+  return { gx: 148, gz: 110 };
 }
 
 /**
@@ -30,14 +30,11 @@ export function gridDimensionsForTier(tier: HeroVoxelTier): { gx: number; gz: nu
  *
  *   - `mirrorX`         : flips X so a hand on the user's RIGHT pushes voxels
  *                         on screen RIGHT (standard selfie-mirror convention).
- *   - `invertPolarity`  : Depth Anything V2 ONNX outputs disparity-like values
- *                         (raw high = near). The luminance fallback also stores
- *                         brightness directly. Both already match the canonical
- *                         "high = near" convention, so this stays FALSE.
+ *   - `invertPolarity`  : ONNX-only (see `sampleTensorToGrid`). Set true when
+ *                         the live sculpture reads inverted relative to the feed.
  *
  * Centralizing the convention here is the single source of truth and prevents
- * the historical bug where the ONNX path and the luminance path used opposite
- * conventions, causing the live view to appear inverted.
+ * mixed polarity between paths.
  */
 export const liveDepthOrientation = {
   mirrorX: true,

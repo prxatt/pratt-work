@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { motion, useInView } from 'framer-motion';
+import { LazyMotion, domAnimation, m, useInView } from 'framer-motion';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import { useDeviceCapabilities } from '@/hooks/useReducedMotion';
@@ -78,7 +78,7 @@ const RotatingRoles = ({ isTouch }: { isTouch: boolean }) => {
           />
         </>
       )}
-      <motion.span
+      <m.span
         className="relative z-[1] font-mono text-xs md:text-sm tracking-[0.2em] uppercase text-[#B8B8B3] whitespace-nowrap gpu-accelerated"
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: isVisible ? 1 : 0, y: isVisible ? 0 : -6 }}
@@ -92,7 +92,7 @@ const RotatingRoles = ({ isTouch }: { isTouch: boolean }) => {
         }}
       >
         {roles[currentIndex]}
-      </motion.span>
+      </m.span>
     </div>
   );
 };
@@ -118,7 +118,7 @@ const LetterLockup = ({
   return (
     <span className="inline-flex" aria-label={ariaLabel} role="text">
       {letters.map((ch, i) => (
-        <motion.span
+        <m.span
           key={`${ch}-${i}`}
           aria-hidden="true"
           className="inline-block"
@@ -144,7 +144,7 @@ const LetterLockup = ({
           style={{ willChange: 'transform, opacity, filter' }}
         >
           {ch}
-        </motion.span>
+        </m.span>
       ))}
     </span>
   );
@@ -158,13 +158,13 @@ function HeroInner() {
   const { isTouch, isLowEnd, prefersReducedMotion } = useDeviceCapabilities();
   const { liveDepthActive } = useHeroLiveDepth();
   const [contentReady, setContentReady] = useState(false);
+  /** After first bottom-meta intro, skip stagger delays when toggling live depth. */
+  const [metaIntroPlayed, setMetaIntroPlayed] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     const raf = requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        if (!cancelled) setContentReady(true);
-      });
+      if (!cancelled) setContentReady(true);
     });
     const failSafe = window.setTimeout(() => {
       if (!cancelled) setContentReady(true);
@@ -178,28 +178,32 @@ function HeroInner() {
 
   const lite = prefersReducedMotion || isLowEnd;
   const textReveal = contentReady;
+  const showBottomMeta = contentReady && !liveDepthActive;
+  const bottomRowDelay = showBottomMeta && !metaIntroPlayed ? 1.35 : 0;
+  const bottomMetaChildDelay = (offset: number) =>
+    showBottomMeta && !metaIntroPlayed ? offset : 0;
 
   return (
-    <>
-      <motion.div
+    <LazyMotion features={domAnimation} strict>
+      <m.div
         ref={containerRef}
         className={`flex-1 flex flex-col items-center justify-center z-10 px-6 relative group ${
           liveDepthActive ? 'pointer-events-none' : ''
         }`}
         data-cursor="hover"
         initial={{ opacity: 0 }}
-        animate={{ opacity: contentReady ? 1 : 0 }}
+        animate={{ opacity: contentReady && !liveDepthActive ? 1 : 0 }}
         transition={{ duration: 0.55, ease: HERO_EASE }}
       >
         <div className="flex flex-col items-center text-center">
           {/* Status pill */}
-          <motion.div
+          <m.div
             initial={{ opacity: 0, y: 10 }}
             animate={textReveal ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
             transition={{ duration: 0.55, delay: 0.08, ease: HERO_EASE }}
             className="flex items-center gap-1.5 mb-5 md:mb-6 px-3 py-1.5 rounded-full bg-white/[0.03] border border-white/[0.08] group-hover:bg-white/[0.08] group-hover:border-white/[0.15] transition-all duration-500"
           >
-            <motion.div
+            <m.div
               className="w-1.5 h-1.5 rounded-full bg-[#22C55E]"
               animate={{ scale: [1, 1.4, 1], opacity: [1, 0.5, 1] }}
               transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
@@ -207,7 +211,7 @@ function HeroInner() {
             <span className="font-mono text-[9px] tracking-[0.25em] text-[#9A9A95] uppercase">
               Available
             </span>
-          </motion.div>
+          </m.div>
 
           {/* Name lockup — editorial per-letter reveal */}
           <h1
@@ -232,7 +236,7 @@ function HeroInner() {
           </h1>
 
           {/* Editorial measurement rule — draws in between name lines */}
-          <motion.div
+          <m.div
             aria-hidden
             className="my-1 md:my-1.5 h-px origin-center bg-gradient-to-r from-transparent via-[#F5F5F3]/28 to-transparent"
             initial={{ scaleX: 0, opacity: 0 }}
@@ -263,17 +267,17 @@ function HeroInner() {
           </h1>
 
           {/* Rotating roles */}
-          <motion.div
+          <m.div
             initial={{ opacity: 0, y: 10 }}
             animate={textReveal ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
             transition={{ duration: 0.6, delay: 1.05, ease: HERO_EASE }}
             className="mt-6 md:mt-8"
           >
             <RotatingRoles isTouch={isTouch} />
-          </motion.div>
+          </m.div>
 
           {/* Final hairline divider — expands after roles settle */}
-          <motion.div
+          <m.div
             className="mt-10 h-px origin-center bg-gradient-to-r from-transparent via-[#F5F5F3]/20 to-transparent"
             initial={{ scaleX: 0, opacity: 0 }}
             animate={textReveal ? { scaleX: 1, opacity: 1 } : { scaleX: 0, opacity: 0 }}
@@ -281,21 +285,34 @@ function HeroInner() {
             style={{ width: '8rem' }}
           />
         </div>
-      </motion.div>
+      </m.div>
 
       {/* Bottom meta row */}
-      <motion.div
+      <m.div
         className={`w-full px-6 md:px-12 lg:px-20 py-6 md:py-8 flex flex-row flex-nowrap justify-between items-center gap-3 z-10 relative ${
           liveDepthActive ? 'pointer-events-none' : ''
         }`}
         initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: contentReady ? 1 : 0, y: contentReady ? 0 : 20 }}
-        transition={{ duration: 0.7, delay: 1.35, ease: HERO_EASE }}
+        animate={{
+          opacity: showBottomMeta ? 1 : 0,
+          y: showBottomMeta ? 0 : 20,
+        }}
+        transition={{ duration: 0.7, delay: bottomRowDelay, ease: HERO_EASE }}
+        onAnimationComplete={() => {
+          if (showBottomMeta && !metaIntroPlayed) setMetaIntroPlayed(true);
+        }}
+        {...(liveDepthActive ? { inert: true } : {})}
       >
-        <motion.span
+        <m.span
           initial={{ opacity: 0, y: 6 }}
-          animate={textReveal ? { opacity: 1, y: 0 } : { opacity: 0, y: 6 }}
-          transition={{ duration: 0.45, delay: 1.46, ease: HERO_EASE }}
+          animate={
+            showBottomMeta ? { opacity: 1, y: 0 } : { opacity: 0, y: 6 }
+          }
+          transition={{
+            duration: 0.45,
+            delay: bottomMetaChildDelay(1.46),
+            ease: HERO_EASE,
+          }}
           className="font-mono text-[10px] sm:text-[11px] tracking-[0.18em] sm:tracking-[0.2em] uppercase whitespace-nowrap text-[#B5B5B0] shrink-0 min-w-0"
           style={{
             textShadow:
@@ -303,16 +320,24 @@ function HeroInner() {
           }}
         >
           BASED IN SAN FRANCISCO
-        </motion.span>
+        </m.span>
 
-        <motion.div
+        <m.div
           initial={{ opacity: 0, y: 6 }}
-          animate={textReveal ? { opacity: 1, y: 0 } : { opacity: 0, y: 6 }}
-          transition={{ duration: 0.45, delay: 1.56, ease: HERO_EASE }}
+          animate={
+            showBottomMeta ? { opacity: 1, y: 0 } : { opacity: 0, y: 6 }
+          }
+          transition={{
+            duration: 0.45,
+            delay: bottomMetaChildDelay(1.56),
+            ease: HERO_EASE,
+          }}
           className="shrink-0"
         >
           <Link
             href="/work"
+            tabIndex={liveDepthActive ? -1 : undefined}
+            aria-hidden={liveDepthActive ? true : undefined}
             className="flex flex-row items-center gap-2 sm:gap-3 text-[#B5B5B0] hover:text-[#F5F5F3] transition-colors duration-500 group py-1 -my-1"
             style={{
               textShadow:
@@ -336,9 +361,9 @@ function HeroInner() {
               </svg>
             </div>
           </Link>
-        </motion.div>
-      </motion.div>
-    </>
+        </m.div>
+      </m.div>
+    </LazyMotion>
   );
 }
 

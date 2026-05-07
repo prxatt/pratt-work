@@ -4,11 +4,9 @@
  *
  * Model: `onnx-community/depth-anything-v2-small` (WASM, fp32).
  *
- * IMPORTANT — orientation convention is applied here EXACTLY ONCE for both the
- * ONNX path and the luminance fallback via `liveDepthOrientation` in
- * `heroVoxelConfig.ts`. The renderer consumes the buffer with no further
- * mirroring or polarity inversion. This avoids the historical regression where
- * the two paths disagreed and the live view appeared inverted.
+ * IMPORTANT — X mirror is shared; ONNX polarity (`invertPolarity`) applies only
+ * to tensor samples. Luminance uses brightness-as-near directly. The renderer
+ * consumes the buffer with no further mirroring or inversion.
  *
  * After this stage: depth is normalized to [0, 1] where HIGHER = NEARER.
  */
@@ -21,8 +19,9 @@ export type DepthInferenceApi = {
   dispose: () => void;
 };
 
-const DEPTH_W = 256;
-const DEPTH_H = 192;
+/** Slightly smaller than 256×192 for faster WASM inference with negligible visual loss. */
+const DEPTH_W = 240;
+const DEPTH_H = 176;
 
 const DEPTH_MODEL_ID = 'onnx-community/depth-anything-v2-small' as const;
 
@@ -86,14 +85,13 @@ export function createDepthInference(opts: {
   })();
 
   /**
-   * Single, canonical write path. Maps a normalized [0,1] sample into the
-   * destination cell, applying mirror/polarity exactly once according to
-   * `liveDepthOrientation`.
+   * Writes a normalized [0,1] value (already "high = near" for this path)
+   * into the grid cell, applying X mirror only. ONNX-only polarity is handled
+   * in `sampleTensorToGrid` so luminance fallback is never double-flipped.
    */
   function writeCell(ix: number, iz: number, value01: number) {
     const targetIx = liveDepthOrientation.mirrorX ? GRID_X - 1 - ix : ix;
-    const v = liveDepthOrientation.invertPolarity ? 1 - value01 : value01;
-    lastDepthMap[iz * GRID_X + targetIx] = v;
+    lastDepthMap[iz * GRID_X + targetIx] = value01;
   }
 
   function runLuminanceFallback() {
@@ -116,13 +114,15 @@ export function createDepthInference(opts: {
   }
 
   function sampleTensorToGrid(rawData: Float32Array, dW: number, dH: number) {
-    let dMin = Infinity;
-    let dMax = -Infinity;
-    for (let i = 0; i < rawData.length; i++) {
-      const v = rawData[i];
-      if (v < dMin) dMin = v;
-      if (v > dMax) dMax = v;
-    }
+    const n = rawData.length;
+    if (n === 0) return;
+    // Inner-percentile stretch: outliers no longer crush the visible depth range.
+    const sorted = Float32Array.from(rawData);
+    sorted.sort();
+    const loIdx = Math.max(0, Math.floor(n * 0.04));
+    const hiIdx = Math.min(n - 1, Math.floor(n * 0.96));
+    const dMin = sorted[loIdx];
+    const dMax = sorted[hiIdx];
     const dRange = dMax - dMin || 1;
     for (let iz = 0; iz < GRID_Z; iz++) {
       for (let ix = 0; ix < GRID_X; ix++) {
@@ -134,10 +134,10 @@ export function createDepthInference(opts: {
           Math.floor((iz / Math.max(GRID_Z - 1, 1)) * (dH - 1)),
           dH - 1
         );
-        // Depth Anything V2 ONNX raw output is disparity-like (high = near).
-        // Stored under the canonical "high = near" convention — no per-path
-        // inversion here; orientation/polarity is governed by `writeCell`.
-        const norm = (rawData[srcY * dW + srcX] - dMin) / dRange;
+        let norm = (rawData[srcY * dW + srcX] - dMin) / dRange;
+        if (norm < 0) norm = 0;
+        else if (norm > 1) norm = 1;
+        if (liveDepthOrientation.invertPolarity) norm = 1 - norm;
         writeCell(ix, iz, norm);
       }
     }
