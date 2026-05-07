@@ -9,9 +9,55 @@ const MEDIA_OFF = MEDIA_OFF_RE.test((process.env.NEXT_PUBLIC_CLOUDINARY_MEDIA ||
 const CLOUD =
   (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME?.trim()) ||
   'dj0n7b4ma';
+const PUBLIC_ID_MAP_RAW =
+  (typeof process !== 'undefined' &&
+    process.env.NEXT_PUBLIC_CLOUDINARY_PUBLIC_ID_MAP?.trim()) ||
+  '';
 
 const baseImg = () => `https://res.cloudinary.com/${CLOUD}/image/upload`;
 const baseVid = () => `https://res.cloudinary.com/${CLOUD}/video/upload`;
+
+type PublicIdMap = Record<string, string>;
+
+function parsePublicIdMap(raw: string): PublicIdMap {
+  if (!raw) return {};
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!parsed || typeof parsed !== 'object') return {};
+    const out: PublicIdMap = {};
+    for (const [k, v] of Object.entries(parsed as Record<string, unknown>)) {
+      if (typeof k === 'string' && typeof v === 'string' && k.trim() && v.trim()) {
+        out[k.trim()] = v.trim();
+      }
+    }
+    return out;
+  } catch {
+    return {};
+  }
+}
+
+// Local-path -> Cloudinary public_id overrides for assets uploaded with flat IDs.
+// Env-based map wins over these defaults.
+const STATIC_PUBLIC_ID_MAP: PublicIdMap = {
+  '/work/crypt-demo.webm': 'crypt-demo_m1f5bj',
+  '/work/crypt-demo.mp4': 'crypt-demo_m1f5bj',
+  '/work/boubyan-3.webp': 'bouybyan-3',
+  '/work/boubyan-3.jpg': 'bouybyan-3',
+};
+const ENV_PUBLIC_ID_MAP = parsePublicIdMap(PUBLIC_ID_MAP_RAW);
+const PUBLIC_ID_MAP: PublicIdMap = { ...STATIC_PUBLIC_ID_MAP, ...ENV_PUBLIC_ID_MAP };
+
+function resolveMappedPublicId(localPath: string): string | null {
+  const t = localPath.trim();
+  if (!t || t.startsWith('//') || ABS_URL_RE.test(t)) return null;
+  if (PUBLIC_ID_MAP[t]) return PUBLIC_ID_MAP[t];
+
+  // Alias normalization for known typo/variant keys.
+  const alias = t.replace('/boubyan-', '/bouybyan-');
+  if (PUBLIC_ID_MAP[alias]) return PUBLIC_ID_MAP[alias];
+
+  return null;
+}
 
 function normalizeFilenameExtension(filename: string): string {
   const dot = filename.lastIndexOf('.');
@@ -20,6 +66,9 @@ function normalizeFilenameExtension(filename: string): string {
 }
 
 function toCloudinaryPath(localPath: string, isVideo: boolean): string {
+  const mapped = resolveMappedPublicId(localPath);
+  if (mapped) return mapped;
+
   const parts = localPath.split('/').filter(Boolean);
   const filename = normalizeFilenameExtension(parts[parts.length - 1]!);
   const dir = parts.slice(0, -1);
