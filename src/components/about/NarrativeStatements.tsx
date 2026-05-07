@@ -373,7 +373,7 @@ export const NarrativeStatements = () => {
 
   useEffect(() => {
     if (isInViewA) return;
-    const timer = window.setTimeout(() => setForceRevealA(true), 1400);
+    const timer = window.setTimeout(() => setForceRevealA(true), 6000);
     return () => window.clearTimeout(timer);
   }, [isInViewA]);
 
