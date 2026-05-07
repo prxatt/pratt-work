@@ -40,14 +40,15 @@ const LIVE_EXTRUSION_NEAR = 5.0;
 const LIVE_LERP_BASE = 0.14;
 const LIVE_INITIAL_BOOST = 1.1;
 // Histogram cut: drop the farthest ~half of samples so flat walls stay recessed.
-const LIVE_FAR_REJECT_QUANTILE = 0.62;
+const LIVE_FAR_REJECT_QUANTILE = 0.68;
 const LIVE_SUBJECT_EDGE_SOFTNESS = 0.2;
 // Center-priority gating suppresses side/background planes while preserving
 // subject detail in the central capture region.
 const LIVE_CENTER_GATE_RADIAL_X_FACTOR = 1.25;
 const LIVE_CENTER_GATE_EDGE_INNER = 0.5;
 const LIVE_CENTER_GATE_EDGE_OUTER = 0.96;
-const LIVE_CENTER_MASK_MIN = 0.56;
+const LIVE_CENTER_MASK_MIN = 0.34;
+const LIVE_CENTER_MASK_EXP = 1.35;
 // Near-boost gently lifts the nearest portion of the subject so depth remains
 // readable without amplifying far noise.
 const LIVE_NEAR_BOOST_EDGE = 0.62;
@@ -579,6 +580,8 @@ export async function mountHeroVoxelScene(
     let dMin = 1;
     let dMax = 0;
     let dSum = 0;
+    let centerSum = 0;
+    let centerWeightSum = 0;
     const histogram = new Uint16Array(32);
 
     liveUniforms.uExtrusionNear!.value = LIVE_EXTRUSION_NEAR * extrusionBoost;
@@ -598,6 +601,17 @@ export async function mountHeroVoxelScene(
       if (dFinal < dMin) dMin = dFinal;
       if (dFinal > dMax) dMax = dFinal;
       dSum += dFinal;
+      const ix = i % GRID_X;
+      const iz = Math.floor(i / GRID_X);
+      const nx = ix / Math.max(GRID_X - 1, 1);
+      const nz = iz / Math.max(GRID_Z - 1, 1);
+      const dx = nx - 0.5;
+      const dz = nz - 0.5;
+      const radial = Math.sqrt(dx * dx * LIVE_CENTER_GATE_RADIAL_X_FACTOR + dz * dz);
+      const centerWeight =
+        1 - smoothstepScalar(LIVE_CENTER_GATE_EDGE_INNER, LIVE_CENTER_GATE_EDGE_OUTER, radial);
+      centerSum += dFinal * centerWeight;
+      centerWeightSum += centerWeight;
       const bin = Math.min(31, Math.max(0, Math.floor(dFinal * 31)));
       histogram[bin] += 1;
     }
@@ -612,7 +626,11 @@ export async function mountHeroVoxelScene(
         break;
       }
     }
-    const farCut = thresholdBin / 31;
+    const farCutBase = thresholdBin / 31;
+    const dAvg = dSum / Math.max(voxelCount, 1);
+    const centerAvg = centerSum / Math.max(centerWeightSum, 1e-4);
+    const centerDominance = Math.max(0, centerAvg - dAvg);
+    const farCut = THREE.MathUtils.clamp(farCutBase + centerDominance * 0.28, 0, 1);
 
     for (let i = 0; i < voxelCount; i++) {
       const dFinal = voxels.workDepth[i];
@@ -632,11 +650,15 @@ export async function mountHeroVoxelScene(
         Math.min(1, farCut + LIVE_SUBJECT_EDGE_SOFTNESS),
         dFinal
       );
-      const centerMask = THREE.MathUtils.lerp(LIVE_CENTER_MASK_MIN, 1, centerWeight);
+      const centerMask = THREE.MathUtils.lerp(
+        LIVE_CENTER_MASK_MIN,
+        1,
+        Math.pow(centerWeight, LIVE_CENTER_MASK_EXP)
+      );
       const dMasked = dFinal * subjectMask * centerMask;
       // Gentle near-boost: only the very nearest 20% of the subject gets a lift
       // so the shape reads correctly without noise being inflated.
-      const nearBoost = smoothstepScalar(LIVE_NEAR_BOOST_EDGE, 1, dFinal);
+      const nearBoost = smoothstepScalar(LIVE_NEAR_BOOST_EDGE, 1, dMasked);
       const dShaped = THREE.MathUtils.clamp(
         dMasked * (1 + nearBoost * LIVE_NEAR_BOOST_AMOUNT),
         0,
@@ -660,7 +682,6 @@ export async function mountHeroVoxelScene(
     }
 
     const dRange = dMax - dMin;
-    const dAvg = dSum / Math.max(voxelCount, 1);
     updateLiveLightUniforms(liveLightRig, liveUniforms, lightDirScratch, dAvg, dRange, t);
 
     const exposureTarget = THREE.MathUtils.clamp(

@@ -98,17 +98,37 @@ export function createDepthInference(opts: {
     if (!lumCtx || !opts.video.videoWidth) return;
     lumCtx.drawImage(opts.video, 0, 0, GRID_X, GRID_Z);
     const pixels = lumCtx.getImageData(0, 0, GRID_X, GRID_Z).data;
+    const invDepth = new Float32Array(cellCount);
+
+    for (let i = 0; i < cellCount; i++) {
+      const pi = i * 4;
+      const lum =
+        (0.299 * pixels[pi] +
+          0.587 * pixels[pi + 1] +
+          0.114 * pixels[pi + 2]) /
+        255;
+      // Heuristic without ML: bright walls/windows are usually farther.
+      invDepth[i] = 1 - lum;
+    }
+
+    const sorted = Float32Array.from(invDepth);
+    sorted.sort();
+    const lo = sorted[Math.max(0, Math.floor(cellCount * 0.05))];
+    const hi = sorted[Math.min(cellCount - 1, Math.floor(cellCount * 0.95))];
+    const span = Math.max(hi - lo, 1e-4);
+
     for (let iz = 0; iz < GRID_Z; iz++) {
       for (let ix = 0; ix < GRID_X; ix++) {
-        const pi = (iz * GRID_X + ix) * 4;
-        const lum =
-          (0.299 * pixels[pi] +
-            0.587 * pixels[pi + 1] +
-            0.114 * pixels[pi + 2]) /
-          255;
-        // Luminance is a heuristic depth proxy: well-lit pixels tend to be
-        // near. Stored directly under the canonical "high = near" convention.
-        writeCell(ix, iz, Math.pow(lum, 0.65));
+        const idx = iz * GRID_X + ix;
+        const stretched = Math.min(1, Math.max(0, (invDepth[idx] - lo) / span));
+        const nx = ix / Math.max(GRID_X - 1, 1);
+        const nz = iz / Math.max(GRID_Z - 1, 1);
+        const dx = nx - 0.5;
+        const dz = nz - 0.5;
+        const radial = Math.sqrt(dx * dx * 1.2 + dz * dz);
+        const centerWeight = 1 - Math.min(1, Math.max(0, (radial - 0.4) / 0.55));
+        const centered = Math.min(1, Math.max(0, stretched * (0.82 + centerWeight * 0.36)));
+        writeCell(ix, iz, Math.pow(centered, 0.72));
       }
     }
   }
