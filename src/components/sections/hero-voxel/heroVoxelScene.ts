@@ -31,17 +31,21 @@ const IDLE_Z_SWELL = 0.82;
 const IDLE_LERP_BASE = 0.056;
 
 // ── Live depth → instanceDepth (CPU shaping / masking only; GPU applies pow) ─
-const LIVE_DEPTH_CONTRAST = 1.22;
-const LIVE_DEPTH_SHAPE_LO = 0.1;
-const LIVE_DEPTH_SHAPE_HI = 0.92;
-const LIVE_DEPTH_SHAPE_MIX = 0.45;
-const LIVE_LERP_BASE = 0.42;
-const LIVE_INITIAL_BOOST = 1.2;
-const LIVE_FAR_REJECT_QUANTILE = 0.42;
-const LIVE_SUBJECT_EDGE_SOFTNESS = 0.22;
+const LIVE_DEPTH_CONTRAST = 1.15;
+const LIVE_DEPTH_SHAPE_LO = 0.08;
+const LIVE_DEPTH_SHAPE_HI = 0.94;
+const LIVE_DEPTH_SHAPE_MIX = 0.4;
+// Slow lerp keeps voxels stable between inference frames (runs ~11 Hz, render ~60 Hz).
+const LIVE_LERP_BASE = 0.16;
+const LIVE_INITIAL_BOOST = 1.1;
+// Keep the nearest 45% of the frame — aggressive enough to suppress room background
+// while keeping faces/hands that fill a significant portion of the viewport.
+const LIVE_FAR_REJECT_QUANTILE = 0.55;
+const LIVE_SUBJECT_EDGE_SOFTNESS = 0.28;
 
-/** Parallax only (shader handles thickness extrusion). */
-const LIVE_Z_RELIEF = 5.2;
+/** Z parallax added on top of shader extrusion — keep modest so the sculpture
+ *  doesn't explode when orbiting. */
+const LIVE_Z_RELIEF = 2.8;
 
 /** Baseline exposure for idle; live mode adjusts dynamically and resets on exit. */
 const DEFAULT_TONE_MAPPING_EXPOSURE = 1.58;
@@ -272,8 +276,11 @@ void main() {
   float ccSpec = pow( max( dot( N, Hk ), 0.0 ), ccPow );
   vec3 clearcoatLayer = uLightColorA * uLightIntensityA * ccSpec * uClearcoat;
 
-  // Add a small subject-aware shadow floor so deep concavities never read pure black.
-  vec3 shadowFloor = baseAlbedo * 0.32 + vec3( 0.04, 0.06, 0.10 );
+  // Depth-gated shadow floor: lifts only the subject (depthGlow > 0.15) so deep
+  // face concavities read as form rather than black, while true background
+  // voxels (depthGlow ~ 0) stay dark and invisible.
+  float floorGate = smoothstep( 0.12, 0.38, depthGlow );
+  vec3 shadowFloor = baseAlbedo * 0.22 * floorGate;
 
   vec3 color = baseAlbedo * litAmbient
              + diffSum * baseAlbedo
@@ -290,10 +297,10 @@ function createLiveUniforms(): LiveUniforms {
   return THREE.UniformsUtils.merge([
     THREE.UniformsLib.common,
     {
-      uDepthPow: { value: 1.7 },
-      uExtrusionFar: { value: 0.1 },
-      uExtrusionNear: { value: 5.6 },
-      uPinch: { value: 0.78 },
+      uDepthPow: { value: 1.45 },
+      uExtrusionFar: { value: 0.08 },
+      uExtrusionNear: { value: 4.2 },
+      uPinch: { value: 0.86 },
       uAmbient: { value: new THREE.Color('#283850') },
       uLightDirA: { value: new THREE.Vector3(0, 1, 0) },
       uLightDirB: { value: new THREE.Vector3(0, 1, 0) },
@@ -564,7 +571,7 @@ export async function mountHeroVoxelScene(
     let dSum = 0;
     const histogram = new Uint16Array(32);
 
-    liveUniforms.uExtrusionNear!.value = 5.6 * extrusionBoost;
+    liveUniforms.uExtrusionNear!.value = 4.2 * extrusionBoost;
 
     for (let i = 0; i < voxelCount; i++) {
       const raw = buf[i];
@@ -605,8 +612,10 @@ export async function mountHeroVoxelScene(
         dFinal
       );
       const dMasked = dFinal * subjectMask;
-      const nearBoost = smoothstepScalar(0.48, 1, dFinal);
-      const dShaped = THREE.MathUtils.clamp(dMasked * (1 + nearBoost * 0.34), 0, 1);
+      // Gentle near-boost: only the very nearest 20% of the subject gets a lift
+      // so the shape reads correctly without noise being inflated.
+      const nearBoost = smoothstepScalar(0.72, 1, dFinal);
+      const dShaped = THREE.MathUtils.clamp(dMasked * (1 + nearBoost * 0.18), 0, 1);
 
       const targetZ = (dShaped - 0.5) * 2 * LIVE_Z_RELIEF * extrusionBoost;
       voxels.currentZPush[i] += (targetZ - voxels.currentZPush[i]) * lerp;
