@@ -114,6 +114,7 @@ type VoxelPack = {
   currentScaleY: Float32Array;
   currentZPush: Float32Array;
   workDepth: Float32Array;
+  centerWeights: Float32Array;
   count: number;
 };
 
@@ -601,15 +602,7 @@ export async function mountHeroVoxelScene(
       if (dFinal < dMin) dMin = dFinal;
       if (dFinal > dMax) dMax = dFinal;
       dSum += dFinal;
-      const ix = i % GRID_X;
-      const iz = Math.floor(i / GRID_X);
-      const nx = ix / Math.max(GRID_X - 1, 1);
-      const nz = iz / Math.max(GRID_Z - 1, 1);
-      const dx = nx - 0.5;
-      const dz = nz - 0.5;
-      const radial = Math.sqrt(dx * dx * LIVE_CENTER_GATE_RADIAL_X_FACTOR + dz * dz);
-      const centerWeight =
-        1 - smoothstepScalar(LIVE_CENTER_GATE_EDGE_INNER, LIVE_CENTER_GATE_EDGE_OUTER, radial);
+      const centerWeight = voxels.centerWeights[i];
       centerSum += dFinal * centerWeight;
       centerWeightSum += centerWeight;
       const bin = Math.min(31, Math.max(0, Math.floor(dFinal * 31)));
@@ -630,21 +623,13 @@ export async function mountHeroVoxelScene(
     const dAvg = dSum / Math.max(voxelCount, 1);
     const centerAvg = centerSum / Math.max(centerWeightSum, 1e-4);
     const centerDominance = Math.max(0, centerAvg - dAvg);
-    const farCut = THREE.MathUtils.clamp(farCutBase + centerDominance * 0.28, 0, 1);
+    const farCut = THREE.MathUtils.clamp(farCutBase + centerDominance * 0.22, 0, 1);
 
     for (let i = 0; i < voxelCount; i++) {
       const dFinal = voxels.workDepth[i];
-      const ix = i % GRID_X;
-      const iz = Math.floor(i / GRID_X);
-      const nx = ix / Math.max(GRID_X - 1, 1);
-      const nz = iz / Math.max(GRID_Z - 1, 1);
-      const dx = nx - 0.5;
-      const dz = nz - 0.5;
       // Center-priority gating suppresses side/background planes (e.g. bright windows)
       // while keeping face/hands in the central capture volume.
-      const radial = Math.sqrt(dx * dx * LIVE_CENTER_GATE_RADIAL_X_FACTOR + dz * dz);
-      const centerWeight =
-        1 - smoothstepScalar(LIVE_CENTER_GATE_EDGE_INNER, LIVE_CENTER_GATE_EDGE_OUTER, radial);
+      const centerWeight = voxels.centerWeights[i];
       const subjectMask = smoothstepScalar(
         farCut,
         Math.min(1, farCut + LIVE_SUBJECT_EDGE_SOFTNESS),
@@ -873,6 +858,7 @@ function createVoxelGrid(
   const currentScaleY = new Float32Array(count).fill(IDLE_HEIGHT_BIAS);
   const currentZPush = new Float32Array(count);
   const workDepth = new Float32Array(count);
+  const centerWeights = new Float32Array(count);
 
   const offsetX = (GRID_X - 1) * VOXEL_SPACING * 0.5;
   const offsetY = (GRID_Z - 1) * VOXEL_SPACING * 0.5;
@@ -882,12 +868,19 @@ function createVoxelGrid(
   for (let i = 0; i < count; i++) {
     const ix = i % GRID_X;
     const iz = Math.floor(i / GRID_X);
+    const nx = ix / Math.max(GRID_X - 1, 1);
+    const nz = iz / Math.max(GRID_Z - 1, 1);
+    const dx = nx - 0.5;
+    const dz = nz - 0.5;
+    const radial = Math.sqrt(dx * dx * LIVE_CENTER_GATE_RADIAL_X_FACTOR + dz * dz);
     const x = ix * VOXEL_SPACING - offsetX;
     const y = offsetY - iz * VOXEL_SPACING;
     const baseIdx = i * 3;
     basePositions[baseIdx] = x;
     basePositions[baseIdx + 1] = y;
     basePositions[baseIdx + 2] = 0;
+    centerWeights[i] =
+      1 - smoothstepScalar(LIVE_CENTER_GATE_EDGE_INNER, LIVE_CENTER_GATE_EDGE_OUTER, radial);
 
     const sy = IDLE_HEIGHT_BIAS;
     dummy.position.set(x, y, 0);
@@ -918,6 +911,7 @@ function createVoxelGrid(
     currentScaleY,
     currentZPush,
     workDepth,
+    centerWeights,
     count,
   };
 }
