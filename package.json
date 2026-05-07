@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev -H 0.0.0.0 -p 3000",
     "build": "node scripts/verify-public-media-for-vercel.cjs && next build",
+    "sync:cloudinary-map": "node scripts/sync-cloudinary-map.cjs",
     "start": "next start -H 0.0.0.0 -p 3000",
     "lint": "eslint"
   },

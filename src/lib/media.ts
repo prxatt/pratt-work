@@ -61,6 +61,8 @@ const STATIC_PUBLIC_ID_MAP: PublicIdMap = {
   '/work/st-create.webm': 'st-create_gkc5ik',
   '/work/st-atmosphere.mp4': 'st-atmosphere_jscnlf',
   '/work/st-atmosphere.webm': 'st-atmosphere_jscnlf',
+  '/work/st-crt.mp4': 'st-crt_l1tgvf',
+  '/work/st-crt.webm': 'st-crt_l1tgvf',
   '/work/the-crypt-modal.mp4': 'the-crypt-modal_ljlu7m',
   '/work/the-crypt-modal.webm': 'the-crypt-modal_ljlu7m',
   '/work/wil-trailer.mp4': 'wil-trailer_ejimys',
@@ -134,6 +136,8 @@ const STATIC_PUBLIC_ID_MAP: PublicIdMap = {
   '/work/stability-led.jpeg': 'stability-led_r8ehv6',
   '/work/stability-team.webp': 'stability-team_jop3ge',
   '/work/stability-team.jpg': 'stability-team_jop3ge',
+  '/work/stability-vid.mp4': 'stability-vid_b1sa4g',
+  '/work/stability-vid.webm': 'stability-vid_b1sa4g',
   '/work/pwc-liftoff-thumb.webp': 'pwc-liftoff-thumb_s3pwfn',
   '/work/pwc-liftoff-thumb.jpg': 'pwc-liftoff-thumb_s3pwfn',
   '/work/surface-tension-drip.webp': 'surface-tension-drip_czktap',
@@ -166,13 +170,18 @@ const STATIC_PUBLIC_ID_MAP: PublicIdMap = {
   '/videos/st-ai.webm': 'st-ai_sygdfj',
   '/videos/stability-exp.mp4': 'stability-exp_nyeyki',
   '/videos/stability-exp.webm': 'stability-exp_nyeyki',
+  '/videos/pr8-ff-portrait.webm': 'uyetycclkily0zwsuk6o',
+  '/videos/pr8-ff-portrait.mp4': 'uyetycclkily0zwsuk6o',
   '/work/boubyan-3.webp': 'bouybyan-3',
   '/work/boubyan-3.jpg': 'bouybyan-3',
+  '/work/boubyan1.webp': 'boubyan1_oyx6ti',
+  '/work/boubyan1.jpg': 'boubyan1_oyx6ti',
   '/recognition/alone-poster.jpg': 'alone-poster_aavsoe',
   '/recognition/alone-poster.webp': 'alone-poster_aavsoe',
 };
 const ENV_PUBLIC_ID_MAP = parsePublicIdMap(PUBLIC_ID_MAP_RAW);
-const PUBLIC_ID_MAP: PublicIdMap = { ...STATIC_PUBLIC_ID_MAP, ...ENV_PUBLIC_ID_MAP };
+const PUBLIC_ID_MAP: PublicIdMap =
+  Object.keys(ENV_PUBLIC_ID_MAP).length > 0 ? ENV_PUBLIC_ID_MAP : STATIC_PUBLIC_ID_MAP;
 
 function resolveMappedPublicId(localPath: string): string | null {
   const t = localPath.trim();
