@@ -35,6 +35,7 @@ const LIVE_DEPTH_CONTRAST = 1.15;
 const LIVE_DEPTH_SHAPE_LO = 0.08;
 const LIVE_DEPTH_SHAPE_HI = 0.94;
 const LIVE_DEPTH_SHAPE_MIX = 0.4;
+const LIVE_EXTRUSION_NEAR = 4.2;
 // Slow lerp keeps voxels stable between inference frames (runs ~11 Hz, render ~60 Hz).
 const LIVE_LERP_BASE = 0.16;
 const LIVE_INITIAL_BOOST = 1.1;
@@ -299,7 +300,7 @@ function createLiveUniforms(): LiveUniforms {
     {
       uDepthPow: { value: 1.45 },
       uExtrusionFar: { value: 0.08 },
-      uExtrusionNear: { value: 4.2 },
+      uExtrusionNear: { value: LIVE_EXTRUSION_NEAR },
       uPinch: { value: 0.86 },
       uAmbient: { value: new THREE.Color('#283850') },
       uLightDirA: { value: new THREE.Vector3(0, 1, 0) },
@@ -571,7 +572,7 @@ export async function mountHeroVoxelScene(
     let dSum = 0;
     const histogram = new Uint16Array(32);
 
-    liveUniforms.uExtrusionNear!.value = 4.2 * extrusionBoost;
+    liveUniforms.uExtrusionNear!.value = LIVE_EXTRUSION_NEAR * extrusionBoost;
 
     for (let i = 0; i < voxelCount; i++) {
       const raw = buf[i];
