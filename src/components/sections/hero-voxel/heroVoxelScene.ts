@@ -31,14 +31,14 @@ const IDLE_Z_SWELL = 0.82;
 const IDLE_LERP_BASE = 0.056;
 
 // ── Live depth → instanceDepth (CPU shaping / masking only; GPU applies pow) ─
-const LIVE_DEPTH_CONTRAST = 1.34;
-const LIVE_DEPTH_SHAPE_LO = 0.14;
-const LIVE_DEPTH_SHAPE_HI = 0.86;
-const LIVE_DEPTH_SHAPE_MIX = 0.55;
-const LIVE_LERP_BASE = 0.56;
-const LIVE_INITIAL_BOOST = 1.4;
-const LIVE_FAR_REJECT_QUANTILE = 0.56;
-const LIVE_SUBJECT_EDGE_SOFTNESS = 0.16;
+const LIVE_DEPTH_CONTRAST = 1.22;
+const LIVE_DEPTH_SHAPE_LO = 0.1;
+const LIVE_DEPTH_SHAPE_HI = 0.92;
+const LIVE_DEPTH_SHAPE_MIX = 0.45;
+const LIVE_LERP_BASE = 0.42;
+const LIVE_INITIAL_BOOST = 1.2;
+const LIVE_FAR_REJECT_QUANTILE = 0.42;
+const LIVE_SUBJECT_EDGE_SOFTNESS = 0.22;
 
 /** Parallax only (shader handles thickness extrusion). */
 const LIVE_Z_RELIEF = 5.2;
@@ -197,14 +197,33 @@ float schlickFresnel( float cosTheta, float F0 ) {
   return F0 + ( 1.0 - F0 ) * pow( 1.0 - cosTheta, 5.0 );
 }
 
+vec3 depthHueRamp( float t ) {
+  // Cinematic multi-stop ramp:
+  // deep indigo → cobalt → cyan → mint → warm peach highlight
+  vec3 c0 = vec3( 0.10, 0.16, 0.36 );
+  vec3 c1 = vec3( 0.16, 0.40, 0.78 );
+  vec3 c2 = vec3( 0.30, 0.82, 0.96 );
+  vec3 c3 = vec3( 0.62, 0.98, 0.84 );
+  vec3 c4 = vec3( 1.00, 0.86, 0.66 );
+  if ( t < 0.28 ) return mix( c0, c1, smoothstep( 0.0, 0.28, t ) );
+  if ( t < 0.58 ) return mix( c1, c2, smoothstep( 0.28, 0.58, t ) );
+  if ( t < 0.85 ) return mix( c2, c3, smoothstep( 0.58, 0.85, t ) );
+  return mix( c3, c4, smoothstep( 0.85, 1.0, t ) );
+}
+
 void main() {
   vec3 N = normalize( vNormalWorld );
   vec3 V = normalize( vViewDirWorld );
 
   float depthGlow = pow( max( vDepthShaded, 0.0 ), 0.52 );
-  vec3 baseAlbedo = mix( vec3( 0.03, 0.06, 0.18 ), vec3( 0.92, 0.97, 1.0 ), depthGlow );
+  // Multi-stop hue ramp avoids the blue→white-only feel.
+  vec3 baseAlbedo = depthHueRamp( depthGlow );
 
-  vec3 litAmbient = uAmbient * mix( vec3( 0.08, 0.1, 0.16 ), vec3( 0.42, 0.52, 0.62 ), depthGlow );
+  // Lifted ambient floor so deep face features (eye sockets, etc.) read as
+  // shaded form rather than crushed black.
+  vec3 ambientLo = vec3( 0.34, 0.40, 0.52 );
+  vec3 ambientHi = vec3( 0.68, 0.78, 0.92 );
+  vec3 litAmbient = uAmbient * mix( ambientLo, ambientHi, depthGlow );
 
   vec3 diffSum = vec3( 0.0 );
   vec3 specSum = vec3( 0.0 );
@@ -253,7 +272,15 @@ void main() {
   float ccSpec = pow( max( dot( N, Hk ), 0.0 ), ccPow );
   vec3 clearcoatLayer = uLightColorA * uLightIntensityA * ccSpec * uClearcoat;
 
-  vec3 color = baseAlbedo * litAmbient + diffSum * baseAlbedo + specSum + env * fresnel + clearcoatLayer;
+  // Add a small subject-aware shadow floor so deep concavities never read pure black.
+  vec3 shadowFloor = baseAlbedo * 0.32 + vec3( 0.04, 0.06, 0.10 );
+
+  vec3 color = baseAlbedo * litAmbient
+             + diffSum * baseAlbedo
+             + specSum
+             + env * fresnel
+             + clearcoatLayer
+             + shadowFloor;
 
   gl_FragColor = vec4( color, 1.0 );
 }
@@ -263,10 +290,10 @@ function createLiveUniforms(): LiveUniforms {
   return THREE.UniformsUtils.merge([
     THREE.UniformsLib.common,
     {
-      uDepthPow: { value: 2.05 },
-      uExtrusionFar: { value: 0.14 },
-      uExtrusionNear: { value: 7.8 },
-      uPinch: { value: 0.94 },
+      uDepthPow: { value: 1.7 },
+      uExtrusionFar: { value: 0.1 },
+      uExtrusionNear: { value: 5.6 },
+      uPinch: { value: 0.78 },
       uAmbient: { value: new THREE.Color('#283850') },
       uLightDirA: { value: new THREE.Vector3(0, 1, 0) },
       uLightDirB: { value: new THREE.Vector3(0, 1, 0) },
@@ -277,7 +304,7 @@ function createLiveUniforms(): LiveUniforms {
       uLightIntensityA: { value: 1 },
       uLightIntensityB: { value: 1 },
       uLightIntensityC: { value: 1 },
-      uWrap: { value: 0.42 },
+      uWrap: { value: 0.62 },
       uSpecStrength: { value: 0.95 },
       uShininess: { value: 52 },
       uClearcoat: { value: 0.62 },
@@ -537,7 +564,7 @@ export async function mountHeroVoxelScene(
     let dSum = 0;
     const histogram = new Uint16Array(32);
 
-    liveUniforms.uExtrusionNear!.value = 7.8 * extrusionBoost;
+    liveUniforms.uExtrusionNear!.value = 5.6 * extrusionBoost;
 
     for (let i = 0; i < voxelCount; i++) {
       const raw = buf[i];
