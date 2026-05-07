@@ -3,14 +3,10 @@ const BLOB = (
   process.env.NEXT_PUBLIC_MEDIA_BASE_URL ||
   'https://b8irodxhw2qbsjk2.public.blob.vercel-storage.com'
 ).replace(/\/+$/, '');
-const LOCAL_WORK_PREFIX = '/work/';
 
 /** Expects trimmed input for relative paths. */
 function toBlobUrl(trimmedLocalPath: string): string {
   if (trimmedLocalPath.startsWith('//') || ABS_URL_RE.test(trimmedLocalPath)) {
-    return trimmedLocalPath;
-  }
-  if (trimmedLocalPath.startsWith(LOCAL_WORK_PREFIX)) {
     return trimmedLocalPath;
   }
   const normalized = trimmedLocalPath.startsWith('/') ? trimmedLocalPath : `/${trimmedLocalPath}`;
