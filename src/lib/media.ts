@@ -189,7 +189,7 @@ function resolveMappedPublicId(localPath: string): string | null {
   if (PUBLIC_ID_MAP[t]) return PUBLIC_ID_MAP[t];
 
   // Alias normalization for known typo/variant keys.
-  const alias = t.replace('/boubyan-', '/bouybyan-');
+  const alias = t.replace('/bouybyan-', '/boubyan-');
   if (PUBLIC_ID_MAP[alias]) return PUBLIC_ID_MAP[alias];
 
   return null;
