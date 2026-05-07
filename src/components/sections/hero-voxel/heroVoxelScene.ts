@@ -31,21 +31,20 @@ const IDLE_Z_SWELL = 0.82;
 const IDLE_LERP_BASE = 0.056;
 
 // ── Live depth → instanceDepth (CPU shaping / masking only; GPU applies pow) ─
-const LIVE_DEPTH_CONTRAST = 1.15;
-const LIVE_DEPTH_SHAPE_LO = 0.08;
+const LIVE_DEPTH_CONTRAST = 1.3;
+const LIVE_DEPTH_SHAPE_LO = 0.06;
 const LIVE_DEPTH_SHAPE_HI = 0.94;
-const LIVE_DEPTH_SHAPE_MIX = 0.4;
+const LIVE_DEPTH_SHAPE_MIX = 0.42;
 // Slow lerp keeps voxels stable between inference frames (runs ~11 Hz, render ~60 Hz).
-const LIVE_LERP_BASE = 0.16;
+const LIVE_LERP_BASE = 0.14;
 const LIVE_INITIAL_BOOST = 1.1;
-// Keep the nearest 45% of the frame — aggressive enough to suppress room background
-// while keeping faces/hands that fill a significant portion of the viewport.
-const LIVE_FAR_REJECT_QUANTILE = 0.55;
-const LIVE_SUBJECT_EDGE_SOFTNESS = 0.28;
+// Histogram cut: drop the farthest ~half of samples so flat walls stay recessed.
+const LIVE_FAR_REJECT_QUANTILE = 0.62;
+const LIVE_SUBJECT_EDGE_SOFTNESS = 0.2;
 
 /** Z parallax added on top of shader extrusion — keep modest so the sculpture
  *  doesn't explode when orbiting. */
-const LIVE_Z_RELIEF = 2.8;
+const LIVE_Z_RELIEF = 3.8;
 
 /** Baseline exposure for idle; live mode adjusts dynamically and resets on exit. */
 const DEFAULT_TONE_MAPPING_EXPOSURE = 1.58;
@@ -297,9 +296,9 @@ function createLiveUniforms(): LiveUniforms {
   return THREE.UniformsUtils.merge([
     THREE.UniformsLib.common,
     {
-      uDepthPow: { value: 1.45 },
+      uDepthPow: { value: 1.36 },
       uExtrusionFar: { value: 0.08 },
-      uExtrusionNear: { value: 4.2 },
+      uExtrusionNear: { value: 5.0 },
       uPinch: { value: 0.86 },
       uAmbient: { value: new THREE.Color('#283850') },
       uLightDirA: { value: new THREE.Vector3(0, 1, 0) },
@@ -571,7 +570,7 @@ export async function mountHeroVoxelScene(
     let dSum = 0;
     const histogram = new Uint16Array(32);
 
-    liveUniforms.uExtrusionNear!.value = 4.2 * extrusionBoost;
+    liveUniforms.uExtrusionNear!.value = 5.0 * extrusionBoost;
 
     for (let i = 0; i < voxelCount; i++) {
       const raw = buf[i];
@@ -606,16 +605,27 @@ export async function mountHeroVoxelScene(
 
     for (let i = 0; i < voxelCount; i++) {
       const dFinal = voxels.workDepth[i];
+      const ix = i % GRID_X;
+      const iz = Math.floor(i / GRID_X);
+      const nx = ix / Math.max(GRID_X - 1, 1);
+      const nz = iz / Math.max(GRID_Z - 1, 1);
+      const dx = nx - 0.5;
+      const dz = nz - 0.5;
+      // Center-priority gating suppresses side/background planes (e.g. bright windows)
+      // while keeping face/hands in the central capture volume.
+      const radial = Math.sqrt(dx * dx * 1.25 + dz * dz);
+      const centerWeight = 1 - smoothstepScalar(0.5, 0.96, radial);
       const subjectMask = smoothstepScalar(
         farCut,
         Math.min(1, farCut + LIVE_SUBJECT_EDGE_SOFTNESS),
         dFinal
       );
-      const dMasked = dFinal * subjectMask;
+      const centerMask = THREE.MathUtils.lerp(0.56, 1, centerWeight);
+      const dMasked = dFinal * subjectMask * centerMask;
       // Gentle near-boost: only the very nearest 20% of the subject gets a lift
       // so the shape reads correctly without noise being inflated.
-      const nearBoost = smoothstepScalar(0.72, 1, dFinal);
-      const dShaped = THREE.MathUtils.clamp(dMasked * (1 + nearBoost * 0.18), 0, 1);
+      const nearBoost = smoothstepScalar(0.62, 1, dFinal);
+      const dShaped = THREE.MathUtils.clamp(dMasked * (1 + nearBoost * 0.24), 0, 1);
 
       const targetZ = (dShaped - 0.5) * 2 * LIVE_Z_RELIEF * extrusionBoost;
       voxels.currentZPush[i] += (targetZ - voxels.currentZPush[i]) * lerp;

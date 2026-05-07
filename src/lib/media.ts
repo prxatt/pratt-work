@@ -3,10 +3,14 @@ const BLOB = (
   process.env.NEXT_PUBLIC_MEDIA_BASE_URL ||
   'https://b8irodxhw2qbsjk2.public.blob.vercel-storage.com'
 ).replace(/\/+$/, '');
+const LOCAL_WORK_PREFIX = '/work/';
 
 /** Expects trimmed input for relative paths. */
 function toBlobUrl(trimmedLocalPath: string): string {
   if (trimmedLocalPath.startsWith('//') || ABS_URL_RE.test(trimmedLocalPath)) {
+    return trimmedLocalPath;
+  }
+  if (trimmedLocalPath.startsWith(LOCAL_WORK_PREFIX)) {
     return trimmedLocalPath;
   }
   const normalized = trimmedLocalPath.startsWith('/') ? trimmedLocalPath : `/${trimmedLocalPath}`;
@@ -46,6 +50,23 @@ export function getImageUrl(
 ): string {
   const t = localPath.trim();
   return toBlobUrl(normalizeImagePath(t, options?.format ?? 'auto'));
+}
+
+/**
+ * Prefer same-origin `/...` URLs for files in `public/` to avoid Vercel Blob
+ * traffic; falls back to `getImageUrl` for CDN-backed paths.
+ */
+export function resolveWorkImageSrc(
+  localPath: string,
+  _width?: number,
+  options?: {
+    quality?: 'auto' | number;
+    format?: 'auto' | 'webp' | 'avif' | 'jpg';
+  }
+): string {
+  const t = localPath.trim();
+  if (t.startsWith('/') && !t.startsWith('//')) return t;
+  return getImageUrl(t, _width, options);
 }
 
 export function getVideoUrl(

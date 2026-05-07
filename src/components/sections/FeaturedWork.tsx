@@ -4,7 +4,7 @@ import React, { useRef, useEffect, useLayoutEffect, useState } from 'react';
 import Link from 'next/link';
 import { motion, useInView } from 'framer-motion';
 import { useCursor } from '@/context/CursorContext';
-import { getImageUrl, getVideoUrl } from '@/lib/media';
+import { getImageUrl, getVideoUrl, resolveWorkImageSrc } from '@/lib/media';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // DEVICE CAPS — ONE call at FeaturedWork root, passed as props.
@@ -460,7 +460,7 @@ const ImageCard = ({
             ) : isSurface ? (
               <div className="absolute inset-0 w-full h-full flex items-center justify-center">
                 <img
-                  src={getImageUrl('/work/surface-tension-drip.webp', 1600)}
+                  src={resolveWorkImageSrc('/work/surface-tension-drip.webp', 1600)}
                   alt={project.title}
                   className="w-full h-full object-cover"
                   loading={index === 0 ? 'eager' : 'lazy'}
@@ -472,7 +472,7 @@ const ImageCard = ({
                     if (el.dataset.fallback === '1') return;
                     el.dataset.fallback = '1';
                     el.removeAttribute('srcset');
-                    el.src = getImageUrl('/work/surface-tension-drip.jpg', 1600);
+                    el.src = resolveWorkImageSrc('/work/surface-tension-drip.jpg', 1600);
                   }}
                 />
               </div>
