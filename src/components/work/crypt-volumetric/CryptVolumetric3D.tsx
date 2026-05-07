@@ -395,7 +395,7 @@ export default function CryptVolumetric3D({
           uvArr[i * 2 + 1] = 1.0 - (iz + 0.5) / gz;
         }
 
-        const instanceDepthAttr = new THREE.InstancedBufferAttribute(depthArr, 1);
+        const instanceDepthAttr = new THREE.InstancedBufferAttribute(smoothArr, 1);
         instanceDepthAttr.setUsage(THREE.DynamicDrawUsage);
         const instanceUVAttr = new THREE.InstancedBufferAttribute(uvArr, 2);
         geo.setAttribute('instanceDepth', instanceDepthAttr);
