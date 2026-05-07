@@ -452,12 +452,16 @@ export async function mountHeroVoxelScene(
   const liveLightRig = createLights(scene);
 
   const dummy = new THREE.Object3D();
-  const lightDirScratch = new THREE.Vector3();
   let lastTime = performance.now();
   const idleCameraBase = camera.position.clone();
 
   const frameLerp = (base: number, dt: number, floor: number) =>
     Math.min(1, base * (dt / (1 / 60)) + floor);
+
+  /** Unit vector from light target → light position (toward the source); use for N·L in the live shader. */
+  function setDirectionalLightToLightDir(light: THREE.DirectionalLight, out: THREE.Vector3) {
+    out.copy(light.position).sub(light.target.position).normalize();
+  }
 
   function syncLiveExtrusionUniforms() {
     const m = voxels.liveMaterial;
@@ -646,12 +650,9 @@ export async function mountHeroVoxelScene(
     }
 
     if (voxels.mesh.material === voxels.liveMaterial) {
-      liveLightRig.key.getWorldDirection(lightDirScratch);
-      voxels.liveMaterial.uniforms.uLightDirA.value.copy(lightDirScratch).negate().normalize();
-      liveLightRig.fill.getWorldDirection(lightDirScratch);
-      voxels.liveMaterial.uniforms.uLightDirB.value.copy(lightDirScratch).negate().normalize();
-      liveLightRig.rim.getWorldDirection(lightDirScratch);
-      voxels.liveMaterial.uniforms.uLightDirC.value.copy(lightDirScratch).negate().normalize();
+      setDirectionalLightToLightDir(liveLightRig.key, voxels.liveMaterial.uniforms.uLightDirA.value);
+      setDirectionalLightToLightDir(liveLightRig.fill, voxels.liveMaterial.uniforms.uLightDirB.value);
+      setDirectionalLightToLightDir(liveLightRig.rim, voxels.liveMaterial.uniforms.uLightDirC.value);
     }
 
     controls.update();
