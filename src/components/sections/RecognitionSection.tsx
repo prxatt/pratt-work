@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useInView } from 'framer-motion';
 import { useCursor } from '@/context/CursorContext';
 import Image from 'next/image';
 import { getImageUrl, getVideoUrl } from '@/lib/media';
@@ -468,6 +468,7 @@ const CinemaModeOverlay = ({
 // Cinematic Modal for ALONE Film
 const AloneModal = ({ onClose }: { onClose: () => void }) => {
   const [cinemaOpen, setCinemaOpen] = React.useState(false);
+  const [trailerMuted, setTrailerMuted] = React.useState(false);
   const trailerRef = useRef<HTMLVideoElement>(null);
 
   React.useEffect(() => {
@@ -486,8 +487,19 @@ const AloneModal = ({ onClose }: { onClose: () => void }) => {
   React.useEffect(() => {
     const node = trailerRef.current;
     if (!node) return;
-    if (cinemaOpen) node.pause();
-    else void node.play().catch(() => {});
+    if (cinemaOpen) {
+      node.pause();
+      return;
+    }
+    node.defaultMuted = false;
+    node.muted = false;
+    node.volume = 1;
+    setTrailerMuted(false);
+    void node.play().catch(() => {
+      node.muted = true;
+      setTrailerMuted(true);
+      void node.play().catch(() => {});
+    });
   }, [cinemaOpen]);
 
   return (
@@ -521,8 +533,7 @@ const AloneModal = ({ onClose }: { onClose: () => void }) => {
           <div className="absolute inset-0 z-0">
             <video
               ref={trailerRef}
-              autoPlay
-              muted
+              muted={trailerMuted}
               loop
               playsInline
               preload="auto"
@@ -1879,6 +1890,12 @@ const RecognitionCard = ({
 }) => {
   const { setCursorState, setPreviewData } = useCursor();
   const Icon = award.icon;
+  const cardRef = useRef<HTMLDivElement>(null);
+  const cardInView = useInView(cardRef, {
+    once: true,
+    margin: '0px 0px -8% 0px',
+    amount: 0.12,
+  });
   const previewRafRef = useRef<number | null>(null);
   const pendingFocusRef = useRef<{ focusX: number; focusY: number } | null>(null);
   const lastFocusRef = useRef<{ focusX: number; focusY: number } | null>(null);
@@ -1945,9 +1962,13 @@ const RecognitionCard = ({
 
   return (
     <motion.div
+      ref={cardRef}
       initial={{ opacity: 0, x: position === 'left' ? -60 : 60 }}
-      whileInView={{ opacity: 1, x: 0 }}
-      viewport={{ once: true }}
+      animate={
+        cardInView
+          ? { opacity: 1, x: 0 }
+          : { opacity: 0, x: position === 'left' ? -60 : 60 }
+      }
       transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1], delay: index * 0.15 }}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}

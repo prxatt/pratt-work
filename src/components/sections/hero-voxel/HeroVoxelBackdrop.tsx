@@ -59,6 +59,7 @@ export function HeroVoxelBackdrop() {
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [sceneReady, setSceneReady] = useState(false);
+  const [allowSceneBoot, setAllowSceneBoot] = useState(false);
 
   const tier: HeroVoxelTier = useMemo(
     () =>
@@ -102,6 +103,34 @@ export function HeroVoxelBackdrop() {
   stopCameraRef.current = stopCamera;
 
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+    let cancelled = false;
+    const start = () => {
+      if (!cancelled) setAllowSceneBoot(true);
+    };
+    const ric = (window as Window & {
+      requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
+      cancelIdleCallback?: (id: number) => void;
+    }).requestIdleCallback;
+    const cic = (window as Window & {
+      cancelIdleCallback?: (id: number) => void;
+    }).cancelIdleCallback;
+    if (ric) {
+      const id = ric(start, { timeout: 450 });
+      return () => {
+        cancelled = true;
+        if (cic) cic(id);
+      };
+    }
+    const id = window.setTimeout(start, 120);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(id);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!allowSceneBoot) return;
     const el = containerRef.current;
     if (!el) return;
 
@@ -133,7 +162,7 @@ export function HeroVoxelBackdrop() {
       sceneApiRef.current = null;
       if (dispose) dispose();
     };
-  }, [tier, prefersReducedMotion]);
+  }, [allowSceneBoot, tier, prefersReducedMotion]);
 
   const startCamera = useCallback(async () => {
     setCameraError(null);
@@ -268,7 +297,7 @@ export function HeroVoxelBackdrop() {
         }
         aria-hidden
       />
-      <div className="pointer-events-none absolute inset-x-0 bottom-[max(1.5rem,env(safe-area-inset-bottom))] z-[25] flex justify-center px-4 sm:bottom-[max(2rem,env(safe-area-inset-bottom))]">
+      <div className="pointer-events-none absolute inset-x-0 bottom-[max(5.75rem,env(safe-area-inset-bottom))] z-[25] flex justify-center px-4 sm:bottom-[max(6.25rem,env(safe-area-inset-bottom))]">
         {/* Narrow pointer hit-target: full-width wrapper would block the hero bottom row (e.g. Latest Work). */}
         <div className="pointer-events-none inline-flex max-w-[min(92vw,22rem)] flex-col items-center text-center">
           <button

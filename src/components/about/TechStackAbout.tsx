@@ -14,7 +14,7 @@ interface Tool {
 }
 
 const tools: Tool[] = [
-  { id: '01', name: 'Claude + OpenClaw', category: 'Automation, R&D', proficiency: 60, description: 'AI acceleration' },
+  { id: '01', name: 'Claude + Gemini', category: 'Automation, R&D', proficiency: 60, description: 'AI acceleration' },
   { id: '02', name: 'Github + Cursor', category: 'AI-Driven Dev', proficiency: 65, description: 'Code craftsmanship' },
   { id: '03', name: 'Seedance + Kling', category: 'AI Generation', proficiency: 80, description: 'Generative creation' },
   { id: '04', name: 'SOEN', category: 'Productivity OS', proficiency: 100, description: 'Personal command center', isUnreleased: true, link: 'https://soen.ml' },
