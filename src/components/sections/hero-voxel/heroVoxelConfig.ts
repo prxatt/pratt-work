@@ -40,3 +40,9 @@ export const liveDepthOrientation = {
   mirrorX: true,
   invertPolarity: false,
 } as const;
+
+export function smoothstepScalar(edge0: number, edge1: number, x: number): number {
+  const d = edge1 - edge0 || 1;
+  const t = Math.max(0, Math.min(1, (x - edge0) / d));
+  return t * t * (3 - 2 * t);
+}

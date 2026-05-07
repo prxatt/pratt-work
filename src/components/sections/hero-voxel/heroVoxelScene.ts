@@ -15,7 +15,11 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
-import { gridDimensionsForTier, type HeroVoxelTier } from './heroVoxelConfig';
+import {
+  gridDimensionsForTier,
+  smoothstepScalar,
+  type HeroVoxelTier,
+} from './heroVoxelConfig';
 
 // ── Voxel geometry ─────────────────────────────────────────────────────────
 const VOXEL_SIZE = 0.18;
@@ -69,12 +73,6 @@ const IDLE_COLOR_LO = new THREE.Color('#0c1116');
 const IDLE_COLOR_MID = new THREE.Color('#1a2b32');
 const IDLE_COLOR_HI = new THREE.Color('#88a9ad');
 
-function smoothstepScalar(edge0: number, edge1: number, x: number): number {
-  const d = edge1 - edge0 || 1;
-  const t = Math.max(0, Math.min(1, (x - edge0) / d));
-  return t * t * (3 - 2 * t);
-}
-
 function idleWaveMix(nx: number, nz: number, t: number): number {
   const kx = nx * Math.PI * 2;
   const kz = nz * Math.PI * 2;
@@ -119,6 +117,7 @@ type VoxelPack = {
   currentZPush: Float32Array;
   workDepth: Float32Array;
   centerWeights: Float32Array;
+  centerWeightSum: number;
   voxelActive: Uint8Array;
   count: number;
 };
@@ -587,7 +586,6 @@ export async function mountHeroVoxelScene(
     let dMax = 0;
     let dSum = 0;
     let centerSum = 0;
-    let centerWeightSum = 0;
     const histogram = new Uint16Array(32);
 
     liveUniforms.uExtrusionNear!.value = LIVE_EXTRUSION_NEAR * extrusionBoost;
@@ -609,7 +607,6 @@ export async function mountHeroVoxelScene(
       dSum += dFinal;
       const centerWeight = voxels.centerWeights[i];
       centerSum += dFinal * centerWeight;
-      centerWeightSum += centerWeight;
       const bin = Math.min(31, Math.max(0, Math.floor(dFinal * 31)));
       histogram[bin] += 1;
     }
@@ -626,7 +623,7 @@ export async function mountHeroVoxelScene(
     }
     const farCutBase = thresholdBin / 31;
     const dAvg = dSum / Math.max(voxelCount, 1);
-    const centerAvg = centerSum / Math.max(centerWeightSum, 1e-4);
+    const centerAvg = centerSum / Math.max(voxels.centerWeightSum, 1e-4);
     const centerDominance = Math.max(0, centerAvg - dAvg);
     const farCut = THREE.MathUtils.clamp(farCutBase + centerDominance * 0.22, 0, 1);
 
@@ -769,6 +766,7 @@ export async function mountHeroVoxelScene(
       extrusionBoost = LIVE_INITIAL_BOOST;
       renderer.toneMappingExposure = DEFAULT_TONE_MAPPING_EXPOSURE;
       voxels.smoothDepths.fill(0.5);
+      voxels.voxelActive.fill(0);
       applyLiveMaterialsAndGeometry();
       controls.minDistance = 18;
       controls.maxDistance = 96;
@@ -873,6 +871,7 @@ function createVoxelGrid(
   const workDepth = new Float32Array(count);
   const centerWeights = new Float32Array(count);
   const voxelActive = new Uint8Array(count);
+  let centerWeightSum = 0;
 
   const offsetX = (GRID_X - 1) * VOXEL_SPACING * 0.5;
   const offsetY = (GRID_Z - 1) * VOXEL_SPACING * 0.5;
@@ -895,6 +894,7 @@ function createVoxelGrid(
     basePositions[baseIdx + 2] = 0;
     centerWeights[i] =
       1 - smoothstepScalar(LIVE_CENTER_GATE_EDGE_INNER, LIVE_CENTER_GATE_EDGE_OUTER, radial);
+    centerWeightSum += centerWeights[i];
 
     const sy = IDLE_HEIGHT_BIAS;
     dummy.position.set(x, y, 0);
@@ -926,6 +926,7 @@ function createVoxelGrid(
     currentZPush,
     workDepth,
     centerWeights,
+    centerWeightSum,
     voxelActive,
     count,
   };
