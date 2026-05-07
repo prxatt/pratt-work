@@ -145,6 +145,8 @@ export default function CryptVolumetric3D({
   const [pseudoFullscreen, setPseudoFullscreen] = useState(false);
   /** If WebGL/video init fails, show plain video fallback in-frame. */
   const [showFallbackVideo, setShowFallbackVideo] = useState(false);
+  /** Guards against late video events hiding fallback after init failure. */
+  const initFailedRef = useRef(false);
 
   const immersive = isFullscreen || pseudoFullscreen;
 
@@ -295,6 +297,18 @@ export default function CryptVolumetric3D({
       video.crossOrigin = 'anonymous';
       if (posterSrc) video.poster = posterSrc;
 
+      let videoHasFrame = false;
+      const onVideoLoaded = () => {
+        videoHasFrame = true;
+        if (!aborted && !initFailedRef.current) setShowFallbackVideo(false);
+      };
+      const onVideoError = () => {
+        if (!aborted) setShowFallbackVideo(true);
+      };
+      // Register listeners before assigning sources to avoid cached-event races.
+      video.addEventListener('loadeddata', onVideoLoaded);
+      video.addEventListener('error', onVideoError);
+
       // WebM first, MP4 fallback
       const sourceWebm = document.createElement('source');
       sourceWebm.src = webmSrc;
@@ -305,17 +319,6 @@ export default function CryptVolumetric3D({
       sourceMp4.src = mp4Src;
       sourceMp4.type = 'video/mp4';
       video.appendChild(sourceMp4);
-
-      let videoHasFrame = false;
-      const onVideoLoaded = () => {
-        videoHasFrame = true;
-        if (!aborted) setShowFallbackVideo(false);
-      };
-      const onVideoError = () => {
-        if (!aborted) setShowFallbackVideo(true);
-      };
-      video.addEventListener('loadeddata', onVideoLoaded);
-      video.addEventListener('error', onVideoError);
       // If no frame arrives quickly, fail over to a plain video render.
       const videoFailTimer = window.setTimeout(() => {
         if (!videoHasFrame && !aborted) setShowFallbackVideo(true);
@@ -505,7 +508,11 @@ export default function CryptVolumetric3D({
         canvasElRef.current = null;
       };
       } catch {
+        initFailedRef.current = true;
         if (!aborted) setShowFallbackVideo(true);
+        // Best-effort cleanup for partial init paths before cleanupRef is assigned.
+        cleanupRef.current?.();
+        cleanupRef.current = null;
       }
     })();
 
@@ -521,6 +528,13 @@ export default function CryptVolumetric3D({
     const cleanup = initScene();
     return cleanup;
   }, [initScene]);
+
+  useEffect(() => {
+    initFailedRef.current = false;
+    return () => {
+      initFailedRef.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     const handleChange = () => {
@@ -599,17 +613,16 @@ export default function CryptVolumetric3D({
           playsInline
           preload="metadata"
           className="absolute inset-0 z-[3] h-full w-full object-cover"
+          aria-label="Volumetric video playback fallback"
         >
           <source src={webmSrc} type="video/webm" />
           <source src={mp4Src} type="video/mp4" />
-          <source src="/work/crypt-demo.webm" type="video/webm" />
-          <source src="/work/crypt-demo.mp4" type="video/mp4" />
         </video>
       )}
 
       {/* CSS vignette */}
       <div
-        className={`absolute inset-0 pointer-events-none ${
+        className={`absolute inset-0 z-[4] pointer-events-none ${
           pseudoFullscreen ? 'rounded-none' : 'rounded-xl'
         }`}
         style={{
