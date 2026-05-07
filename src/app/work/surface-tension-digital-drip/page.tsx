@@ -243,7 +243,7 @@ export default async function DigitalDripPage() {
       </header>
 
       {/* MAIN CONTENT - Split screen CRT style */}
-      <section className="relative z-[60] px-6 md:px-12 lg:px-20 py-24">
+      <section className="relative px-6 md:px-12 lg:px-20 py-24">
         <div className="max-w-6xl mx-auto">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
             {/* Left: Content - Amber monitor style + Video Frame */}
@@ -428,7 +428,7 @@ export default async function DigitalDripPage() {
       />
 
       {/* PROCESS - Strobe cut style */}
-      <section className="relative z-[60] px-6 md:px-12 lg:px-20 py-24 bg-[#050505]">
+      <section className="relative px-6 md:px-12 lg:px-20 py-24 bg-[#050505]">
         <div className="max-w-6xl mx-auto">
           {/* Section header - Glitch style */}
           <div className="mb-16 relative">
@@ -456,7 +456,7 @@ export default async function DigitalDripPage() {
                   }}
                 />
 
-                <div className="pl-8 py-8 border-b border-[#222] hover:bg-[#0f0f0f] transition-colors">
+                <div className="pl-8 py-8 border-b border-[#222]">
                   <div className="flex flex-col md:flex-row md:items-start gap-6">
                     {/* Step number - Binary style */}
                     <div className="flex-shrink-0">
