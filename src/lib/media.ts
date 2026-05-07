@@ -271,9 +271,10 @@ export function getMediaUrl(
   const fmt = options.format ?? 'auto';
   if (fmt === 'auto') transforms.push('f_auto');
   else transforms.push(`f_${fmt}`);
-  if (options.width) transforms.push(`w_${options.width}`, 'c_limit');
+  const crop = options.crop ?? (options.width ? 'limit' : undefined);
+  if (options.width) transforms.push(`w_${options.width}`);
   if (options.height) transforms.push(`h_${options.height}`);
-  if (options.crop && !options.width) transforms.push(`c_${options.crop}`);
+  if (crop) transforms.push(`c_${crop}`);
   return `${baseImg()}/${transforms.join(',')}/${path}`;
 }
 
