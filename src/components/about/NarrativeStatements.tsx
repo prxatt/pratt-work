@@ -349,6 +349,7 @@ export const NarrativeStatements = () => {
   const containerRef = useRef<HTMLElement>(null);
   const refA = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
+  const [forceRevealA, setForceRevealA] = useState(false);
   
   const { scrollYProgress } = useScroll({
     target: containerRef,
@@ -364,10 +365,17 @@ export const NarrativeStatements = () => {
   const thirdLineX = useTransform(scrollYProgress, [0.2, 0.5], [moveDistance, 0]);
 
   const refB = useRef<HTMLDivElement>(null);
-  const isInViewA = useInView(refA, { once: true, margin: '0px 0px 30% 0px', amount: 0.12 });
+  const isInViewA = useInView(refA, { once: true, margin: '0px 0px -10% 0px', amount: 0.08 });
   const isInViewB = useInView(refB, { once: true, margin: '-50px' });
   const [isHovered, setIsHovered] = useState(false);
   const [hoveredWord, setHoveredWord] = useState<string | null>(null);
+  const momentsVisible = isInViewA || forceRevealA;
+
+  useEffect(() => {
+    if (isInViewA) return;
+    const timer = window.setTimeout(() => setForceRevealA(true), 1400);
+    return () => window.clearTimeout(timer);
+  }, [isInViewA]);
 
   return (
     <section ref={containerRef} className="bg-[#0D0D0D] relative">
@@ -375,7 +383,7 @@ export const NarrativeStatements = () => {
       <div ref={refA} className="min-h-screen flex flex-col justify-center overflow-hidden py-32">
         <motion.div
           initial={{ opacity: 0 }}
-          animate={isInViewA ? { opacity: 1 } : { opacity: 0 }}
+          animate={momentsVisible ? { opacity: 1 } : { opacity: 0 }}
           transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
           className="w-full px-6 md:px-12 lg:px-20"
         >
@@ -390,7 +398,7 @@ export const NarrativeStatements = () => {
             <LetterAnimation 
               text="Creating Moments" 
               className="font-display text-[#F2F2F0] uppercase leading-[0.9] block"
-              isInView={isInViewA}
+              isInView={momentsVisible}
               delay={0.05}
               // Clamp keeps full phrase visible on narrow phones while preserving scale up on desktop.
               style={{ fontSize: 'clamp(2.3rem, 11vw, 6.5rem)' }}
@@ -409,7 +417,7 @@ export const NarrativeStatements = () => {
               text="That Shift" 
               className="font-display text-[#F2F2F0]/30 uppercase leading-[0.9] block"
               delay={0.15}
-              isInView={isInViewA}
+              isInView={momentsVisible}
               style={{ fontSize: 'clamp(2.2rem, 10.8vw, 6.4rem)' }}
             />
           </motion.div>
@@ -426,7 +434,7 @@ export const NarrativeStatements = () => {
               text="Perspectives" 
               className="font-display text-[#F2F2F0] uppercase leading-[0.9] block"
               delay={0.3}
-              isInView={isInViewA}
+              isInView={momentsVisible}
               style={{ fontSize: 'clamp(2.8rem, 13.4vw, 9.4rem)' }}
             />
           </motion.div>

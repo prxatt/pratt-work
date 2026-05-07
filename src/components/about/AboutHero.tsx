@@ -169,6 +169,8 @@ export const AboutHero = () => {
   const title = 'MORE';
   const subtitle = 'ABOUT';
   const third = 'ME';
+  const primaryWordSize = clientTouch ? 'clamp(3.45rem, 17vw, 6.4rem)' : 'clamp(5rem, 15vw, 11rem)';
+  const tertiaryWordSize = clientTouch ? 'clamp(4.8rem, 23.5vw, 9.2rem)' : 'clamp(7rem, 24vw, 18rem)';
 
   const staticFieldBg: React.CSSProperties = {
     background:
@@ -307,7 +309,7 @@ export const AboutHero = () => {
           <div className="relative flex w-full max-w-[100%] flex-col items-stretch gap-[2vh] md:gap-[3vh]">
             {/* MORE — left parallax */}
             <motion.div
-              className="relative z-30 w-max max-w-[92vw] self-start overflow-hidden pl-[max(0px,env(safe-area-inset-left))] ml-[clamp(0.25rem,7vw,6.5rem)] md:ml-[clamp(1.25rem,12vw,9rem)] lg:ml-[clamp(2rem,14vw,11rem)]"
+              className="relative z-30 w-max max-w-[95vw] self-start overflow-hidden pl-[max(0px,env(safe-area-inset-left))] ml-[clamp(0.25rem,7vw,6.5rem)] md:ml-[clamp(1.25rem,12vw,9rem)] lg:ml-[clamp(2rem,14vw,11rem)]"
               style={{
                 x: moreX,
                 willChange: 'transform',
@@ -321,14 +323,14 @@ export const AboutHero = () => {
                   delay={0.22}
                   lite={liteMotion}
                   className="font-display leading-[0.85] inline-block text-[#F2F2F0]"
-                  style={{ fontSize: 'clamp(5rem, 15vw, 11rem)' }}
+                  style={{ fontSize: primaryWordSize }}
                 />
                 {enablePrismaticSweep && (
                   <motion.span
                     aria-hidden
                     className="absolute inset-0 font-display leading-[0.85] inline-block pointer-events-none"
                     style={{
-                      fontSize: 'clamp(5rem, 15vw, 11rem)',
+                      fontSize: primaryWordSize,
                       WebkitBackgroundClip: 'text',
                       backgroundClip: 'text',
                       color: 'transparent',
@@ -355,14 +357,14 @@ export const AboutHero = () => {
                   delay={0.48}
                   lite={liteMotion}
                   className="font-display text-[#F2F2F0] leading-[0.85] inline-block"
-                  style={{ fontSize: 'clamp(5rem, 15vw, 11rem)' }}
+                  style={{ fontSize: primaryWordSize }}
                 />
                 {enablePrismaticSweep && (
                   <motion.span
                     aria-hidden
                     className="absolute inset-0 font-display leading-[0.85] inline-block pointer-events-none"
                     style={{
-                      fontSize: 'clamp(5rem, 15vw, 11rem)',
+                      fontSize: primaryWordSize,
                       WebkitBackgroundClip: 'text',
                       backgroundClip: 'text',
                       color: 'transparent',
@@ -382,7 +384,7 @@ export const AboutHero = () => {
 
             {/* ME — right parallax, largest */}
             <motion.div
-              className="overflow-hidden relative z-30 self-end mr-[5vw] md:mr-[8vw] -mt-[2vh]"
+              className="overflow-hidden relative z-30 self-end mr-[3vw] md:mr-[8vw] -mt-[0.5vh] md:-mt-[2vh]"
               style={{
                 x: meX,
                 scale: meScale,
@@ -397,14 +399,14 @@ export const AboutHero = () => {
                   delay={0.74}
                   lite={liteMotion}
                   className="font-display text-[#F2F2F0] leading-[0.85] inline-block"
-                  style={{ fontSize: 'clamp(7rem, 24vw, 18rem)' }}
+                  style={{ fontSize: tertiaryWordSize }}
                 />
                 {enablePrismaticSweep && (
                   <motion.span
                     aria-hidden
                     className="absolute inset-0 font-display leading-[0.85] inline-block pointer-events-none"
                     style={{
-                      fontSize: 'clamp(7rem, 24vw, 18rem)',
+                      fontSize: tertiaryWordSize,
                       WebkitBackgroundClip: 'text',
                       backgroundClip: 'text',
                       color: 'transparent',
