@@ -43,6 +43,10 @@ const STATIC_PUBLIC_ID_MAP: PublicIdMap = {
   '/work/crypt-demo.mp4': 'crypt-demo_m1f5bj',
   '/work/keynote-wb.jpg': 'keynote-wb_p2tkr1',
   '/work/keynote-wb.webp': 'keynote-wb_p2tkr1',
+  '/recognition/alone-trailer.mp4': 'alone-trailer_olthk4',
+  '/recognition/alone-trailer.webm': 'alone-trailer_olthk4',
+  '/recognition/women-is-losers-poster.jpg': 'women-is-losers-poster_t1kftg',
+  '/recognition/women-is-losers-poster.webp': 'women-is-losers-poster_t1kftg',
   '/work/boubyan-3.webp': 'bouybyan-3',
   '/work/boubyan-3.jpg': 'bouybyan-3',
 };
