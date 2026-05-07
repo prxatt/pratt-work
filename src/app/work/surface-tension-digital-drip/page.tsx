@@ -456,7 +456,7 @@ export default async function DigitalDripPage() {
                   }}
                 />
 
-                <div className="pl-8 py-8 border-b border-[#222] hover:bg-[#0f0f0f] transition-colors">
+                <div className="pl-8 py-8 border-b border-[#222]">
                   <div className="flex flex-col md:flex-row md:items-start gap-6">
                     {/* Step number - Binary style */}
                     <div className="flex-shrink-0">
