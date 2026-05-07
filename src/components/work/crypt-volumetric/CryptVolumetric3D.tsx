@@ -383,18 +383,12 @@ export default function CryptVolumetric3D({
         for (let i = 0; i < count; i++) {
           const ix = i % gx;
           const iz = Math.floor(i / gx);
-          const x  =  ix * voxSpacingX - offsetX;
-          const y  = -iz * voxSpacingY + offsetY;
-
-          dummy.position.set(x, y, 0);
-          dummy.scale.set(1, 1, 1);
-          dummy.updateMatrix();
-
           // UV: U left→right; V top→bottom (1 - iz/gz to match WebGL convention)
           uvArr[i * 2]     = (ix + 0.5) / gx;
           uvArr[i * 2 + 1] = 1.0 - (iz + 0.5) / gz;
         }
 
+        // Back smoothArr with WebGL so inference targets in depthArr are never overwritten.
         const instanceDepthAttr = new THREE.InstancedBufferAttribute(smoothArr, 1);
         instanceDepthAttr.setUsage(THREE.DynamicDrawUsage);
         const instanceUVAttr = new THREE.InstancedBufferAttribute(uvArr, 2);
@@ -529,6 +523,57 @@ export default function CryptVolumetric3D({
         }
 
         /**
+         * ~4th / ~96th percentile stretch (matches hero voxel intent) without O(n log n) sort.
+         * Histogram over min→max → cumulative counts; O(n + BINS).
+         */
+        function depthPercentileMinMax(raw: Float32Array): { dMin: number; dMax: number } {
+          const n = raw.length;
+          if (n === 0) return { dMin: 0, dMax: 1 };
+          let lo = Infinity;
+          let hi = -Infinity;
+          for (let i = 0; i < n; i++) {
+            const v = raw[i]!;
+            if (v < lo) lo = v;
+            if (v > hi) hi = v;
+          }
+          const span = hi - lo;
+          if (span < 1e-9) return { dMin: lo, dMax: lo + 1e-6 };
+
+          const BINS = 256;
+          const hist = new Uint32Array(BINS);
+          const inv = BINS / span;
+          for (let i = 0; i < n; i++) {
+            const b = Math.min(BINS - 1, Math.max(0, Math.floor((raw[i]! - lo) * inv)));
+            hist[b]!++;
+          }
+
+          const loTarget = Math.max(1, Math.floor(n * 0.04));
+          const hiTarget = Math.max(loTarget, Math.floor(n * 0.96));
+          let acc = 0;
+          let lowBin = 0;
+          for (let b = 0; b < BINS; b++) {
+            acc += hist[b]!;
+            if (acc >= loTarget) {
+              lowBin = b;
+              break;
+            }
+          }
+          acc = 0;
+          let highBin = BINS - 1;
+          for (let b = 0; b < BINS; b++) {
+            acc += hist[b]!;
+            if (acc >= hiTarget) {
+              highBin = b;
+              break;
+            }
+          }
+
+          const dMin = lo + (lowBin / BINS) * span;
+          const dMax = lo + ((highBin + 1) / BINS) * span;
+          return { dMin, dMax: Math.max(dMax, dMin + 1e-6) };
+        }
+
+        /**
          * Samples the depth tensor into our grid.
          * depth-anything v2 outputs relative (disparity-style) depth:
          * HIGHER value = NEARER to camera → no inversion needed.
@@ -537,10 +582,8 @@ export default function CryptVolumetric3D({
         function sampleTensorToGrid(raw: Float32Array, dW: number, dH: number) {
           const n = raw.length;
           if (n === 0) return;
-          const sorted = Float32Array.from(raw).sort();
-          const dMin   = sorted[Math.max(0, Math.floor(n * 0.04))];
-          const dMax   = sorted[Math.min(n - 1, Math.floor(n * 0.96))];
-          const dRange = Math.max(dMax - dMin, 1e-6);
+          const { dMin, dMax } = depthPercentileMinMax(raw);
+          const dRange = dMax - dMin;
           for (let iz = 0; iz < gz; iz++) {
             for (let ix = 0; ix < gx; ix++) {
               const srcX = Math.min(Math.floor((ix / Math.max(gx - 1, 1)) * (dW - 1)), dW - 1);
@@ -606,10 +649,9 @@ export default function CryptVolumetric3D({
           const elapsed = clock.getElapsedTime();
           uniforms.uTime.value = elapsed;
 
-          // Exponential lerp: smooths depth between sparse inference frames
+          // Exponential lerp: smooths depth between sparse inference frames (smoothArr backs GPU attr)
           for (let i = 0; i < count; i++) {
             smoothArr[i] += (depthArr[i] - smoothArr[i]) * DEPTH_LERP;
-            (instanceDepthAttr.array as Float32Array)[i] = smoothArr[i];
           }
           instanceDepthAttr.needsUpdate = true;
 
