@@ -11,7 +11,7 @@
  * After this stage: depth is normalized to [0, 1] where HIGHER = NEARER.
  */
 
-import { liveDepthOrientation, smoothstepScalar } from './heroVoxelConfig';
+import { liveDepthOrientation } from './heroVoxelConfig';
 
 export type DepthInferenceApi = {
   infer: () => Promise<void>;
@@ -24,10 +24,6 @@ const DEPTH_W = 240;
 const DEPTH_H = 176;
 
 const DEPTH_MODEL_ID = 'onnx-community/depth-anything-v2-small' as const;
-const FALLBACK_HISTOGRAM_BINS = 256;
-const FALLBACK_CENTER_GATE_RADIAL_X_FACTOR = 1.25;
-const FALLBACK_CENTER_GATE_EDGE_INNER = 0.4;
-const FALLBACK_CENTER_GATE_EDGE_OUTER = 0.95;
 
 async function disposeDepthPipeline(pipe: unknown): Promise<void> {
   if (!pipe || typeof pipe !== 'object') return;
@@ -60,22 +56,6 @@ export function createDepthInference(opts: {
   lumCanvas.width = GRID_X;
   lumCanvas.height = GRID_Z;
   const lumCtx = lumCanvas.getContext('2d', { willReadFrequently: true });
-  const fallbackInvDepth = new Float32Array(cellCount);
-  const fallbackHistogram = new Uint16Array(FALLBACK_HISTOGRAM_BINS);
-  const fallbackCenterWeights = new Float32Array(cellCount);
-
-  for (let iz = 0; iz < GRID_Z; iz++) {
-    for (let ix = 0; ix < GRID_X; ix++) {
-      const idx = iz * GRID_X + ix;
-      const nx = ix / Math.max(GRID_X - 1, 1);
-      const nz = iz / Math.max(GRID_Z - 1, 1);
-      const dx = nx - 0.5;
-      const dz = nz - 0.5;
-      const radial = Math.sqrt(dx * dx * FALLBACK_CENTER_GATE_RADIAL_X_FACTOR + dz * dz);
-      fallbackCenterWeights[idx] =
-        1 - smoothstepScalar(FALLBACK_CENTER_GATE_EDGE_INNER, FALLBACK_CENTER_GATE_EDGE_OUTER, radial);
-    }
-  }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let depthPipeline: any = null;
@@ -118,44 +98,17 @@ export function createDepthInference(opts: {
     if (!lumCtx || !opts.video.videoWidth) return;
     lumCtx.drawImage(opts.video, 0, 0, GRID_X, GRID_Z);
     const pixels = lumCtx.getImageData(0, 0, GRID_X, GRID_Z).data;
-    fallbackHistogram.fill(0);
-
-    for (let i = 0; i < cellCount; i++) {
-      const pi = i * 4;
-      const lum =
-        (0.299 * pixels[pi] +
-          0.587 * pixels[pi + 1] +
-          0.114 * pixels[pi + 2]) /
-        255;
-      // Bright walls/windows are usually farther; foreground silhouette gets priority.
-      const inv = 1 - lum;
-      fallbackInvDepth[i] = inv;
-      const bin = Math.min(
-        FALLBACK_HISTOGRAM_BINS - 1,
-        Math.max(0, Math.floor(inv * (FALLBACK_HISTOGRAM_BINS - 1)))
-      );
-      fallbackHistogram[bin] += 1;
-    }
-
-    const percentileBin = (target: number) => {
-      let acc = 0;
-      for (let i = 0; i < fallbackHistogram.length; i++) {
-        acc += fallbackHistogram[i];
-        if (acc >= target) return i;
-      }
-      return fallbackHistogram.length - 1;
-    };
-    const lo = percentileBin(Math.max(1, Math.floor(cellCount * 0.05))) / (FALLBACK_HISTOGRAM_BINS - 1);
-    const hi = percentileBin(Math.max(1, Math.floor(cellCount * 0.95))) / (FALLBACK_HISTOGRAM_BINS - 1);
-    const span = Math.max(hi - lo, 1e-4);
-
     for (let iz = 0; iz < GRID_Z; iz++) {
       for (let ix = 0; ix < GRID_X; ix++) {
-        const idx = iz * GRID_X + ix;
-        const stretched = Math.min(1, Math.max(0, (fallbackInvDepth[idx] - lo) / span));
-        const centerWeight = fallbackCenterWeights[idx];
-        const centered = Math.min(1, Math.max(0, stretched * (0.82 + centerWeight * 0.36)));
-        writeCell(ix, iz, Math.pow(centered, 0.72));
+        const pi = (iz * GRID_X + ix) * 4;
+        const lum =
+          (0.299 * pixels[pi] +
+            0.587 * pixels[pi + 1] +
+            0.114 * pixels[pi + 2]) /
+          255;
+        // Luminance is a heuristic depth proxy: well-lit pixels tend to be
+        // near. Stored directly under the canonical "high = near" convention.
+        writeCell(ix, iz, Math.pow(lum, 0.65));
       }
     }
   }

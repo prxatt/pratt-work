@@ -15,11 +15,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
-import {
-  gridDimensionsForTier,
-  smoothstepScalar,
-  type HeroVoxelTier,
-} from './heroVoxelConfig';
+import { gridDimensionsForTier, type HeroVoxelTier } from './heroVoxelConfig';
 
 // ── Voxel geometry ─────────────────────────────────────────────────────────
 const VOXEL_SIZE = 0.18;
@@ -35,36 +31,21 @@ const IDLE_Z_SWELL = 0.82;
 const IDLE_LERP_BASE = 0.056;
 
 // ── Live depth → instanceDepth (CPU shaping / masking only; GPU applies pow) ─
-const LIVE_DEPTH_CONTRAST = 1.3;
-const LIVE_DEPTH_SHAPE_LO = 0.06;
+const LIVE_DEPTH_CONTRAST = 1.15;
+const LIVE_DEPTH_SHAPE_LO = 0.08;
 const LIVE_DEPTH_SHAPE_HI = 0.94;
-const LIVE_DEPTH_SHAPE_MIX = 0.42;
-const LIVE_EXTRUSION_NEAR = 5.0;
+const LIVE_DEPTH_SHAPE_MIX = 0.4;
 // Slow lerp keeps voxels stable between inference frames (runs ~11 Hz, render ~60 Hz).
-const LIVE_LERP_BASE = 0.14;
+const LIVE_LERP_BASE = 0.16;
 const LIVE_INITIAL_BOOST = 1.1;
-// Histogram cut: drop the farthest ~half of samples so flat walls stay recessed.
-const LIVE_FAR_REJECT_QUANTILE = 0.68;
-const LIVE_SUBJECT_EDGE_SOFTNESS = 0.2;
-// Center-priority gating suppresses side/background planes while preserving
-// subject detail in the central capture region.
-const LIVE_CENTER_GATE_RADIAL_X_FACTOR = 1.25;
-const LIVE_CENTER_GATE_EDGE_INNER = 0.5;
-const LIVE_CENTER_GATE_EDGE_OUTER = 0.96;
-const LIVE_CENTER_MASK_MIN = 0.34;
-const LIVE_CENTER_MASK_EXP = 1.35;
-// Near-boost gently lifts the nearest portion of the subject so depth remains
-// readable without amplifying far noise.
-const LIVE_NEAR_BOOST_EDGE = 0.62;
-const LIVE_NEAR_BOOST_AMOUNT = 0.24;
-// Occupancy hysteresis: stabilizes edge voxels and prevents dance/flicker.
-const LIVE_OCCUPANCY_ON = 0.24;
-const LIVE_OCCUPANCY_OFF = 0.17;
-const LIVE_BG_COLLAPSE_SCALE = 0.002;
+// Keep the nearest 45% of the frame — aggressive enough to suppress room background
+// while keeping faces/hands that fill a significant portion of the viewport.
+const LIVE_FAR_REJECT_QUANTILE = 0.55;
+const LIVE_SUBJECT_EDGE_SOFTNESS = 0.28;
 
 /** Z parallax added on top of shader extrusion — keep modest so the sculpture
  *  doesn't explode when orbiting. */
-const LIVE_Z_RELIEF = 3.8;
+const LIVE_Z_RELIEF = 2.8;
 
 /** Baseline exposure for idle; live mode adjusts dynamically and resets on exit. */
 const DEFAULT_TONE_MAPPING_EXPOSURE = 1.58;
@@ -72,6 +53,12 @@ const DEFAULT_TONE_MAPPING_EXPOSURE = 1.58;
 const IDLE_COLOR_LO = new THREE.Color('#0c1116');
 const IDLE_COLOR_MID = new THREE.Color('#1a2b32');
 const IDLE_COLOR_HI = new THREE.Color('#88a9ad');
+
+function smoothstepScalar(edge0: number, edge1: number, x: number): number {
+  const d = edge1 - edge0 || 1;
+  const t = Math.max(0, Math.min(1, (x - edge0) / d));
+  return t * t * (3 - 2 * t);
+}
 
 function idleWaveMix(nx: number, nz: number, t: number): number {
   const kx = nx * Math.PI * 2;
@@ -116,9 +103,6 @@ type VoxelPack = {
   currentScaleY: Float32Array;
   currentZPush: Float32Array;
   workDepth: Float32Array;
-  centerWeights: Float32Array;
-  centerWeightSum: number;
-  voxelActive: Uint8Array;
   count: number;
 };
 
@@ -313,9 +297,9 @@ function createLiveUniforms(): LiveUniforms {
   return THREE.UniformsUtils.merge([
     THREE.UniformsLib.common,
     {
-      uDepthPow: { value: 1.36 },
+      uDepthPow: { value: 1.45 },
       uExtrusionFar: { value: 0.08 },
-      uExtrusionNear: { value: LIVE_EXTRUSION_NEAR },
+      uExtrusionNear: { value: 4.2 },
       uPinch: { value: 0.86 },
       uAmbient: { value: new THREE.Color('#283850') },
       uLightDirA: { value: new THREE.Vector3(0, 1, 0) },
@@ -585,10 +569,9 @@ export async function mountHeroVoxelScene(
     let dMin = 1;
     let dMax = 0;
     let dSum = 0;
-    let centerSum = 0;
     const histogram = new Uint16Array(32);
 
-    liveUniforms.uExtrusionNear!.value = LIVE_EXTRUSION_NEAR * extrusionBoost;
+    liveUniforms.uExtrusionNear!.value = 4.2 * extrusionBoost;
 
     for (let i = 0; i < voxelCount; i++) {
       const raw = buf[i];
@@ -605,8 +588,6 @@ export async function mountHeroVoxelScene(
       if (dFinal < dMin) dMin = dFinal;
       if (dFinal > dMax) dMax = dFinal;
       dSum += dFinal;
-      const centerWeight = voxels.centerWeights[i];
-      centerSum += dFinal * centerWeight;
       const bin = Math.min(31, Math.max(0, Math.floor(dFinal * 31)));
       histogram[bin] += 1;
     }
@@ -621,62 +602,39 @@ export async function mountHeroVoxelScene(
         break;
       }
     }
-    const farCutBase = thresholdBin / 31;
-    const dAvg = dSum / Math.max(voxelCount, 1);
-    const centerAvg = centerSum / Math.max(voxels.centerWeightSum, 1e-4);
-    const centerDominance = Math.max(0, centerAvg - dAvg);
-    const farCut = THREE.MathUtils.clamp(farCutBase + centerDominance * 0.22, 0, 1);
+    const farCut = thresholdBin / 31;
 
     for (let i = 0; i < voxelCount; i++) {
       const dFinal = voxels.workDepth[i];
-      // Center-priority gating suppresses side/background planes (e.g. bright windows)
-      // while keeping face/hands in the central capture volume.
-      const centerWeight = voxels.centerWeights[i];
       const subjectMask = smoothstepScalar(
         farCut,
         Math.min(1, farCut + LIVE_SUBJECT_EDGE_SOFTNESS),
         dFinal
       );
-      const centerMask = THREE.MathUtils.lerp(
-        LIVE_CENTER_MASK_MIN,
-        1,
-        Math.pow(centerWeight, LIVE_CENTER_MASK_EXP)
-      );
-      const dMasked = dFinal * subjectMask * centerMask;
+      const dMasked = dFinal * subjectMask;
       // Gentle near-boost: only the very nearest 20% of the subject gets a lift
       // so the shape reads correctly without noise being inflated.
-      const nearBoost = smoothstepScalar(LIVE_NEAR_BOOST_EDGE, 1, dMasked);
-      const dShaped = THREE.MathUtils.clamp(
-        dMasked * (1 + nearBoost * LIVE_NEAR_BOOST_AMOUNT),
-        0,
-        1
-      );
+      const nearBoost = smoothstepScalar(0.72, 1, dFinal);
+      const dShaped = THREE.MathUtils.clamp(dMasked * (1 + nearBoost * 0.18), 0, 1);
+
+      const targetZ = (dShaped - 0.5) * 2 * LIVE_Z_RELIEF * extrusionBoost;
+      voxels.currentZPush[i] += (targetZ - voxels.currentZPush[i]) * lerp;
 
       const baseIdx = i * 3;
       const x = voxels.basePositions[baseIdx];
       const y = voxels.basePositions[baseIdx + 1];
-      const wasActive = voxels.voxelActive[i] === 1;
-      const nowActive = wasActive ? dShaped > LIVE_OCCUPANCY_OFF : dShaped > LIVE_OCCUPANCY_ON;
-      voxels.voxelActive[i] = nowActive ? 1 : 0;
+      const z = voxels.currentZPush[i];
 
-      if (!nowActive) {
-        voxels.currentZPush[i] += ((-LIVE_Z_RELIEF * 0.65) - voxels.currentZPush[i]) * lerp;
-        dummy.position.set(x, y, voxels.currentZPush[i]);
-        dummy.scale.set(LIVE_BG_COLLAPSE_SCALE, LIVE_BG_COLLAPSE_SCALE, LIVE_BG_COLLAPSE_SCALE);
-        voxels.instanceDepth.array[i] = 0;
-      } else {
-        const targetZ = (dShaped - 0.5) * 2 * LIVE_Z_RELIEF * extrusionBoost;
-        voxels.currentZPush[i] += (targetZ - voxels.currentZPush[i]) * lerp;
-        dummy.position.set(x, y, voxels.currentZPush[i]);
-        dummy.scale.set(1, 1, 1);
-        voxels.instanceDepth.array[i] = dShaped;
-      }
-
+      dummy.position.set(x, y, z);
+      dummy.scale.set(1, 1, 1);
       dummy.updateMatrix();
       voxels.mesh.setMatrixAt(i, dummy.matrix);
+
+      voxels.instanceDepth.array[i] = dShaped;
     }
 
     const dRange = dMax - dMin;
+    const dAvg = dSum / Math.max(voxelCount, 1);
     updateLiveLightUniforms(liveLightRig, liveUniforms, lightDirScratch, dAvg, dRange, t);
 
     const exposureTarget = THREE.MathUtils.clamp(
@@ -766,7 +724,6 @@ export async function mountHeroVoxelScene(
       extrusionBoost = LIVE_INITIAL_BOOST;
       renderer.toneMappingExposure = DEFAULT_TONE_MAPPING_EXPOSURE;
       voxels.smoothDepths.fill(0.5);
-      voxels.voxelActive.fill(0);
       applyLiveMaterialsAndGeometry();
       controls.minDistance = 18;
       controls.maxDistance = 96;
@@ -869,9 +826,6 @@ function createVoxelGrid(
   const currentScaleY = new Float32Array(count).fill(IDLE_HEIGHT_BIAS);
   const currentZPush = new Float32Array(count);
   const workDepth = new Float32Array(count);
-  const centerWeights = new Float32Array(count);
-  const voxelActive = new Uint8Array(count);
-  let centerWeightSum = 0;
 
   const offsetX = (GRID_X - 1) * VOXEL_SPACING * 0.5;
   const offsetY = (GRID_Z - 1) * VOXEL_SPACING * 0.5;
@@ -881,20 +835,12 @@ function createVoxelGrid(
   for (let i = 0; i < count; i++) {
     const ix = i % GRID_X;
     const iz = Math.floor(i / GRID_X);
-    const nx = ix / Math.max(GRID_X - 1, 1);
-    const nz = iz / Math.max(GRID_Z - 1, 1);
-    const dx = nx - 0.5;
-    const dz = nz - 0.5;
-    const radial = Math.sqrt(dx * dx * LIVE_CENTER_GATE_RADIAL_X_FACTOR + dz * dz);
     const x = ix * VOXEL_SPACING - offsetX;
     const y = offsetY - iz * VOXEL_SPACING;
     const baseIdx = i * 3;
     basePositions[baseIdx] = x;
     basePositions[baseIdx + 1] = y;
     basePositions[baseIdx + 2] = 0;
-    centerWeights[i] =
-      1 - smoothstepScalar(LIVE_CENTER_GATE_EDGE_INNER, LIVE_CENTER_GATE_EDGE_OUTER, radial);
-    centerWeightSum += centerWeights[i];
 
     const sy = IDLE_HEIGHT_BIAS;
     dummy.position.set(x, y, 0);
@@ -925,9 +871,6 @@ function createVoxelGrid(
     currentScaleY,
     currentZPush,
     workDepth,
-    centerWeights,
-    centerWeightSum,
-    voxelActive,
     count,
   };
 }
