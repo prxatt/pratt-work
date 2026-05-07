@@ -35,12 +35,23 @@ const LIVE_DEPTH_CONTRAST = 1.3;
 const LIVE_DEPTH_SHAPE_LO = 0.06;
 const LIVE_DEPTH_SHAPE_HI = 0.94;
 const LIVE_DEPTH_SHAPE_MIX = 0.42;
+const LIVE_EXTRUSION_NEAR = 5.0;
 // Slow lerp keeps voxels stable between inference frames (runs ~11 Hz, render ~60 Hz).
 const LIVE_LERP_BASE = 0.14;
 const LIVE_INITIAL_BOOST = 1.1;
 // Histogram cut: drop the farthest ~half of samples so flat walls stay recessed.
 const LIVE_FAR_REJECT_QUANTILE = 0.62;
 const LIVE_SUBJECT_EDGE_SOFTNESS = 0.2;
+// Center-priority gating suppresses side/background planes while preserving
+// subject detail in the central capture region.
+const LIVE_CENTER_GATE_RADIAL_X_FACTOR = 1.25;
+const LIVE_CENTER_GATE_EDGE_INNER = 0.5;
+const LIVE_CENTER_GATE_EDGE_OUTER = 0.96;
+const LIVE_CENTER_MASK_MIN = 0.56;
+// Near-boost gently lifts the nearest portion of the subject so depth remains
+// readable without amplifying far noise.
+const LIVE_NEAR_BOOST_EDGE = 0.62;
+const LIVE_NEAR_BOOST_AMOUNT = 0.24;
 
 /** Z parallax added on top of shader extrusion — keep modest so the sculpture
  *  doesn't explode when orbiting. */
@@ -298,7 +309,7 @@ function createLiveUniforms(): LiveUniforms {
     {
       uDepthPow: { value: 1.36 },
       uExtrusionFar: { value: 0.08 },
-      uExtrusionNear: { value: 5.0 },
+      uExtrusionNear: { value: LIVE_EXTRUSION_NEAR },
       uPinch: { value: 0.86 },
       uAmbient: { value: new THREE.Color('#283850') },
       uLightDirA: { value: new THREE.Vector3(0, 1, 0) },
@@ -613,19 +624,24 @@ export async function mountHeroVoxelScene(
       const dz = nz - 0.5;
       // Center-priority gating suppresses side/background planes (e.g. bright windows)
       // while keeping face/hands in the central capture volume.
-      const radial = Math.sqrt(dx * dx * 1.25 + dz * dz);
-      const centerWeight = 1 - smoothstepScalar(0.5, 0.96, radial);
+      const radial = Math.sqrt(dx * dx * LIVE_CENTER_GATE_RADIAL_X_FACTOR + dz * dz);
+      const centerWeight =
+        1 - smoothstepScalar(LIVE_CENTER_GATE_EDGE_INNER, LIVE_CENTER_GATE_EDGE_OUTER, radial);
       const subjectMask = smoothstepScalar(
         farCut,
         Math.min(1, farCut + LIVE_SUBJECT_EDGE_SOFTNESS),
         dFinal
       );
-      const centerMask = THREE.MathUtils.lerp(0.56, 1, centerWeight);
+      const centerMask = THREE.MathUtils.lerp(LIVE_CENTER_MASK_MIN, 1, centerWeight);
       const dMasked = dFinal * subjectMask * centerMask;
       // Gentle near-boost: only the very nearest 20% of the subject gets a lift
       // so the shape reads correctly without noise being inflated.
-      const nearBoost = smoothstepScalar(0.62, 1, dFinal);
-      const dShaped = THREE.MathUtils.clamp(dMasked * (1 + nearBoost * 0.24), 0, 1);
+      const nearBoost = smoothstepScalar(LIVE_NEAR_BOOST_EDGE, 1, dFinal);
+      const dShaped = THREE.MathUtils.clamp(
+        dMasked * (1 + nearBoost * LIVE_NEAR_BOOST_AMOUNT),
+        0,
+        1
+      );
 
       const targetZ = (dShaped - 0.5) * 2 * LIVE_Z_RELIEF * extrusionBoost;
       voxels.currentZPush[i] += (targetZ - voxels.currentZPush[i]) * lerp;
