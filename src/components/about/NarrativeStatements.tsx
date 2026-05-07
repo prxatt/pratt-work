@@ -372,10 +372,10 @@ export const NarrativeStatements = () => {
   const momentsVisible = isInViewA || forceRevealA;
 
   useEffect(() => {
-    if (isInViewA) return;
+    if (isInViewA || !isMobile) return;
     const timer = window.setTimeout(() => setForceRevealA(true), 6000);
     return () => window.clearTimeout(timer);
-  }, [isInViewA]);
+  }, [isInViewA, isMobile]);
 
   return (
     <section ref={containerRef} className="bg-[#0D0D0D] relative">

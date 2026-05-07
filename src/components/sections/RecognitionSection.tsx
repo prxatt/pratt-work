@@ -533,7 +533,6 @@ const AloneModal = ({ onClose }: { onClose: () => void }) => {
           <div className="absolute inset-0 z-0">
             <video
               ref={trailerRef}
-              autoPlay
               muted={trailerMuted}
               loop
               playsInline
