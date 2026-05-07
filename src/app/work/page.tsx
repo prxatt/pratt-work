@@ -6,7 +6,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useCursor } from '@/context/CursorContext';
 import Head from 'next/head';
-import { getImageUrl, getVideoUrl, resolveWorkImageSrc } from '@/lib/media';
+import { getImageUrl, getVideoUrl } from '@/lib/media';
 
 const projects = [
   {
@@ -43,8 +43,8 @@ const projects = [
     year: '2025',
     thumbnail: {
       type: 'image' as const,
-      src: resolveWorkImageSrc('/work/surface-tension-drip.webp', 1200),
-      fallback: resolveWorkImageSrc('/work/surface-tension-drip.jpg', 1200),
+      src: getImageUrl('/work/surface-tension-drip.webp', 1200),
+      fallback: getImageUrl('/work/surface-tension-drip.jpg', 1200),
       alt: 'Surface Tension Digital Drip immersive art installation',
     },
   },

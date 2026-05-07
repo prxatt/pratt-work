@@ -52,21 +52,6 @@ export function getImageUrl(
   });
 }
 
-/**
- * Prefer same-origin `/...` URLs for files in `public/` to avoid Vercel Blob
- * traffic; falls back to `getImageUrl` for CDN-backed paths.
- */
-export function resolveWorkImageSrc(
-  localPath: string,
-  width?: number,
-  options?: {
-    quality?: 'auto' | number;
-    format?: 'auto' | 'webp' | 'avif' | 'jpg';
-  }
-): string {
-  return getImageUrl(localPath, width, options);
-}
-
 export function getVideoUrl(
   localPath: string,
   format: 'auto' | 'mp4' | 'webm' = 'auto'

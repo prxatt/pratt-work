@@ -2,7 +2,7 @@
 // WORK PROJECTS DATA - Shared across components
 // ============================================
 
-import { getImageUrl, getVideoUrl, resolveWorkImageSrc } from '@/lib/media';
+import { getImageUrl, getVideoUrl } from '@/lib/media';
 
 /** Video cards require an MP4 (or other Safari-friendly) URL alongside WebM. */
 export type WorkProjectThumbnail =
@@ -94,7 +94,7 @@ export const workProjects: WorkProject[] = [
     featuredSize: 'medium',
     thumbnail: {
       type: 'image',
-      src: resolveWorkImageSrc('/work/surface-tension-drip.webp', 800),
+      src: getImageUrl('/work/surface-tension-drip.webp', 800),
       alt: 'Surface Tension Digital Drip immersive art installation',
     },
     tags: ['experiential', 'immersive', 'art', 'installation', 'interactive', 'generative', 'spatial audio']
