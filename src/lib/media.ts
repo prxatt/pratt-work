@@ -47,6 +47,10 @@ const STATIC_PUBLIC_ID_MAP: PublicIdMap = {
   '/recognition/alone-trailer.webm': 'alone-trailer_olthk4',
   '/recognition/women-is-losers-poster.jpg': 'women-is-losers-poster_t1kftg',
   '/recognition/women-is-losers-poster.webp': 'women-is-losers-poster_t1kftg',
+  '/videos/the-crypt-space.mp4': 'the-crypt-space_daducx',
+  '/videos/the-crypt-space.webm': 'the-crypt-space_daducx',
+  '/videos/tcy-immersive.mp4': 'tcy-immersive_ejhjkm',
+  '/videos/tcy-immersive.webm': 'tcy-immersive_ejhjkm',
   '/work/boubyan-3.webp': 'bouybyan-3',
   '/work/boubyan-3.jpg': 'bouybyan-3',
 };
