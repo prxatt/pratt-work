@@ -198,7 +198,6 @@ uniform float uClearcoat;
 uniform float uClearcoatRough;
 uniform float uEnvReflectivity;
 uniform float uDepthEnvBoost;
-uniform float uUvLift;
 uniform vec3 uPointPos;
 uniform vec3 uPointColor;
 uniform float uPointIntensity;
@@ -292,16 +291,13 @@ void main() {
   // voxels (depthGlow ~ 0) stay dark and invisible.
   float floorGate = smoothstep( 0.12, 0.38, depthGlow );
   vec3 shadowFloor = baseAlbedo * 0.22 * floorGate;
-  // UV-style assist keeps volume readable in low-light capture.
-  vec3 uvLift = baseAlbedo * ( 0.14 + depthGlow * 0.24 ) * uUvLift;
 
   vec3 color = baseAlbedo * litAmbient
              + diffSum * baseAlbedo
              + specSum
              + env * fresnel
              + clearcoatLayer
-             + shadowFloor
-             + uvLift;
+             + shadowFloor;
 
   gl_FragColor = vec4( color, 1.0 );
 }
@@ -332,7 +328,6 @@ function createLiveUniforms(): LiveUniforms {
       uClearcoatRough: { value: 0.14 },
       uEnvReflectivity: { value: 1.15 },
       uDepthEnvBoost: { value: 1.35 },
-      uUvLift: { value: 0.06 },
       uPointPos: { value: new THREE.Vector3() },
       uPointColor: { value: new THREE.Color() },
       uPointIntensity: { value: 0 },
@@ -367,7 +362,6 @@ function updateLiveLightUniforms(
 ) {
   const nearEnergy = smoothstepScalar(0.42, 0.82, dAvg);
   const detailEnergy = smoothstepScalar(0.1, 0.42, dRange);
-  const lowLightAssist = smoothstepScalar(0, 1, (0.28 - dAvg) / 0.24);
 
   rig.key.intensity = 1.05 + nearEnergy * 0.42;
   rig.fill.intensity = 0.62 + detailEnergy * 0.34;
@@ -398,7 +392,6 @@ function updateLiveLightUniforms(
   uniforms.uPointPos!.value.setFromMatrixPosition(rig.subjectGlow.matrixWorld);
   uniforms.uPointColor!.value.copy(rig.subjectGlow.color);
   uniforms.uPointIntensity!.value = rig.subjectGlow.intensity;
-  uniforms.uUvLift!.value = 0.06 + lowLightAssist * 0.42;
 }
 
 /** Vertical blue grid behind the sculpture (live only). */
