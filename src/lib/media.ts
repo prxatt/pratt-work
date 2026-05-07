@@ -41,6 +41,8 @@ function parsePublicIdMap(raw: string): PublicIdMap {
 const STATIC_PUBLIC_ID_MAP: PublicIdMap = {
   '/work/crypt-demo.webm': 'crypt-demo_m1f5bj',
   '/work/crypt-demo.mp4': 'crypt-demo_m1f5bj',
+  '/work/keynote-wb.jpg': 'keynote-wb_p2tkr1',
+  '/work/keynote-wb.webp': 'keynote-wb_p2tkr1',
   '/work/boubyan-3.webp': 'bouybyan-3',
   '/work/boubyan-3.jpg': 'bouybyan-3',
 };
