@@ -277,7 +277,7 @@ export function getMediaUrl(
 
     const f: 'mp4' | 'webm' =
       options.format === 'webm' || options.format === 'mp4'
-        ? options.format
+            ? options.format
         : /\.webm$/i.test(trimmed)
           ? 'webm'
           : 'mp4';
