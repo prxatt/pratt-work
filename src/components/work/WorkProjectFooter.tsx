@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useCursor } from '@/context/CursorContext';
-import { getImageUrl, getVideoUrl } from '@/lib/media';
+import { getVideoUrl, resolveWorkImageSrc } from '@/lib/media';
 import { ArrowLeft, ArrowRight, Shuffle } from 'lucide-react';
 
 // Thumbnail mapping for projects
@@ -267,7 +267,7 @@ function ProjectCard({
                   /* Image Thumbnail */
                   <>
                     <Image
-                      src={getImageUrl(thumbnail.src, 1200)}
+                      src={resolveWorkImageSrc(thumbnail.src, 1200)}
                       alt={thumbnail.alt}
                       fill
                       className="object-cover"

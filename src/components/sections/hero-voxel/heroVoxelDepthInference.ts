@@ -5,8 +5,10 @@
  * Model: `onnx-community/depth-anything-v2-small` (WASM, fp32).
  *
  * IMPORTANT — X mirror is shared; ONNX polarity (`invertPolarity`) applies only
- * to tensor samples. Luminance uses brightness-as-near directly. The renderer
- * consumes the buffer with no further mirroring or inversion.
+ * to tensor samples. Luminance fallback inverts brightness so lit walls/windows
+ * read as far (otherwise white backgrounds pop forward). A light spatial blur
+ * reduces speckle when the sculpture is zoomed. The renderer consumes the
+ * buffer with no further mirroring or inversion.
  *
  * After this stage: depth is normalized to [0, 1] where HIGHER = NEARER.
  */
@@ -94,6 +96,33 @@ export function createDepthInference(opts: {
     lastDepthMap[iz * GRID_X + targetIx] = value01;
   }
 
+  /** Separable-ish 3×3 smoothing to cut high-frequency speckle before sculpt. */
+  function smoothDepthGrid(passes: number) {
+    const tmp = new Float32Array(cellCount);
+    const k = [
+      [1, 2, 1],
+      [2, 4, 2],
+      [1, 2, 1],
+    ];
+    const wsum = 16;
+    for (let p = 0; p < passes; p++) {
+      for (let iz = 0; iz < GRID_Z; iz++) {
+        for (let ix = 0; ix < GRID_X; ix++) {
+          let acc = 0;
+          for (let kz = -1; kz <= 1; kz++) {
+            for (let kx = -1; kx <= 1; kx++) {
+              const nx = Math.min(GRID_X - 1, Math.max(0, ix + kx));
+              const nz = Math.min(GRID_Z - 1, Math.max(0, iz + kz));
+              acc += lastDepthMap[nz * GRID_X + nx] * k[kz + 1][kx + 1];
+            }
+          }
+          tmp[iz * GRID_X + ix] = acc / wsum;
+        }
+      }
+      lastDepthMap.set(tmp);
+    }
+  }
+
   function runLuminanceFallback() {
     if (!lumCtx || !opts.video.videoWidth) return;
     lumCtx.drawImage(opts.video, 0, 0, GRID_X, GRID_Z);
@@ -106,11 +135,13 @@ export function createDepthInference(opts: {
             0.587 * pixels[pi + 1] +
             0.114 * pixels[pi + 2]) /
           255;
-        // Luminance is a heuristic depth proxy: well-lit pixels tend to be
-        // near. Stored directly under the canonical "high = near" convention.
-        writeCell(ix, iz, Math.pow(lum, 0.65));
+        // Heuristic without ML: assume the subject is darker / more central in
+        // contrast to bright walls and windows — map "bright = far".
+        const inv = Math.min(1, Math.max(0, 1 - lum));
+        writeCell(ix, iz, Math.pow(inv, 0.72));
       }
     }
+    smoothDepthGrid(2);
   }
 
   function sampleTensorToGrid(rawData: Float32Array, dW: number, dH: number) {
@@ -141,6 +172,7 @@ export function createDepthInference(opts: {
         writeCell(ix, iz, norm);
       }
     }
+    smoothDepthGrid(2);
   }
 
   async function infer() {
