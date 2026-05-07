@@ -14,8 +14,7 @@ interface OptimizedImageProps {
 }
 
 /**
- * OptimizedImage - Automatically uses Cloudinary when configured
- * Falls back to local paths during development
+ * OptimizedImage - Uses the project media URL resolver for optimized delivery.
  */
 export function OptimizedImage({
   src,

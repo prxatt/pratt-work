@@ -1,18 +1,20 @@
 'use strict';
 
 /**
- * Vercel-only guard: if we ship without Cloudinary, `public/` image/video files must be real
- * binaries. Git LFS pointer files look like text starting with `version https://git-lfs...`;
- * next/image returns 400 for pointer "images", and `<video>` / direct URLs serve unusable data
- * for pointer "videos" unless LFS objects are present at build time.
+ * Vercel-only guard: `public/` image/video files must be real binaries.
+ * Git LFS pointer files look like text starting with `version https://git-lfs...`;
+ * next/image returns 400 for pointer "images", and `<video>` / direct URLs
+ * serve unusable data for pointer "videos".
  */
 const fs = require('fs');
 const path = require('path');
 
 if (process.env.VERCEL !== '1') process.exit(0);
-if ((process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || '').trim()) process.exit(0);
-if (/^(off|0|false)$/i.test((process.env.NEXT_PUBLIC_CLOUDINARY_MEDIA || '').trim())) process.exit(0);
-
+const cloudinaryMediaFlag = (process.env.NEXT_PUBLIC_CLOUDINARY_MEDIA || '').trim();
+const cloudinaryEnabled = !/^(off|0|false)$/i.test(cloudinaryMediaFlag);
+// In this repo, Cloudinary is the default media path. Only enforce LFS-byte checks
+// when Cloudinary delivery is explicitly disabled.
+if (cloudinaryEnabled) process.exit(0);
 const root = path.join(process.cwd(), 'public');
 if (!fs.existsSync(root)) process.exit(0);
 
@@ -52,12 +54,11 @@ function checkFile(p) {
     console.error('[verify-public-media] Git LFS pointer in public/ (not real media bytes):');
     console.error('  ' + rel);
     console.error('');
-    console.error('Without NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME, the app uses direct media URLs');
-    console.error('(root-relative paths and/or NEXT_PUBLIC_MEDIA_BASE_URL), not Cloudinary transforms.');
+    console.error('Cloudinary delivery is disabled and this app serves root-relative/public media.');
     console.error('LFS pointers break next/image (400) and video playback in production.');
     console.error('');
-    console.error('Fix: add NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME to this Vercel environment and redeploy,');
-    console.error('or migrate media out of Git LFS so public/ contains real binaries.');
+    console.error('Fix: set NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME on Vercel for Cloudinary delivery,');
+    console.error('or upload real media bytes (not LFS pointers) to public/ before deploy.');
     console.error('');
     process.exit(1);
   }

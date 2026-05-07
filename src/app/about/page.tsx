@@ -13,7 +13,7 @@ const AICredentials = dynamic(() => import("@/components/sections/AICredentials"
 
 export const metadata: Metadata = {
   title: 'About — Pratt Majmudar',
-  description: 'Creative Technologist + Executive Producer. 9+ years building experiences that shift perspectives.',
+  description: 'Creative Technologist + Producer. 9+ years building experiences that shift perspectives.',
 };
 
 export default function AboutPage() {

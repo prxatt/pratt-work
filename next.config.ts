@@ -15,9 +15,9 @@ const csp = [
   "frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com",
   scriptSrc,
   "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob: https://*.public.blob.vercel-storage.com",
+  "img-src 'self' data: blob: https://*.public.blob.vercel-storage.com https://res.cloudinary.com https://*.cloudinary.com",
   "font-src 'self' data:",
-  "media-src 'self' blob: https://*.public.blob.vercel-storage.com",
+  "media-src 'self' blob: https://*.public.blob.vercel-storage.com https://res.cloudinary.com https://*.cloudinary.com",
   "connect-src 'self' https://vitals.vercel-insights.com https://*.vercel-insights.com https://cdn.jsdelivr.net https://huggingface.co https://*.huggingface.co https://vercel.live https://*.vercel.live",
   "worker-src 'self' blob:",
   "upgrade-insecure-requests",
@@ -48,6 +48,12 @@ const nextConfig: NextConfig = {
       {
         protocol: 'https',
         hostname: '**.public.blob.vercel-storage.com',
+        pathname: '/**',
+      },
+      // Cloudinary (primary media CDN).
+      {
+        protocol: 'https',
+        hostname: 'res.cloudinary.com',
         pathname: '/**',
       },
     ],

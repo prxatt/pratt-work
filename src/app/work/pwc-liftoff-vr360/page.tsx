@@ -17,7 +17,7 @@ export default function PwcLiftoffPage() {
     title: 'PwC Liftoff Accelerators Conference in VR 360',
     year: '2023',
     category: ['EXPERIENTIAL', 'VR 360'],
-    role: 'Executive Producer',
+    role: 'Videographer + Producer',
     description: 'Large-scale conference captured in immersive 360° VR for global distribution.',
   };
 
