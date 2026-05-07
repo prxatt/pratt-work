@@ -1,24 +1,19 @@
 'use client';
 
 /**
- * CryptVolumetric3D — True photorealistic volumetric depth sculpture from pre-recorded video.
+ * CryptVolumetric3D — Photorealistic volumetric depth sculpture from synchronized multi-view capture.
  *
  * Architecture:
- *   • ~14 400 voxels (160 × 90, 16:9) rendered as a single InstancedMesh draw call.
- *   • VideoTexture: actual video pixel colors sampled at each voxel's UV → photorealistic, zero
- *     synthetic colour ramp.
- *   • Depth-Anything v2 (ONNX WASM) inferred every ~90 ms on the playing video frame; luminance
- *     fallback is instant so the sculpture never waits for model load.
- *   • Per-voxel `instanceDepth` attribute (DynamicDrawUsage) drives Z-extrusion in the vertex
- *     shader — near voxels push toward the camera, creating genuine 3-D parallax visible on orbit.
- *   • CPU-side exponential lerp (~60 Hz render ÷ ~11 Hz inference) keeps depth smooth between
- *     inference frames without artefacts.
- *   • Professional 3-light rig (key + fill + rim) in the fragment shader responds to real surface
- *     normals, making the depth relief feel physically solid.
- *   • Lite tier (low-end / reduced-motion): 80 × 45 = 3 600 voxels, no antialias, 1× pixel ratio.
+ *   • Up to six simultaneous captures of the same beat are played in lock-step.
+ *   • RGB on the sculpture = hero view (capture 0) only — full photographic fidelity.
+ *   • Depth is never inferred per-camera in isolation: all active captures are fused into one 16:9
+ *     frame (per-pixel mean RGB in shared screen space), then Depth-Anything v2 runs exactly once
+ *     on that fused frame — one monocular depth map encoding multi-sensor consensus.
+ *   • ~14 400 voxels (160 × 90) InstancedMesh; per-voxel instanceDepth drives Z-extrusion.
+ *   • Lite tier: 80 × 45 voxels and first three captures only (decode + fuse budget on mobile).
  */
 
-import { useEffect, useRef, useCallback, useState } from 'react';
+import { useEffect, useRef, useCallback, useState, useMemo } from 'react';
 import { Maximize2, Minimize2 } from 'lucide-react';
 import { useDeviceCapabilities } from '@/hooks/useReducedMotion';
 
@@ -50,6 +45,93 @@ const EXTRUSION_FAR = 0.04;
 const DEPTH_POW = 1.18;
 /** Exponential lerp factor per render frame — smooths depth transitions. */
 const DEPTH_LERP = 0.13;
+
+/** Simultaneous depth/rgb captures (six-sensor rig). */
+const MAX_SIMULTANEOUS_CAPTURES = 6;
+/** Low-end: fuse fewer decodes; depth still from one fused tensor. */
+const MAX_CAPTURES_LITE = 3;
+
+export type CryptFusionViewSource = {
+  webmSrc?: string;
+  mp4Src?: string;
+};
+
+function normalizeCryptFusionSources(p: {
+  fusionSources?: CryptFusionViewSource[];
+  webmSrc?: string;
+  mp4Src?: string;
+}): CryptFusionViewSource[] {
+  let list: CryptFusionViewSource[];
+  if (p.fusionSources?.length) {
+    list = p.fusionSources.filter((s) => !!(s.webmSrc?.trim() || s.mp4Src?.trim()));
+  } else if (p.webmSrc?.trim() || p.mp4Src?.trim()) {
+    list = [{ webmSrc: p.webmSrc, mp4Src: p.mp4Src }];
+  } else {
+    list = [];
+  }
+  return list.slice(0, MAX_SIMULTANEOUS_CAPTURES);
+}
+
+function syncSlaveVideos(primary: HTMLVideoElement, slaves: HTMLVideoElement[]) {
+  if (!primary.videoWidth) return;
+  const t = primary.currentTime;
+  for (const v of slaves) {
+    if (v.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) continue;
+    if (v.seeking) continue;
+    if (Math.abs(v.currentTime - t) > 0.05) {
+      try {
+        v.currentTime = t;
+      } catch {
+        /* seek can fail briefly on some browsers */
+      }
+    }
+  }
+}
+
+/**
+ * Fuses all synchronized captures into one image via per-pixel arithmetic mean (RGB).
+ * Single tensor feed for monocular depth — not six separate depth maps.
+ */
+function fuseCapturesToCtx(
+  targetCtx: CanvasRenderingContext2D,
+  captures: HTMLVideoElement[],
+  w: number,
+  h: number,
+  tmpCanvas: HTMLCanvasElement,
+  acc: Float32Array
+): boolean {
+  const pxLen = w * h * 4;
+  if (acc.length < pxLen) return false;
+  acc.fill(0);
+  const tmpCtx = tmpCanvas.getContext('2d', { willReadFrequently: true });
+  if (!tmpCtx) return false;
+  if (tmpCanvas.width !== w || tmpCanvas.height !== h) {
+    tmpCanvas.width = w;
+    tmpCanvas.height = h;
+  }
+
+  let n = 0;
+  for (const v of captures) {
+    if (v.readyState < HTMLMediaElement.HAVE_CURRENT_DATA || !v.videoWidth) continue;
+    tmpCtx.drawImage(v, 0, 0, w, h);
+    const px = tmpCtx.getImageData(0, 0, w, h).data;
+    for (let i = 0; i < pxLen; i++) acc[i] += px[i];
+    n++;
+  }
+  if (n === 0) return false;
+
+  const inv = 1 / n;
+  const out = targetCtx.createImageData(w, h);
+  const od = out.data;
+  for (let i = 0; i < pxLen; i += 4) {
+    od[i] = Math.min(255, Math.round(acc[i]! * inv));
+    od[i + 1] = Math.min(255, Math.round(acc[i + 1]! * inv));
+    od[i + 2] = Math.min(255, Math.round(acc[i + 2]! * inv));
+    od[i + 3] = 255;
+  }
+  targetCtx.putImageData(out, 0, 0);
+  return true;
+}
 
 // ── Vertex Shader ─────────────────────────────────────────────────────────────
 // Per-voxel `instanceDepth` (from depth inference) drives the Z push.
@@ -158,8 +240,14 @@ void main() {
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 interface CryptVolumetric3DProps {
+  /** Hero (RGB) path — also used if `fusionSources` is omitted (single-view fallback). */
   webmSrc?: string;
   mp4Src?: string;
+  /**
+   * Up to six time-synchronized captures of the same moment. All are fused into one frame for
+   * a single Depth-Anything pass; index 0 is the hero RGB texture on the voxels.
+   */
+  fusionSources?: CryptFusionViewSource[];
   posterSrc?: string;
   /** Legacy — kept for backward compatibility; unused. */
   depthIntensity?: number;
@@ -172,9 +260,15 @@ interface CryptVolumetric3DProps {
 export default function CryptVolumetric3D({
   webmSrc = '',
   mp4Src = '',
+  fusionSources,
   posterSrc,
   height = '70vh',
 }: CryptVolumetric3DProps) {
+  const fusionEntries = useMemo(
+    () => normalizeCryptFusionSources({ fusionSources, webmSrc, mp4Src }),
+    [fusionSources, webmSrc, mp4Src]
+  );
+  const heroSource = fusionEntries[0];
   const mountRef      = useRef<HTMLDivElement>(null);
   const rootRef       = useRef<HTMLDivElement>(null);
   const canvasElRef   = useRef<HTMLCanvasElement | null>(null);
@@ -242,6 +336,12 @@ export default function CryptVolumetric3D({
     const container = mountRef.current;
     if (!container) return;
 
+    if (fusionEntries.length === 0) {
+      initFailedRef.current = true;
+      setShowFallback(true);
+      return () => {};
+    }
+
     let aborted = false;
 
     (async () => {
@@ -258,6 +358,9 @@ export default function CryptVolumetric3D({
         const gx    = lite ? GX_LITE : GX_FULL;
         const gz    = lite ? GZ_LITE : GZ_FULL;
         const count = gx * gz;
+
+        const maxCaptures = lite ? MAX_CAPTURES_LITE : MAX_SIMULTANEOUS_CAPTURES;
+        const sourcesForRig = fusionEntries.slice(0, maxCaptures);
 
         // ── Renderer ────────────────────────────────────────────────────────
         const renderer = new THREE.WebGLRenderer({
@@ -312,14 +415,31 @@ export default function CryptVolumetric3D({
         renderer.domElement.addEventListener('pointerdown', pauseAutoRotate);
         renderer.domElement.addEventListener('wheel', pauseAutoRotate, { passive: true });
 
-        // ── Video element ────────────────────────────────────────────────────
-        const video = document.createElement('video');
-        video.autoplay    = true;
-        video.muted       = true;
-        video.loop        = true;
-        video.playsInline = true;
-        video.crossOrigin = 'anonymous';
-        if (posterSrc) video.poster = posterSrc;
+        // ── Synchronized capture stack (hero = index 0 for RGB) ─────────────
+        const captureVideos: HTMLVideoElement[] = [];
+        for (let ci = 0; ci < sourcesForRig.length; ci++) {
+          const src = sourcesForRig[ci]!;
+          const v = document.createElement('video');
+          v.autoplay = true;
+          v.muted = true;
+          v.loop = true;
+          v.playsInline = true;
+          v.crossOrigin = 'anonymous';
+          if (posterSrc && ci === 0) v.poster = posterSrc;
+
+          const sw = document.createElement('source');
+          sw.src = src.webmSrc ?? '';
+          sw.type = 'video/webm';
+          const sm = document.createElement('source');
+          sm.src = src.mp4Src ?? '';
+          sm.type = 'video/mp4';
+          v.appendChild(sw);
+          v.appendChild(sm);
+          captureVideos.push(v);
+        }
+
+        const primaryVideo = captureVideos[0]!;
+        const slaveVideos = captureVideos.slice(1);
 
         let videoHasFrame = false;
         const onVideoLoaded = () => {
@@ -329,32 +449,25 @@ export default function CryptVolumetric3D({
         const onVideoError = () => {
           if (!aborted) setShowFallback(true);
         };
-        video.addEventListener('loadeddata', onVideoLoaded);
-        video.addEventListener('error', onVideoError);
-
-        // Sources added before play() to prevent race conditions
-        const sWebm = document.createElement('source');
-        sWebm.src  = webmSrc;
-        sWebm.type = 'video/webm';
-        const sMp4 = document.createElement('source');
-        sMp4.src   = mp4Src;
-        sMp4.type  = 'video/mp4';
-        video.appendChild(sWebm);
-        video.appendChild(sMp4);
+        primaryVideo.addEventListener('loadeddata', onVideoLoaded);
+        primaryVideo.addEventListener('error', onVideoError);
 
         const videoFailTimer = window.setTimeout(() => {
           if (!videoHasFrame && !aborted) setShowFallback(true);
         }, 3000);
 
-        video.play().catch(() => {
-          const resume = () => {
-            video.play();
-            container.removeEventListener('click', resume);
-          };
-          container.addEventListener('click', resume);
-        });
+        const playAllCaptures = () => {
+          void Promise.all(captureVideos.map((v) => v.play())).catch(() => {
+            const resume = () => {
+              void Promise.all(captureVideos.map((x) => x.play()));
+              container.removeEventListener('click', resume);
+            };
+            container.addEventListener('click', resume);
+          });
+        };
+        playAllCaptures();
 
-        const videoTexture          = new THREE.VideoTexture(video);
+        const videoTexture          = new THREE.VideoTexture(primaryVideo);
         videoTexture.minFilter      = THREE.LinearFilter;
         videoTexture.magFilter      = THREE.LinearFilter;
         videoTexture.format         = THREE.RGBAFormat;
@@ -468,6 +581,10 @@ export default function CryptVolumetric3D({
         inferCanvas.height  = INFER_H;
         const inferCtx      = inferCanvas.getContext('2d', { willReadFrequently: true });
 
+        const fuseTmpCanvas = document.createElement('canvas');
+        const fuseAccInfer  = new Float32Array(INFER_W * INFER_H * 4);
+        const fuseAccLum    = new Float32Array(gx * gz * 4);
+
         const lumCanvas  = document.createElement('canvas');
         lumCanvas.width  = gx;
         lumCanvas.height = gz;
@@ -502,10 +619,15 @@ export default function CryptVolumetric3D({
           }
         })();
 
-        /** Fast luminance proxy — runs immediately while the ONNX model loads. */
+        /** Fast luminance proxy on the fused multi-capture frame (same tensor policy as ONNX path). */
         function runLumFallback() {
-          if (!lumCtx || !video.videoWidth) return;
-          lumCtx.drawImage(video, 0, 0, gx, gz);
+          if (!lumCtx || !primaryVideo.videoWidth) return;
+          syncSlaveVideos(primaryVideo, slaveVideos);
+          if (
+            !fuseCapturesToCtx(lumCtx, captureVideos, gx, gz, fuseTmpCanvas, fuseAccLum)
+          ) {
+            return;
+          }
           const px  = lumCtx.getImageData(0, 0, gx, gz).data;
           let lo = 1, hi = 0;
           const lums = new Float32Array(count);
@@ -595,14 +717,27 @@ export default function CryptVolumetric3D({
         }
 
         async function runDepthInference() {
-          if (depthBusy || !video.videoWidth) return;
+          if (depthBusy || !primaryVideo.videoWidth) return;
           depthBusy = true;
           try {
             if (!depthModelReady || !depthPipeline || !inferCtx) {
               runLumFallback();
               return;
             }
-            inferCtx.drawImage(video, 0, 0, INFER_W, INFER_H);
+            syncSlaveVideos(primaryVideo, slaveVideos);
+            if (
+              !fuseCapturesToCtx(
+                inferCtx,
+                captureVideos,
+                INFER_W,
+                INFER_H,
+                fuseTmpCanvas,
+                fuseAccInfer
+              )
+            ) {
+              runLumFallback();
+              return;
+            }
             const result = await (depthPipeline as (input: HTMLCanvasElement) => Promise<{
               predicted_depth?: { data: Float32Array | number[]; dims: number[] };
               depth?: { data: Float32Array | number[]; dims: number[] };
@@ -673,8 +808,8 @@ export default function CryptVolumetric3D({
           cancelAnimationFrame(animId);
           clearInterval(inferInterval);
           window.clearTimeout(videoFailTimer);
-          video.removeEventListener('loadeddata', onVideoLoaded);
-          video.removeEventListener('error', onVideoError);
+          primaryVideo.removeEventListener('loadeddata', onVideoLoaded);
+          primaryVideo.removeEventListener('error', onVideoError);
           renderer.domElement.removeEventListener('pointerdown', pauseAutoRotate);
           renderer.domElement.removeEventListener('wheel', pauseAutoRotate);
           if (autoRotateTimer) clearTimeout(autoRotateTimer);
@@ -683,9 +818,11 @@ export default function CryptVolumetric3D({
           geo.dispose();
           mat.dispose();
           videoTexture.dispose();
-          video.pause();
-          video.src = '';
-          video.load();
+          for (const v of captureVideos) {
+            v.pause();
+            v.replaceChildren();
+            v.load();
+          }
           controls.dispose();
           renderer.dispose();
           if (container.contains(renderer.domElement)) {
@@ -709,7 +846,7 @@ export default function CryptVolumetric3D({
       cleanupRef.current?.();
       cleanupRef.current = null;
     };
-  }, []); // intentionally empty — Three.js scene initialises once
+  }, [lite, fusionEntries]); // re-init when capture manifest or performance tier changes
 
   useEffect(() => {
     const cleanup = initScene();
@@ -798,8 +935,8 @@ export default function CryptVolumetric3D({
           className="absolute inset-0 z-[3] h-full w-full object-cover"
           aria-label="Volumetric video playback fallback"
         >
-          <source src={webmSrc} type="video/webm" />
-          <source src={mp4Src}  type="video/mp4"  />
+          <source src={heroSource?.webmSrc ?? ''} type="video/webm" />
+          <source src={heroSource?.mp4Src ?? ''} type="video/mp4" />
         </video>
       )}
 

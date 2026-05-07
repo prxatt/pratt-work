@@ -426,6 +426,19 @@ export default function TheCryptPage() {
 
   const { enableParallax, prefersReducedMotion } = useDeviceCapabilities();
 
+  /** Six time-synchronized angles; all are fused for one depth tensor — slot `00` is hero RGB. */
+  const cryptSixCaptureFusion = useMemo(
+    () =>
+      Array.from({ length: 6 }, (_, i) => {
+        const id = String(i).padStart(2, '0');
+        return {
+          webmSrc: getVideoUrl(`/work/crypt-6cap-${id}.webm`),
+          mp4Src: getVideoUrl(`/work/crypt-6cap-${id}.mp4`),
+        };
+      }),
+    []
+  );
+
   const springConfig = { damping: 30, stiffness: 200 };
   const mouseX = useSpring(0, springConfig);
   const mouseY = useSpring(0, springConfig);
@@ -865,11 +878,7 @@ export default function TheCryptPage() {
               {/* Content area — min height on small screens; cinematic 21:9 from md up */}
               <div className="relative flex h-[min(72vh,100vw)] w-full items-center justify-center overflow-hidden bg-gradient-to-b from-[#050505] via-[#080808] to-[#050505] md:aspect-[21/9] md:h-auto md:min-h-[min(24rem,52vh)] lg:min-h-[min(28rem,56vh)]">
                 {/* Interactive 3D volumetric capture - drag to orbit; fullscreen control top-right */}
-                <CryptVolumetric3D
-                  webmSrc={getVideoUrl('/work/crypt-3d.webm')}
-                  mp4Src={getVideoUrl('/work/crypt-3d.mp4')}
-                  height="100%"
-                />
+                <CryptVolumetric3D fusionSources={cryptSixCaptureFusion} height="100%" />
                 
                 {/* Subtle overlay to ensure UI readability */}
                 <div className="absolute inset-0 bg-[#030303]/30 z-[1] pointer-events-none" />
