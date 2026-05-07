@@ -4,7 +4,7 @@ export const siteUrl =
 
 export const siteConfig = {
   name: "Pratt Majmudar",
-  role: "Creative Technologist + Executive Producer",
+  role: "Creative Technologist + Producer",
   location: "San Francisco",
   email: "hello@pratt.work",
   /** Canonical public URL for this site — https://pratt.work */

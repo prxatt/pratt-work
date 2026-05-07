@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0A0C14">
+        <animate attributeName="stop-color" values="#0A0C14;#11172B;#0A0C14" dur="6s" repeatCount="indefinite" />
+      </stop>
+      <stop offset="100%" stop-color="#121B36">
+        <animate attributeName="stop-color" values="#121B36;#0D1224;#121B36" dur="6s" repeatCount="indefinite" />
+      </stop>
+    </linearGradient>
+    <linearGradient id="stroke" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#94E5FF" />
+      <stop offset="50%" stop-color="#8A7CFF" />
+      <stop offset="100%" stop-color="#70FFD6" />
+    </linearGradient>
+    <filter id="glow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="1.2" result="b" />
+      <feMerge>
+        <feMergeNode in="b" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+  </defs>
+
+  <rect width="64" height="64" rx="14" fill="url(#bg)" />
+
+  <g stroke="url(#stroke)" stroke-linecap="round" stroke-linejoin="round" fill="none" filter="url(#glow)">
+    <path d="M18 45V19h14c7 0 11 4 11 10s-4 10-11 10h-8" stroke-width="3.2">
+      <animate attributeName="stroke-opacity" values="0.7;1;0.7" dur="2.8s" repeatCount="indefinite" />
+    </path>
+    <path d="M36 37l10 8" stroke-width="3.2">
+      <animateTransform attributeName="transform" type="rotate" values="0 36 37;4 36 37;0 36 37" dur="2.8s" repeatCount="indefinite" />
+    </path>
+  </g>
+</svg>

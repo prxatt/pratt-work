@@ -36,7 +36,7 @@ function homepageMarkdown(origin: string): string {
   return [
     '# Pratt Majmudar',
     '',
-    'Creative Technologist + Executive Producer based in San Francisco.',
+    'Creative Technologist + Producer based in San Francisco.',
     '',
     `- Work: ${origin}/work`,
     `- About: ${origin}/about`,

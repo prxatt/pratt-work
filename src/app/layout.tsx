@@ -39,15 +39,15 @@ const jetbrainsMono = JetBrains_Mono({
 export const metadata: Metadata = {
   metadataBase: new URL(siteConfig.url),
   title: {
-    default: "Pratt Majmudar | Creative Technologist & Executive Producer",
+    default: "Pratt Majmudar | Creative Technologist & Producer",
     template: "%s | Pratt Majmudar",
   },
   description:
-    "Executive Producer building large-scale experiential productions and AI-powered applications.",
+    "Producer building large-scale experiential productions and AI-powered applications.",
   keywords: [
     "Pratt Majmudar",
     "creative technologist",
-    "executive producer",
+    "producer",
     "experiential design",
     "immersive production",
     "AI events",
@@ -78,15 +78,20 @@ export const metadata: Metadata = {
     locale: "en_US",
     url: siteConfig.url,
     siteName: siteConfig.name,
-    title: "Pratt Majmudar | Creative Technologist & Executive Producer",
+    title: "Pratt Majmudar | Creative Technologist & Producer",
     description:
-      "Executive Producer building large-scale experiential productions and AI-powered applications.",
+      "Producer building large-scale experiential productions and AI-powered applications.",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Pratt Majmudar | Creative Technologist & Executive Producer",
+    title: "Pratt Majmudar | Creative Technologist & Producer",
     description:
-      "Executive Producer building large-scale experiential productions and AI-powered applications.",
+      "Producer building large-scale experiential productions and AI-powered applications.",
+  },
+  icons: {
+    icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
+    shortcut: ["/icon.svg"],
+    apple: ["/icon.svg"],
   },
 };
 
@@ -99,7 +104,7 @@ const structuredData = {
       name: siteConfig.name,
       url: siteConfig.url,
       description:
-        "Executive Producer building large-scale experiential productions and AI-powered applications.",
+        "Producer building large-scale experiential productions and AI-powered applications.",
       publisher: { "@id": `${siteConfig.url}/#person` },
       inLanguage: "en-US",
       potentialAction: {
