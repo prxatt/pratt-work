@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { motion, useReducedMotion, useScroll, useTransform } from 'framer-motion';
 
-const FaultyTerminal = dynamic(() => import('@/components/ui/FaultyTerminal'), {
+const AboutHeroRaymarch = dynamic(() => import('@/components/about/AboutHeroRaymarch'), {
   ssr: false,
 });
 
@@ -208,31 +208,15 @@ export const AboutHero = () => {
         />
       </div>
 
-      {/* Layer 8: shader field (profile preserved — stutter fix + flower character) */}
+      {/* Layer 8: Three.js raymarch wave field (reference shader; typography unchanged) */}
       <div className="absolute inset-0 z-[8] min-h-[100dvh] pointer-events-none overflow-hidden">
         {!hasMounted ? (
           <div className="absolute inset-0" style={staticFieldBg} />
         ) : (
-          <FaultyTerminal
-            scale={clientTouch ? 1.24 : 1.5}
-            gridMul={clientTouch ? [2.02, 2.04] : [2.24, 2.16]}
-            digitSize={1.0}
-            timeScale={prefersReducedMotion ? 0.034 : clientTouch ? 0.102 : 0.116}
-            scanlineIntensity={0.01}
-            glitchAmount={1}
-            flickerAmount={0}
-            noiseAmp={clientLowEnd ? 0.26 : 0.32}
-            curvature={0.055}
-            chromaticAberration={0}
-            dither={0}
-            tint="#F5F5F3"
-            mouseReact={false}
-            mouseStrength={0}
-            pageLoadAnimation={false}
-            brightness={0.72}
-            flowJitter={0.12}
+          <AboutHeroRaymarch
+            className="absolute inset-0 min-h-[100dvh] size-full"
             dpr={shaderDpr}
-            pause={false}
+            motionScale={prefersReducedMotion ? 0.22 : 1}
           />
         )}
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_38%,rgba(13,13,13,0.28)_100%)]" />
