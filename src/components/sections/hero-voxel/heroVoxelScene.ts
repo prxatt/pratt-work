@@ -53,6 +53,10 @@ const LIVE_CENTER_MASK_EXP = 1.35;
 // readable without amplifying far noise.
 const LIVE_NEAR_BOOST_EDGE = 0.62;
 const LIVE_NEAR_BOOST_AMOUNT = 0.24;
+// Occupancy hysteresis: stabilizes edge voxels and prevents dance/flicker.
+const LIVE_OCCUPANCY_ON = 0.24;
+const LIVE_OCCUPANCY_OFF = 0.17;
+const LIVE_BG_COLLAPSE_SCALE = 0.002;
 
 /** Z parallax added on top of shader extrusion — keep modest so the sculpture
  *  doesn't explode when orbiting. */
@@ -115,6 +119,7 @@ type VoxelPack = {
   currentZPush: Float32Array;
   workDepth: Float32Array;
   centerWeights: Float32Array;
+  voxelActive: Uint8Array;
   count: number;
 };
 
@@ -583,7 +588,6 @@ export async function mountHeroVoxelScene(
     let dSum = 0;
     let centerSum = 0;
     let centerWeightSum = 0;
-    let nearCount = 0;
     const histogram = new Uint16Array(32);
 
     liveUniforms.uExtrusionNear!.value = LIVE_EXTRUSION_NEAR * extrusionBoost;
@@ -603,7 +607,6 @@ export async function mountHeroVoxelScene(
       if (dFinal < dMin) dMin = dFinal;
       if (dFinal > dMax) dMax = dFinal;
       dSum += dFinal;
-      if (dFinal > 0.64) nearCount += 1;
       const centerWeight = voxels.centerWeights[i];
       centerSum += dFinal * centerWeight;
       centerWeightSum += centerWeight;
@@ -626,8 +629,6 @@ export async function mountHeroVoxelScene(
     const centerAvg = centerSum / Math.max(centerWeightSum, 1e-4);
     const centerDominance = Math.max(0, centerAvg - dAvg);
     const farCut = THREE.MathUtils.clamp(farCutBase + centerDominance * 0.22, 0, 1);
-    const foregroundPresent = nearCount > voxelCount * 0.012;
-    const bgSuppression = foregroundPresent ? 0.16 : 1.0;
 
     for (let i = 0; i < voxelCount; i++) {
       const dFinal = voxels.workDepth[i];
@@ -644,8 +645,7 @@ export async function mountHeroVoxelScene(
         1,
         Math.pow(centerWeight, LIVE_CENTER_MASK_EXP)
       );
-      const dMasked =
-        dFinal * subjectMask * centerMask * THREE.MathUtils.lerp(bgSuppression, 1, subjectMask);
+      const dMasked = dFinal * subjectMask * centerMask;
       // Gentle near-boost: only the very nearest 20% of the subject gets a lift
       // so the shape reads correctly without noise being inflated.
       const nearBoost = smoothstepScalar(LIVE_NEAR_BOOST_EDGE, 1, dMasked);
@@ -655,24 +655,28 @@ export async function mountHeroVoxelScene(
         1
       );
 
-      const targetZ = (dShaped - 0.5) * 2 * LIVE_Z_RELIEF * extrusionBoost;
-      voxels.currentZPush[i] += (targetZ - voxels.currentZPush[i]) * lerp;
-
       const baseIdx = i * 3;
       const x = voxels.basePositions[baseIdx];
       const y = voxels.basePositions[baseIdx + 1];
-      const z = voxels.currentZPush[i];
-      const visible = foregroundPresent
-        ? smoothstepScalar(0.18, 0.42, dShaped)
-        : smoothstepScalar(0.05, 0.2, dShaped);
-      const particleScale = 0.08 + visible * 0.92;
+      const wasActive = voxels.voxelActive[i] === 1;
+      const nowActive = wasActive ? dShaped > LIVE_OCCUPANCY_OFF : dShaped > LIVE_OCCUPANCY_ON;
+      voxels.voxelActive[i] = nowActive ? 1 : 0;
 
-      dummy.position.set(x, y, z);
-      dummy.scale.set(particleScale, particleScale, particleScale);
+      if (!nowActive) {
+        voxels.currentZPush[i] += ((-LIVE_Z_RELIEF * 0.65) - voxels.currentZPush[i]) * lerp;
+        dummy.position.set(x, y, voxels.currentZPush[i]);
+        dummy.scale.set(LIVE_BG_COLLAPSE_SCALE, LIVE_BG_COLLAPSE_SCALE, LIVE_BG_COLLAPSE_SCALE);
+        voxels.instanceDepth.array[i] = 0;
+      } else {
+        const targetZ = (dShaped - 0.5) * 2 * LIVE_Z_RELIEF * extrusionBoost;
+        voxels.currentZPush[i] += (targetZ - voxels.currentZPush[i]) * lerp;
+        dummy.position.set(x, y, voxels.currentZPush[i]);
+        dummy.scale.set(1, 1, 1);
+        voxels.instanceDepth.array[i] = dShaped;
+      }
+
       dummy.updateMatrix();
       voxels.mesh.setMatrixAt(i, dummy.matrix);
-
-      voxels.instanceDepth.array[i] = dShaped;
     }
 
     const dRange = dMax - dMin;
@@ -868,6 +872,7 @@ function createVoxelGrid(
   const currentZPush = new Float32Array(count);
   const workDepth = new Float32Array(count);
   const centerWeights = new Float32Array(count);
+  const voxelActive = new Uint8Array(count);
 
   const offsetX = (GRID_X - 1) * VOXEL_SPACING * 0.5;
   const offsetY = (GRID_Z - 1) * VOXEL_SPACING * 0.5;
@@ -921,6 +926,7 @@ function createVoxelGrid(
     currentZPush,
     workDepth,
     centerWeights,
+    voxelActive,
     count,
   };
 }
