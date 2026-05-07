@@ -1,16 +1,27 @@
 const ABS_URL_RE = /^https?:\/\//i;
-const BLOB = (
-  process.env.NEXT_PUBLIC_MEDIA_BASE_URL ||
-  'https://b8irodxhw2qbsjk2.public.blob.vercel-storage.com'
-).replace(/\/+$/, '');
+const ROOT_PATH_RE = /^\//;
+const MEDIA_BASE =
+  (
+    process.env.NEXT_PUBLIC_MEDIA_BASE_URL ||
+    process.env.NEXT_PUBLIC_BLOB_BASE_URL ||
+    process.env.NEXT_PUBLIC_VERCEL_BLOB_BASE_URL ||
+    ''
+  ).trim().replace(/\/+$/, '');
 
 /** Expects trimmed input for relative paths. */
 function toBlobUrl(trimmedLocalPath: string): string {
   if (trimmedLocalPath.startsWith('//') || ABS_URL_RE.test(trimmedLocalPath)) {
     return trimmedLocalPath;
   }
-  const normalized = trimmedLocalPath.startsWith('/') ? trimmedLocalPath : `/${trimmedLocalPath}`;
-  return `${BLOB}${normalized}`;
+  const isRootRelative = ROOT_PATH_RE.test(trimmedLocalPath);
+  const normalized = isRootRelative ? trimmedLocalPath : `/${trimmedLocalPath}`;
+  // Root-relative paths are files under public/. Serve from same-origin first
+  // to avoid unnecessary Vercel Blob transfer and quota exhaustion.
+  if (isRootRelative) return normalized;
+  // No hardcoded blob bucket fallback: if env is absent/misconfigured, keep
+  // same-origin URLs so media still resolves in local/dev and can be verified.
+  if (!MEDIA_BASE) return normalized;
+  return `${MEDIA_BASE}${normalized}`;
 }
 
 /** Expects trimmed input. */
@@ -19,9 +30,11 @@ function normalizeImagePath(
   format: 'auto' | 'webp' | 'avif' | 'jpg' = 'auto'
 ): string {
   if (localPath.startsWith('//') || ABS_URL_RE.test(localPath)) return localPath;
+  if (localPath.startsWith('/')) return localPath;
   if (format === 'auto') return localPath;
-  const nextExt = format === 'jpg' ? 'jpg' : format;
-  return localPath.replace(/\.(jpe?g|png|webp|avif)(?=\?|#|$)/i, `.${nextExt}`);
+  // For non-root-relative dynamic paths only.
+  if (format === 'jpg') return localPath.replace(/\.(png|webp|avif)(?=\?|#|$)/i, '.jpg');
+  return localPath.replace(/\.(jpe?g|png|webp|avif)(?=\?|#|$)/i, `.${format}`);
 }
 
 /** Expects trimmed input. */
@@ -30,6 +43,7 @@ function normalizeVideoPath(
   format: 'auto' | 'mp4' | 'webm' = 'auto'
 ): string {
   if (localPath.startsWith('//') || ABS_URL_RE.test(localPath)) return localPath;
+  if (localPath.startsWith('/')) return localPath;
   if (format === 'mp4' || format === 'webm') {
     return localPath.replace(/\.(mp4|webm|mov|m4v)(?=\?|#|$)/i, `.${format}`);
   }
