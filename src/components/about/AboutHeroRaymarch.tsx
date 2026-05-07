@@ -5,21 +5,21 @@ import * as THREE from 'three';
 
 /** Ported from reference sketch — defaults frozen (no runtime GUI). */
 const SETTINGS = {
-  timeScale: 0.5,
-  waveSpeed: 1.0,
-  waveHeight: 1.0,
-  wave1Freq: 4.8,
-  wave1Amp: 0.038,
-  wave2Freq: 0.3,
-  wave2Amp: -0.09,
-  wave3FreqX: -0.6,
-  wave3FreqZ: -0.7,
-  wave3Amp: 0.12,
-  noiseAmount: 0.004,
+  timeScale: 0.42,
+  waveSpeed: 0.84,
+  waveHeight: 0.92,
+  wave1Freq: 4.2,
+  wave1Amp: 0.032,
+  wave2Freq: 0.24,
+  wave2Amp: -0.07,
+  wave3FreqX: -0.52,
+  wave3FreqZ: -0.58,
+  wave3Amp: 0.094,
+  noiseAmount: 0.0022,
   foldingOffset: 9.291,
   stepBase: 0.146,
-  glowIntensity: 0.0085,
-  glowSpread: 5.1,
+  glowIntensity: 0.0074,
+  glowSpread: 5.8,
 } as const;
 
 const vertexShader = /* glsl */ `
@@ -97,12 +97,16 @@ void main() {
 
     float distanceFade = smoothstep(36.5, 7.3, totalDistance);
 
-    vec3 paletteColor = 1.0 + cos(totalDistance * 3.0 + vec3(0.0, 1.0, 2.0));
+    // Cohesive site palette: neutral white field with a restrained cool accent.
+    vec3 warmCore = vec3(0.93, 0.93, 0.91);
+    vec3 coolAccent = vec3(0.48, 0.52, 0.84);
+    float accentMix = smoothstep(0.12, 0.9, mixedPattern) * (0.42 + 0.58 * distanceFade);
+    vec3 paletteColor = mix(warmCore, coolAccent, accentMix * 0.42);
 
     finalColor.rgb += glowIntensity * mixedPattern * distanceFade * paletteColor;
   }
 
-  float dither = (generateFineNoise(fragCoord + vec2(12.34, 56.78)) - 0.5) / 128.0;
+  float dither = (generateFineNoise(fragCoord + vec2(12.34, 56.78)) - 0.5) / 192.0;
   finalColor.rgb += vec3(dither);
 
   gl_FragColor = vec4(finalColor.rgb, 1.0);

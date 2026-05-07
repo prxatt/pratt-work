@@ -216,7 +216,7 @@ export const AboutHero = () => {
           <AboutHeroRaymarch
             className="absolute inset-0 min-h-[100dvh] size-full"
             dpr={shaderDpr}
-            motionScale={prefersReducedMotion ? 0.22 : 1}
+            motionScale={prefersReducedMotion ? 0.22 : 0.9}
           />
         )}
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_38%,rgba(13,13,13,0.28)_100%)]" />
