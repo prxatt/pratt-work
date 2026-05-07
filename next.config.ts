@@ -50,6 +50,12 @@ const nextConfig: NextConfig = {
         hostname: '**.public.blob.vercel-storage.com',
         pathname: '/**',
       },
+      // Cloudinary (primary media CDN).
+      {
+        protocol: 'https',
+        hostname: 'res.cloudinary.com',
+        pathname: '/**',
+      },
     ],
     deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
