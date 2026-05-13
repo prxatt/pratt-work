@@ -135,8 +135,8 @@ const FRAGMENT_SHADER = /* glsl */ `
 // Component
 // ---------------------------------------------------------------------------
 export default function CryptVolumetric3D({
-  webmSrc = getVideoUrl('/work/crypt-demo.webm'),
-  mp4Src = getVideoUrl('/work/crypt-demo.mp4'),
+  webmSrc = getVideoUrl('/work/crypt-3d.webm'),
+  mp4Src = getVideoUrl('/work/crypt-3d.mp4'),
   posterSrc,
   depthIntensity = 0.5,
   depthV2Strength = 1,
