@@ -39,6 +39,8 @@ function parsePublicIdMap(raw: string): PublicIdMap {
 // Local-path -> Cloudinary public_id overrides for assets uploaded with flat IDs.
 // Env-based map wins over these defaults.
 const STATIC_PUBLIC_ID_MAP: PublicIdMap = {
+  '/work/crypt-3d.mp4': 'miie0uyliyvwepiphz4h',
+  '/work/crypt-3d.webm': 'miie0uyliyvwepiphz4h',
   '/work/crypt-demo.webm': 'crypt-demo_m1f5bj',
   '/work/crypt-demo.mp4': 'crypt-demo_m1f5bj',
   '/work/conference-wb.webp': 'conference-wb_pl0oic',

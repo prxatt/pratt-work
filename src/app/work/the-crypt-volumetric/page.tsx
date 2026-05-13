@@ -866,10 +866,8 @@ export default function TheCryptPage() {
               <div className="relative flex h-[min(72vh,100vw)] w-full items-center justify-center overflow-hidden bg-gradient-to-b from-[#050505] via-[#080808] to-[#050505] md:aspect-[21/9] md:h-auto md:min-h-[min(24rem,52vh)] lg:min-h-[min(28rem,56vh)]">
                 {/* Interactive 3D volumetric capture - drag to orbit; fullscreen control top-right */}
                 <CryptVolumetric3D
-                  webmSrc={getVideoUrl('/work/crypt-demo.webm')}
-                  mp4Src={getVideoUrl('/work/crypt-demo.mp4')}
-                  depthIntensity={0.54}
-                  depthV2Strength={1}
+                  webmSrc={getVideoUrl('/work/crypt-3d.webm')}
+                  mp4Src={getVideoUrl('/work/crypt-3d.mp4')}
                   height="100%"
                 />
                 

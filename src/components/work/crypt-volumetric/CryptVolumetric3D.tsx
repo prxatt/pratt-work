@@ -1,9 +1,19 @@
 'use client';
 
-import { useEffect, useRef, useCallback, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useCallback, useState } from 'react';
 import { Maximize2, Minimize2 } from 'lucide-react';
 import { getVideoUrl } from '@/lib/media';
 import { useDeviceCapabilities } from '@/hooks/useReducedMotion';
+
+/** Phones / small touch viewports: WebGL + VideoTexture is often blank or flaky; plain video is reliable. */
+function prefersNativeCryptVideo(): boolean {
+  if (typeof window === 'undefined') return false;
+  const coarseOrTouch =
+    navigator.maxTouchPoints > 0 ||
+    (typeof window.matchMedia === 'function' &&
+      window.matchMedia('(pointer: coarse)').matches);
+  return coarseOrTouch && window.innerWidth < 1024;
+}
 
 // ---------------------------------------------------------------------------
 // Types
@@ -125,8 +135,8 @@ const FRAGMENT_SHADER = /* glsl */ `
 // Component
 // ---------------------------------------------------------------------------
 export default function CryptVolumetric3D({
-  webmSrc = getVideoUrl('/work/crypt-demo.webm'),
-  mp4Src = getVideoUrl('/work/crypt-demo.mp4'),
+  webmSrc = getVideoUrl('/work/crypt-3d.webm'),
+  mp4Src = getVideoUrl('/work/crypt-3d.mp4'),
   posterSrc,
   depthIntensity = 0.5,
   depthV2Strength = 1,
@@ -134,6 +144,7 @@ export default function CryptVolumetric3D({
 }: CryptVolumetric3DProps) {
   const mountRef = useRef<HTMLDivElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
+  const fallbackVideoRef = useRef<HTMLVideoElement>(null);
   const canvasElRef = useRef<HTMLCanvasElement | null>(null);
   const perfRef = useRef({ lite: false });
   const { prefersReducedMotion, isLowEnd } = useDeviceCapabilities();
@@ -147,6 +158,10 @@ export default function CryptVolumetric3D({
   const [showFallbackVideo, setShowFallbackVideo] = useState(false);
 
   const immersive = isFullscreen || pseudoFullscreen;
+
+  useLayoutEffect(() => {
+    if (prefersNativeCryptVideo()) setShowFallbackVideo(true);
+  }, []);
 
   const toggleFullscreen = useCallback(async () => {
     const root = rootRef.current;
@@ -203,6 +218,13 @@ export default function CryptVolumetric3D({
     if (!container) return;
 
     let aborted = false;
+
+    if (prefersNativeCryptVideo()) {
+      setShowFallbackVideo(true);
+      return () => {
+        aborted = true;
+      };
+    }
 
     // Dynamically import Three.js to avoid SSR issues in Next.js
     // All Three.js logic lives inside this async block
@@ -295,6 +317,30 @@ export default function CryptVolumetric3D({
       video.crossOrigin = 'anonymous';
       if (posterSrc) video.poster = posterSrc;
 
+      let videoHasFrame = false;
+      let videoFailTimer: number | null = null;
+
+      const onVideoLoaded = () => {
+        if (aborted) return;
+        videoHasFrame = true;
+        if (videoFailTimer !== null) {
+          window.clearTimeout(videoFailTimer);
+          videoFailTimer = null;
+        }
+        setShowFallbackVideo(false);
+      };
+      const onVideoError = () => {
+        if (aborted) return;
+        if (videoFailTimer !== null) {
+          window.clearTimeout(videoFailTimer);
+          videoFailTimer = null;
+        }
+        setShowFallbackVideo(true);
+      };
+      // Listeners before sources + load() so cached/synchronous decode cannot fire first.
+      video.addEventListener('loadeddata', onVideoLoaded);
+      video.addEventListener('error', onVideoError);
+
       // WebM first, MP4 fallback
       const sourceWebm = document.createElement('source');
       sourceWebm.src = webmSrc;
@@ -306,18 +352,9 @@ export default function CryptVolumetric3D({
       sourceMp4.type = 'video/mp4';
       video.appendChild(sourceMp4);
 
-      let videoHasFrame = false;
-      const onVideoLoaded = () => {
-        videoHasFrame = true;
-        if (!aborted) setShowFallbackVideo(false);
-      };
-      const onVideoError = () => {
-        if (!aborted) setShowFallbackVideo(true);
-      };
-      video.addEventListener('loadeddata', onVideoLoaded);
-      video.addEventListener('error', onVideoError);
+      video.load();
       // If no frame arrives quickly, fail over to a plain video render.
-      const videoFailTimer = window.setTimeout(() => {
+      videoFailTimer = window.setTimeout(() => {
         if (!videoHasFrame && !aborted) setShowFallbackVideo(true);
       }, 2500);
 
@@ -479,7 +516,7 @@ export default function CryptVolumetric3D({
         renderer.domElement.removeEventListener('pointerdown', pauseAutoRotate);
         renderer.domElement.removeEventListener('wheel', pauseAutoRotate);
         if (autoRotateTimeout) clearTimeout(autoRotateTimeout);
-        window.clearTimeout(videoFailTimer);
+        if (videoFailTimer !== null) window.clearTimeout(videoFailTimer);
         video.removeEventListener('loadeddata', onVideoLoaded);
         video.removeEventListener('error', onVideoError);
 
@@ -572,6 +609,21 @@ export default function CryptVolumetric3D({
     };
   }, []);
 
+  useEffect(() => {
+    if (!showFallbackVideo) return;
+    const v = fallbackVideoRef.current;
+    const root = rootRef.current;
+    if (!v || !root) return;
+    void v.play().catch(() => {
+      /* autoplay may still be deferred until gesture on some mobile browsers */
+    });
+    const kickPlay = () => {
+      void v.play();
+    };
+    root.addEventListener('pointerdown', kickPlay, { once: true });
+    return () => root.removeEventListener('pointerdown', kickPlay);
+  }, [showFallbackVideo]);
+
   return (
     <div
       ref={rootRef}
@@ -593,23 +645,25 @@ export default function CryptVolumetric3D({
 
       {showFallbackVideo && (
         <video
+          ref={fallbackVideoRef}
           autoPlay
           muted
           loop
           playsInline
-          preload="metadata"
-          className="absolute inset-0 z-[3] h-full w-full object-cover"
+          preload="auto"
+          poster={posterSrc}
+          aria-label="Crypt volumetric capture — video playback"
+          title="Crypt volumetric capture — video playback"
+          className="absolute inset-0 z-[2] h-full w-full object-cover"
         >
           <source src={webmSrc} type="video/webm" />
           <source src={mp4Src} type="video/mp4" />
-          <source src="/work/crypt-demo.webm" type="video/webm" />
-          <source src="/work/crypt-demo.mp4" type="video/mp4" />
         </video>
       )}
 
       {/* CSS vignette */}
       <div
-        className={`absolute inset-0 pointer-events-none ${
+        className={`absolute inset-0 z-[4] pointer-events-none ${
           pseudoFullscreen ? 'rounded-none' : 'rounded-xl'
         }`}
         style={{
