@@ -1,303 +1,168 @@
 'use client';
 
-/**
- * CryptVolumetric3D — True photorealistic volumetric depth sculpture from pre-recorded video.
- *
- * Architecture:
- *   • ~14 400 voxels (160 × 90, 16:9) rendered as a single InstancedMesh draw call.
- *   • VideoTexture: primary capture RGB (first fusion slot) — photorealistic voxel colour.
- *   • Multi-capture fusion (optional `fusionSources`): all angles + Kinect-style thermal are
- *     composited with canvas "lighten" into ONE frame before a single Depth-Anything v2 pass —
- *     not six separate depth maps. Keeps true volumetric cues from the combined signal.
- *   • Identical Cloudinary URLs are deduped → one decoder when the composite is a single file.
- *   • Depth-Anything v2 (ONNX WASM) every ~90 ms on that fused frame; luminance fallback uses
- *     the same fusion path.
- *   • Per-voxel `instanceDepth` attribute (DynamicDrawUsage) drives Z-extrusion in the vertex
- *     shader — near voxels push toward the camera, creating genuine 3-D parallax visible on orbit.
- *   • CPU-side exponential lerp (~60 Hz render ÷ ~11 Hz inference) keeps depth smooth between
- *     inference frames without artefacts.
- *   • Professional 3-light rig (key + fill + rim) in the fragment shader responds to real surface
- *     normals, making the depth relief feel physically solid.
- *   • Lite tier (low-end / reduced-motion): 80 × 45 = 3 600 voxels, no antialias, 1× pixel ratio.
- */
-
-import { useEffect, useRef, useCallback, useState, useMemo } from 'react';
+import { useEffect, useLayoutEffect, useRef, useCallback, useState } from 'react';
 import { Maximize2, Minimize2 } from 'lucide-react';
+import { getVideoUrl } from '@/lib/media';
 import { useDeviceCapabilities } from '@/hooks/useReducedMotion';
 
-// ── Grid dimensions (16:9 video aspect ratio) ─────────────────────────────────
-const GX_FULL = 160;
-const GZ_FULL = 90;
-const GX_LITE = 80;
-const GZ_LITE = 45;
-
-// ── World-space extents ───────────────────────────────────────────────────────
-const WORLD_W = 3.2;
-const WORLD_H = 1.8;
-
-// ── Depth inference ───────────────────────────────────────────────────────────
-/** Depth-Anything v2 small — runs in WASM, ~11 Hz on modern hardware. */
-const DEPTH_MODEL_ID = 'onnx-community/depth-anything-v2-small' as const;
-/** Inference canvas dimensions — 16:9 kept small for fast WASM throughput. */
-const INFER_W = 320;
-const INFER_H = 180;
-/** ms between inference calls; renderer runs at 60 Hz independently. */
-const INFER_INTERVAL_MS = 90;
-
-// ── Extrusion parameters ──────────────────────────────────────────────────────
-/** World-space Z push for the nearest voxels (max depth). */
-const EXTRUSION_NEAR = 3.6;
-/** World-space Z push for background voxels (min depth). */
-const EXTRUSION_FAR = 0.04;
-/** Contrast exponent applied to normalised depth before extrusion. */
-const DEPTH_POW = 1.18;
-/** Exponential lerp factor per render frame — smooths depth transitions. */
-const DEPTH_LERP = 0.13;
-
-// ── Multi-capture fusion ──────────────────────────────────────────────────────
-export type CryptFusionSource = {
-  webmSrc?: string;
-  /** Required for Safari / fallback; may match other slots when using one composite asset. */
-  mp4Src: string;
-};
-
-function captureKey(s: CryptFusionSource): string {
-  return `${s.mp4Src.trim()}\n${(s.webmSrc ?? '').trim()}`;
+/** Phones / small touch viewports: WebGL + VideoTexture is often blank or flaky; plain video is reliable. */
+function prefersNativeCryptVideo(): boolean {
+  if (typeof window === 'undefined') return false;
+  const coarseOrTouch =
+    navigator.maxTouchPoints > 0 ||
+    (typeof window.matchMedia === 'function' &&
+      window.matchMedia('(pointer: coarse)').matches);
+  return coarseOrTouch && window.innerWidth < 1024;
 }
 
-/** Drop duplicate URLs so we never decode the same stream six times. */
-export function dedupeFusionSources(sources: CryptFusionSource[]): CryptFusionSource[] {
-  const seen = new Set<string>();
-  const out: CryptFusionSource[] = [];
-  for (const s of sources) {
-    const key = captureKey(s);
-    if (!key.trim() || seen.has(key)) continue;
-    seen.add(key);
-    out.push(s);
-  }
-  return out;
-}
-
-function createCaptureVideo(entry: CryptFusionSource, poster?: string): HTMLVideoElement {
-  const v = document.createElement('video');
-  v.autoplay = true;
-  v.muted = true;
-  v.loop = true;
-  v.playsInline = true;
-  v.crossOrigin = 'anonymous';
-  if (poster) v.poster = poster;
-  if (entry.webmSrc?.trim()) {
-    const sw = document.createElement('source');
-    sw.src = entry.webmSrc;
-    sw.type = 'video/webm';
-    v.appendChild(sw);
-  }
-  const sm = document.createElement('source');
-  sm.src = entry.mp4Src;
-  sm.type = 'video/mp4';
-  v.appendChild(sm);
-  return v;
-}
-
-/**
- * Stack captures into one raster: first draw establishes the plate, then `lighten` merges
- * RGB angles + thermal/depth-camera greys so salient structure from any view reinforces DA-V2.
- */
-function fuseCapturesToCtx(
-  ctx: CanvasRenderingContext2D,
-  w: number,
-  h: number,
-  videos: HTMLVideoElement[],
-) {
-  if (videos.length === 0) return;
-  const ready = videos.filter((v) => v.videoWidth > 0);
-  if (ready.length === 0) return;
-  if (ready.length === 1) {
-    ctx.drawImage(ready[0], 0, 0, w, h);
-    return;
-  }
-  ctx.save();
-  ctx.globalCompositeOperation = 'source-over';
-  ctx.fillStyle = '#000';
-  ctx.fillRect(0, 0, w, h);
-  let first = true;
-  for (const v of ready) {
-    ctx.globalCompositeOperation = first ? 'source-over' : 'lighten';
-    ctx.drawImage(v, 0, 0, w, h);
-    first = false;
-  }
-  ctx.restore();
-}
-
-function syncSlaveVideos(master: HTMLVideoElement, slaves: HTMLVideoElement[]) {
-  for (const s of slaves) {
-    if (!master.videoWidth || !s.videoWidth) continue;
-    if (Math.abs(s.currentTime - master.currentTime) > 0.08) {
-      try {
-        s.currentTime = master.currentTime;
-      } catch {
-        /* seek may fail briefly */
-      }
-    }
-  }
-}
-
-// ── Vertex Shader ─────────────────────────────────────────────────────────────
-// Per-voxel `instanceDepth` (from depth inference) drives the Z push.
-// `instanceUV` is a static UV into the video texture for this voxel's pixel.
-// Result: each voxel is a small tile displaced in Z by its real scene depth;
-//         orbiting the scene reveals true 3-D parallax.
-// ─────────────────────────────────────────────────────────────────────────────
-const VERTEX_SHADER = /* glsl */ `
-attribute float instanceDepth;
-attribute vec2 instanceUV;
-
-uniform float uExtrusionNear;
-uniform float uExtrusionFar;
-uniform float uDepthPow;
-uniform float uTime;
-
-varying vec2 vVideoUV;
-varying vec3 vNormalWorld;
-varying vec3 vWorldPos;
-varying float vDepthShaded;
-
-void main() {
-  float d  = clamp(instanceDepth, 0.0, 1.0);
-  float ds = pow(d, uDepthPow);
-  vDepthShaded = ds;
-
-  // Subtle breath pulse — makes the sculpture feel alive
-  float breathe = 1.0 + 0.032 * sin(uTime * 0.62);
-  float zPush   = mix(uExtrusionFar, uExtrusionNear, ds) * breathe;
-
-  // Move the entire voxel in +Z (toward camera) by its depth amount
-  vec3 pos = vec3(position.x, position.y, position.z + zPush);
-
-  vVideoUV = instanceUV;
-
-  vec4 worldPos4 = modelMatrix * instanceMatrix * vec4(pos, 1.0);
-  vWorldPos      = worldPos4.xyz;
-
-  // Correct normal through instance + model matrices
-  mat3 im        = mat3(instanceMatrix);
-  vNormalWorld   = normalize(mat3(modelMatrix) * im * normal);
-
-  gl_Position = projectionMatrix * viewMatrix * worldPos4;
-}
-`;
-
-// ── Fragment Shader ───────────────────────────────────────────────────────────
-// Samples the actual video frame at this voxel's UV → photorealistic base colour.
-// Three-light rig (key + fill + rim) with wrap diffuse + Blinn-Phong specular.
-// Near voxels receive a subtle brightness boost so foreground subjects pop.
-// Filmic Reinhard rolloff keeps colours in sRGB range without crushing blacks.
-// ─────────────────────────────────────────────────────────────────────────────
-const FRAGMENT_SHADER = /* glsl */ `
-uniform sampler2D uVideoTexture;
-uniform float uTime;
-uniform vec3  uKeyDir;
-uniform vec3  uFillDir;
-uniform vec3  uRimDir;
-uniform float uKeyI;
-uniform float uFillI;
-uniform float uRimI;
-uniform float uAmbient;
-
-varying vec2  vVideoUV;
-varying vec3  vNormalWorld;
-varying vec3  vWorldPos;
-varying float vDepthShaded;
-
-void main() {
-  // ── Photorealistic base colour — directly from the video frame ───────────
-  vec3 base = texture2D(uVideoTexture, vVideoUV).rgb;
-
-  vec3 N = normalize(vNormalWorld);
-  vec3 V = normalize(cameraPosition - vWorldPos);
-
-  // Key light: warm, wrap diffuse for soft volumetric feel
-  vec3  Lk    = normalize(uKeyDir);
-  float wrapK = (dot(N, Lk) + 0.38) / 1.38;
-  float dk    = max(wrapK, 0.0) * uKeyI;
-  vec3  Hk    = normalize(Lk + V);
-  float sk    = pow(max(dot(N, Hk), 0.0), 52.0) * 0.16;
-
-  // Fill light: cool, reduces harsh shadow side
-  vec3  Lf    = normalize(uFillDir);
-  float wrapF = (dot(N, Lf) + 0.28) / 1.28;
-  float df    = max(wrapF, 0.0) * uFillI;
-
-  // Rim light: depth-gated Fresnel edge — separates near subject from bg
-  vec3  Lr      = normalize(uRimDir);
-  float fresnel = pow(max(1.0 - dot(N, V), 0.0), 2.4);
-  float dr      = max(dot(N, Lr), 0.0) * fresnel * vDepthShaded * uRimI;
-
-  // Near-subject brightness boost
-  float nearBoost = vDepthShaded * 0.11;
-
-  // Assemble
-  vec3 lit = base * (uAmbient + dk + df + nearBoost + dr) + vec3(sk);
-
-  // Filmic Reinhard: compresses highlights, preserves video colour fidelity
-  lit = lit / (lit + vec3(0.72));
-  lit = pow(max(lit, vec3(0.0)), vec3(0.92));
-
-  gl_FragColor = vec4(lit, 1.0);
-}
-`;
-
-// ── Props ─────────────────────────────────────────────────────────────────────
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
 interface CryptVolumetric3DProps {
+  /** Primary video source — prefer WebM for size */
   webmSrc?: string;
+  /** MP4 fallback for Safari */
   mp4Src?: string;
-  /**
-   * Six (or fewer) synchronized captures — RGB angles + Kinect/thermal. Same composite file
-   * may be listed multiple times (deduped). Fused with canvas `lighten` into one frame; a single
-   * Depth-Anything v2 run consumes that fusion (not per-video depth).
-   */
-  fusionSources?: CryptFusionSource[];
+  /** Optional poster frame shown before video loads */
   posterSrc?: string;
-  /** Legacy — kept for backward compatibility; unused. */
+  /** Displacement intensity: 0 = flat, 1 = max depth. */
   depthIntensity?: number;
-  /** Legacy — kept for backward compatibility; unused. */
+  /**
+   * DepthTransformer v2–style fusion in the vertex shader: edge-aware + multi-scale
+   * neighborhood depth (inspired by monocular transformer depth, e.g. DA-V2 family).
+   * 0 = raw luminance only; 1 = full fusion.
+   */
   depthV2Strength?: number;
+  /** Height of the component. Default: '70vh' */
   height?: string;
 }
 
-// ── Component ─────────────────────────────────────────────────────────────────
+// ---------------------------------------------------------------------------
+// Vertex Shader
+// ---------------------------------------------------------------------------
+// Samples the video texture at each vertex UV, computes luminance, and
+// displaces the vertex toward the camera by (luminance * uDisplacement).
+// The result: bright areas (wireframe lines, glowing particles) pop forward;
+// dark background stays flat. This matches the visual structure of Depthkit-
+// style and volumetric software output perfectly.
+// ---------------------------------------------------------------------------
+const VERTEX_SHADER = /* glsl */ `
+  uniform sampler2D uVideoTexture;
+  uniform float uDisplacement;
+  uniform float uScanLine;
+  uniform float uTime;
+  uniform float uDepthV2Strength;
+
+  varying vec2 vUv;
+  varying float vLuminance;
+  varying float vScanEffect;
+
+  float lumAt(vec2 tuv) {
+    return dot(texture2D(uVideoTexture, tuv).rgb, vec3(0.2126, 0.7152, 0.0722));
+  }
+
+  void main() {
+    vUv = uv;
+
+    vec4 texel = texture2D(uVideoTexture, uv);
+    float lum = dot(texel.rgb, vec3(0.2126, 0.7152, 0.0722));
+    vLuminance = lum;
+
+    float scanDist = abs(uv.y - uScanLine);
+    float scan = smoothstep(0.16, 0.0, scanDist) * 0.1;
+    vScanEffect = scan;
+
+    // DepthTransformer v2–style proxy: Sobel-like edges + neighborhood fusion (multi-scale cue)
+    float d = 1.15 / 128.0;
+    vec2 cuv = clamp(uv, vec2(d), vec2(1.0 - d));
+    float L = lumAt(cuv + vec2(-d, 0.0));
+    float R = lumAt(cuv + vec2(d, 0.0));
+    float T = lumAt(cuv + vec2(0.0, d));
+    float B = lumAt(cuv + vec2(0.0, -d));
+    float edge = abs(lum - L) + abs(lum - R) + abs(lum - T) + abs(lum - B);
+    edge = smoothstep(0.028, 0.2, edge);
+    float neighborAvg = (L + R + T + B) * 0.25;
+    float fused = mix(lum, neighborAvg, 0.2 * uDepthV2Strength);
+    fused *= 1.0 + 0.58 * edge * uDepthV2Strength;
+    fused = pow(clamp(fused, 0.0, 1.0), mix(1.0, 0.8, uDepthV2Strength * 0.42));
+    float depthScalar = mix(lum, fused, uDepthV2Strength);
+
+    float breath = 1.0 + 0.09 * sin(uTime * 0.72);
+    float disp = depthScalar * uDisplacement * breath + scan * uDisplacement * 0.38;
+    vec3 displaced = position + normal * disp;
+
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(displaced, 1.0);
+  }
+`;
+
+// ---------------------------------------------------------------------------
+// Fragment Shader
+// ---------------------------------------------------------------------------
+// Renders the video texture with additive scan-line glow and a slight
+// luminance boost on bright areas to make wireframes feel emissive.
+// ---------------------------------------------------------------------------
+const FRAGMENT_SHADER = /* glsl */ `
+  uniform sampler2D uVideoTexture;
+  uniform float uTime;
+  uniform float uScanLine;
+
+  varying vec2 vUv;
+  varying float vLuminance;
+  varying float vScanEffect;
+
+  void main() {
+    vec4 color = texture2D(uVideoTexture, vUv);
+
+    // Emissive boost + gentle temporal pulse on highlights
+    float emissive = smoothstep(0.28, 0.88, vLuminance) * 0.32;
+    float pulse = 0.92 + 0.08 * sin(uTime * 1.05);
+    color.rgb += color.rgb * emissive * pulse;
+
+    // Scan line glow (cyan tint to match volumetric aesthetic)
+    float scanGlow = vScanEffect * 2.35;
+    color.rgb += vec3(0.0, scanGlow * 0.62, scanGlow * 0.85);
+
+    // Subtle edge vignette per-fragment (secondary to the CSS vignette)
+    vec2 uvCenter = vUv - 0.5;
+    float vignette = 1.0 - dot(uvCenter, uvCenter) * 1.2;
+    color.rgb *= clamp(vignette, 0.0, 1.0);
+
+    gl_FragColor = color;
+  }
+`;
+
+// ---------------------------------------------------------------------------
+// Component
+// ---------------------------------------------------------------------------
 export default function CryptVolumetric3D({
-  webmSrc = '',
-  mp4Src = '',
-  fusionSources,
+  webmSrc = getVideoUrl('/work/crypt-demo.webm'),
+  mp4Src = getVideoUrl('/work/crypt-demo.mp4'),
   posterSrc,
+  depthIntensity = 0.5,
+  depthV2Strength = 1,
   height = '70vh',
 }: CryptVolumetric3DProps) {
-  const mountRef      = useRef<HTMLDivElement>(null);
-  const rootRef       = useRef<HTMLDivElement>(null);
-  const canvasElRef   = useRef<HTMLCanvasElement | null>(null);
-  const cleanupRef    = useRef<(() => void) | null>(null);
-  const initFailedRef = useRef(false);
-
-  const { isLowEnd, prefersReducedMotion } = useDeviceCapabilities();
-  const lite = isLowEnd || prefersReducedMotion;
-
-  const captureSignature = useMemo(() => {
-    if (fusionSources && fusionSources.length > 0) {
-      return `fusion:${fusionSources.map(captureKey).join('|')}`;
-    }
-    return `legacy:${mp4Src}\n${webmSrc ?? ''}`;
-  }, [fusionSources, mp4Src, webmSrc]);
-
-  const fallbackWebm = fusionSources?.[0]?.webmSrc?.trim() || webmSrc;
-  const fallbackMp4 = fusionSources?.[0]?.mp4Src?.trim() || mp4Src;
-
-  const [isFullscreen,     setIsFullscreen]     = useState(false);
+  const mountRef = useRef<HTMLDivElement>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const fallbackVideoRef = useRef<HTMLVideoElement>(null);
+  const canvasElRef = useRef<HTMLCanvasElement | null>(null);
+  const perfRef = useRef({ lite: false });
+  const { prefersReducedMotion, isLowEnd } = useDeviceCapabilities();
+  perfRef.current.lite = prefersReducedMotion || isLowEnd;
+  // We store a cleanup fn returned from the effect
+  const cleanupRef = useRef<(() => void) | null>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  /** iOS / browsers without element fullscreen: fixed-viewport fallback */
   const [pseudoFullscreen, setPseudoFullscreen] = useState(false);
-  const [showFallback,     setShowFallback]     = useState(false);
+  /** If WebGL/video init fails, show plain video fallback in-frame. */
+  const [showFallbackVideo, setShowFallbackVideo] = useState(false);
+
   const immersive = isFullscreen || pseudoFullscreen;
 
-  // ── Fullscreen toggle ──────────────────────────────────────────────────────
+  useLayoutEffect(() => {
+    if (prefersNativeCryptVideo()) setShowFallbackVideo(true);
+  }, []);
+
   const toggleFullscreen = useCallback(async () => {
     const root = rootRef.current;
     if (!root) return;
@@ -323,6 +188,7 @@ export default function CryptVolumetric3D({
       requestAnimationFrame(() => window.dispatchEvent(new Event('resize')));
       return;
     }
+
     if (nativeActive) {
       try {
         if (document.exitFullscreen) await document.exitFullscreen();
@@ -333,6 +199,7 @@ export default function CryptVolumetric3D({
       }
       return;
     }
+
     try {
       if (el.requestFullscreen) await el.requestFullscreen();
       else if (el.webkitRequestFullscreen) await el.webkitRequestFullscreen();
@@ -345,501 +212,347 @@ export default function CryptVolumetric3D({
     requestAnimationFrame(() => window.dispatchEvent(new Event('resize')));
   }, [pseudoFullscreen]);
 
-  // ── Scene init ─────────────────────────────────────────────────────────────
+  // Stable callback — avoids linter warnings while keeping empty dep array
   const initScene = useCallback(() => {
     const container = mountRef.current;
     if (!container) return;
 
     let aborted = false;
 
+    if (prefersNativeCryptVideo()) {
+      setShowFallbackVideo(true);
+      return () => {
+        aborted = true;
+      };
+    }
+
+    // Dynamically import Three.js to avoid SSR issues in Next.js
+    // All Three.js logic lives inside this async block
     (async () => {
       try {
-        // ── Dynamic imports (Three.js is client-side only) ──────────────────
-        const THREE = await import('three');
-        if (aborted) return;
-        const { OrbitControls } = await import(
-          'three/examples/jsm/controls/OrbitControls.js'
-        );
-        if (aborted) return;
+      // -----------------------------------------------------------------------
+      // Lazy imports — Next.js will bundle Three.js client-side only
+      // -----------------------------------------------------------------------
+      const THREE = await import('three');
+      if (aborted) return;
+      // @ts-ignore — OrbitControls is in three/examples, types exist if installed
+      const { OrbitControls } = await import(
+        'three/examples/jsm/controls/OrbitControls.js'
+      );
+      if (aborted) return;
 
-        // ── Grid dimensions for this performance tier ───────────────────────
-        const gx    = lite ? GX_LITE : GX_FULL;
-        const gz    = lite ? GZ_LITE : GZ_FULL;
-        const count = gx * gz;
+      // -----------------------------------------------------------------------
+      // Renderer
+      // -----------------------------------------------------------------------
+      const lite = perfRef.current.lite;
+      const renderer = new THREE.WebGLRenderer({
+        antialias: !lite,
+        alpha: true,           // transparent background — page bg shows through
+        powerPreference: 'high-performance',
+      });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, lite ? 1.25 : 2));
+      renderer.setSize(container.clientWidth, container.clientHeight);
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.1;
+      container.appendChild(renderer.domElement);
 
-        // ── Renderer ────────────────────────────────────────────────────────
-        const renderer = new THREE.WebGLRenderer({
-          antialias: !lite,
-          alpha: false,
-          powerPreference: 'high-performance',
-        });
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio, lite ? 1 : 1.5));
-        renderer.setSize(container.clientWidth, container.clientHeight);
-        renderer.setClearColor(0x030303, 1);
-        renderer.toneMapping        = THREE.ACESFilmicToneMapping;
-        renderer.toneMappingExposure = 1.25;
-        renderer.domElement.style.cssText =
-          'display:block;width:100%;height:100%;outline:none;vertical-align:top;';
-        renderer.domElement.style.touchAction = 'pan-y';
-        container.appendChild(renderer.domElement);
-        canvasElRef.current = renderer.domElement as HTMLCanvasElement;
+      // -----------------------------------------------------------------------
+      // Scene + Camera
+      // -----------------------------------------------------------------------
+      const scene = new THREE.Scene();
 
-        // ── Scene + Camera ──────────────────────────────────────────────────
-        const scene  = new THREE.Scene();
-        const aspect = container.clientWidth / Math.max(container.clientHeight, 1);
-        const camera = new THREE.PerspectiveCamera(52, aspect, 0.01, 100);
-        camera.position.set(0, 0, 5.5);
-        camera.lookAt(0, 0, 0);
+      const camera = new THREE.PerspectiveCamera(
+        55,
+        container.clientWidth / container.clientHeight,
+        0.01,
+        100
+      );
+      // Start at a dramatic angle — will ease to (0, 0, 2.6) on load
+      camera.position.set(1.8, 1.2, 3.2);
+      camera.lookAt(0, 0, 0);
 
-        // ── Orbit controls ──────────────────────────────────────────────────
-        const controls = new OrbitControls(camera, renderer.domElement);
-        controls.enableDamping   = true;
-        controls.dampingFactor   = 0.06;
-        controls.enableZoom      = true;
-        controls.zoomSpeed       = 0.7;
-        controls.minDistance     = 2.0;
-        controls.maxDistance     = 9.0;
-        controls.enablePan       = false;
-        controls.autoRotate      = true;
-        controls.autoRotateSpeed = 0.28;
-        controls.maxPolarAngle   = Math.PI * 0.72;
-        controls.minPolarAngle   = Math.PI * 0.28;
-        controls.touches = {
-          ONE: THREE.TOUCH.ROTATE,
-          TWO: THREE.TOUCH.DOLLY_ROTATE,
-        };
-
-        let autoRotateTimer: ReturnType<typeof setTimeout> | null = null;
-        const pauseAutoRotate = () => {
-          controls.autoRotate = false;
-          if (autoRotateTimer) clearTimeout(autoRotateTimer);
-          autoRotateTimer = setTimeout(() => {
-            controls.autoRotate = true;
-          }, 3500);
-        };
-        renderer.domElement.addEventListener('pointerdown', pauseAutoRotate);
-        renderer.domElement.addEventListener('wheel', pauseAutoRotate, { passive: true });
-
-        // ── Video capture(s): deduped fusion list + primary RGB for voxel colour ──
-        let fusionEntries: CryptFusionSource[] =
-          fusionSources && fusionSources.length > 0
-            ? dedupeFusionSources(fusionSources)
-            : dedupeFusionSources(
-                [{ webmSrc: webmSrc?.trim() || undefined, mp4Src: mp4Src.trim() }].filter(
-                  (e) => Boolean(e.mp4Src || e.webmSrc)
-                )
-              );
-        if (fusionEntries.length === 0) {
-          fusionEntries = [
-            { webmSrc: webmSrc?.trim() || undefined, mp4Src: mp4Src.trim() || '' },
-          ];
-        }
-
-        const captureVideos = fusionEntries.map((e) => createCaptureVideo(e, posterSrc));
-        const video = captureVideos[0]!;
-        const slaveVideos = captureVideos.slice(1);
-        const multiCapture = captureVideos.length > 1;
-
-        let resumePlayHandler: (() => void) | null = null;
-
-        let videoHasFrame = false;
-        const onVideoLoaded = () => {
-          videoHasFrame = true;
-          if (!aborted && !initFailedRef.current) setShowFallback(false);
-        };
-        const onVideoError = () => {
-          if (!aborted) setShowFallback(true);
-        };
-        video.addEventListener('loadeddata', onVideoLoaded);
-        video.addEventListener('error', onVideoError);
-
-        const videoFailTimer = window.setTimeout(() => {
-          if (!videoHasFrame && !aborted) setShowFallback(true);
+      // -----------------------------------------------------------------------
+      // Orbit Controls
+      // -----------------------------------------------------------------------
+      const controls = new OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;        // silky smooth drag
+      controls.dampingFactor = 0.06;
+      controls.enableZoom = true;
+      controls.zoomSpeed = 0.8;
+      controls.minDistance = 1.0;           // can't clip into the mesh
+      controls.maxDistance = 6.0;           // can't orbit too far back
+      controls.autoRotate = true;           // gentle auto-rotation on idle
+      controls.autoRotateSpeed = 0.4;
+      controls.enablePan = false;           // no panning — keeps subject centered
+      // Touch: one-finger orbit, two-finger zoom
+      controls.touches = {
+        ONE: THREE.TOUCH.ROTATE,
+        TWO: THREE.TOUCH.DOLLY_ROTATE,
+      };
+      // OrbitControls sets touch-action:none, which blocks vertical page scroll on
+      // phones/tablets when the canvas is under the finger. pan-y restores scroll;
+      // we switch to none in fullscreen (see useEffect on immersive).
+      canvasElRef.current = renderer.domElement as HTMLCanvasElement;
+      renderer.domElement.style.touchAction = 'pan-y';
+      // Stop auto-rotate when user interacts, resume after 3s idle
+      let autoRotateTimeout: ReturnType<typeof setTimeout> | null = null;
+      const pauseAutoRotate = () => {
+        controls.autoRotate = false;
+        if (autoRotateTimeout) clearTimeout(autoRotateTimeout);
+        autoRotateTimeout = setTimeout(() => {
+          controls.autoRotate = true;
         }, 3000);
+      };
+      renderer.domElement.addEventListener('pointerdown', pauseAutoRotate);
+      renderer.domElement.addEventListener('wheel', pauseAutoRotate, { passive: true });
 
-        const playAllCaptures = () =>
-          Promise.all(captureVideos.map((v) => v.play()));
+      // -----------------------------------------------------------------------
+      // Video Element + Texture
+      // -----------------------------------------------------------------------
+      const video = document.createElement('video');
+      video.autoplay = true;
+      video.muted = true;
+      video.loop = true;
+      video.playsInline = true;
+      video.crossOrigin = 'anonymous';
+      if (posterSrc) video.poster = posterSrc;
 
-        playAllCaptures().catch(() => {
-          if (resumePlayHandler) {
-            container.removeEventListener('click', resumePlayHandler);
-            resumePlayHandler = null;
-          }
-          resumePlayHandler = () => {
-            void playAllCaptures();
-            container.removeEventListener('click', resumePlayHandler!);
-            resumePlayHandler = null;
-          };
-          container.addEventListener('click', resumePlayHandler);
-        });
+      let videoHasFrame = false;
+      let videoFailTimer: number | null = null;
 
-        const videoTexture          = new THREE.VideoTexture(video);
-        videoTexture.minFilter      = THREE.LinearFilter;
-        videoTexture.magFilter      = THREE.LinearFilter;
-        videoTexture.format         = THREE.RGBAFormat;
-
-        // ── Voxel geometry: thin box (depth driven by shader Z push) ────────
-        const voxW = WORLD_W / gx;
-        const voxH = WORLD_H / gz;
-        const voxD = Math.min(voxW, voxH) * 0.45; // thin tile
-        const geo  = new THREE.BoxGeometry(voxW, voxH, voxD);
-        // Pivot front face to z=0 so the Z push moves the voxel toward camera
-        geo.translate(0, 0, -voxD * 0.5);
-
-        // ── Per-instance attributes ──────────────────────────────────────────
-        // instanceDepth: updated every frame from depth inference (DynamicDrawUsage)
-        // instanceUV:    static UV into the video texture for this voxel's pixel
-        const depthArr   = new Float32Array(count);       // target depth (from inference)
-        const smoothArr  = new Float32Array(count).fill(0.35); // lerped depth (fed to GPU)
-        const uvArr      = new Float32Array(count * 2);
-
-        const voxSpacingX = WORLD_W / gx;
-        const voxSpacingY = WORLD_H / gz;
-        const offsetX     = WORLD_W * 0.5 - voxSpacingX * 0.5;
-        const offsetY     = WORLD_H * 0.5 - voxSpacingY * 0.5;
-        const dummy       = new THREE.Object3D();
-
-        for (let i = 0; i < count; i++) {
-          const ix = i % gx;
-          const iz = Math.floor(i / gx);
-          // UV: U left→right; V top→bottom (1 - iz/gz to match WebGL convention)
-          uvArr[i * 2]     = (ix + 0.5) / gx;
-          uvArr[i * 2 + 1] = 1.0 - (iz + 0.5) / gz;
-        }
-
-        // Back smoothArr with WebGL so inference targets in depthArr are never overwritten.
-        const instanceDepthAttr = new THREE.InstancedBufferAttribute(smoothArr, 1);
-        instanceDepthAttr.setUsage(THREE.DynamicDrawUsage);
-        const instanceUVAttr = new THREE.InstancedBufferAttribute(uvArr, 2);
-        geo.setAttribute('instanceDepth', instanceDepthAttr);
-        geo.setAttribute('instanceUV',    instanceUVAttr);
-
-        // ── Shader material: video colour + 3-light rig ──────────────────────
-        const uniforms = {
-          uVideoTexture:  { value: videoTexture },
-          uExtrusionNear: { value: EXTRUSION_NEAR },
-          uExtrusionFar:  { value: EXTRUSION_FAR  },
-          uDepthPow:      { value: DEPTH_POW       },
-          uTime:          { value: 0               },
-          // Key: warm 45° upper-left front
-          uKeyDir:  { value: new THREE.Vector3(0.52, 1.0, 0.80).normalize() },
-          // Fill: cool 120° opposite side
-          uFillDir: { value: new THREE.Vector3(-1.0, 0.5, 0.60).normalize() },
-          // Rim: back-light for depth separation
-          uRimDir:  { value: new THREE.Vector3(0.0, 0.2, -1.0).normalize() },
-          uKeyI:    { value: 0.72 },
-          uFillI:   { value: 0.36 },
-          uRimI:    { value: 0.50 },
-          uAmbient: { value: 0.30 },
-        };
-
-        const mat = new THREE.ShaderMaterial({
-          uniforms,
-          vertexShader:   VERTEX_SHADER,
-          fragmentShader: FRAGMENT_SHADER,
-          side: THREE.FrontSide,
-        });
-
-        // ── Instanced mesh ───────────────────────────────────────────────────
-        const mesh = new THREE.InstancedMesh(geo, mat, count);
-        mesh.frustumCulled = false;
-        mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-
-        // Set static XY instance matrices (Z will be moved by the shader)
-        for (let i = 0; i < count; i++) {
-          const ix = i % gx;
-          const iz = Math.floor(i / gx);
-          const x  =  ix * voxSpacingX - offsetX;
-          const y  = -iz * voxSpacingY + offsetY;
-          dummy.position.set(x, y, 0);
-          dummy.scale.set(1, 1, 1);
-          dummy.updateMatrix();
-          mesh.setMatrixAt(i, dummy.matrix);
-        }
-        mesh.instanceMatrix.needsUpdate = true;
-        scene.add(mesh);
-
-        // ── Atmospheric particle field ───────────────────────────────────────
-        if (!lite) {
-          const pCount = 360;
-          const pPos   = new Float32Array(pCount * 3);
-          for (let i = 0; i < pCount; i++) {
-            pPos[i * 3]     = (Math.random() - 0.5) * 9;
-            pPos[i * 3 + 1] = (Math.random() - 0.5) * 5.5;
-            pPos[i * 3 + 2] = (Math.random() - 0.5) * 7;
-          }
-          const pGeo = new THREE.BufferGeometry();
-          pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
-          const pMat = new THREE.PointsMaterial({
-            color: 0x8899cc,
-            size: 0.011,
-            transparent: true,
-            opacity: 0.18,
-            blending: THREE.AdditiveBlending,
-            depthWrite: false,
-          });
-          scene.add(new THREE.Points(pGeo, pMat));
-        }
-
-        // ── Depth inference: Depth-Anything v2 (ONNX WASM) ──────────────────
-        const inferCanvas   = document.createElement('canvas');
-        inferCanvas.width   = INFER_W;
-        inferCanvas.height  = INFER_H;
-        const inferCtx      = inferCanvas.getContext('2d', { willReadFrequently: true });
-
-        const lumCanvas  = document.createElement('canvas');
-        lumCanvas.width  = gx;
-        lumCanvas.height = gz;
-        const lumCtx     = lumCanvas.getContext('2d', { willReadFrequently: true });
-
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        let depthPipeline: any    = null;
-        let depthModelReady       = false;
-        let depthBusy             = false;
-
-        // Load model in the background — luminance fallback runs immediately
-        void (async () => {
-          try {
-            const { pipeline, env } = await import('@huggingface/transformers');
-            if (aborted) return;
-            env.allowLocalModels = false;
-            env.useBrowserCache  = true;
-            const pipe = await pipeline('depth-estimation', DEPTH_MODEL_ID, {
-              device: 'wasm',
-              dtype:  'fp32',
-            });
-            if (aborted) {
-              if (pipe && typeof (pipe as { dispose?: () => void }).dispose === 'function') {
-                await (pipe as { dispose: () => Promise<void> }).dispose();
-              }
-              return;
-            }
-            depthPipeline    = pipe;
-            depthModelReady  = true;
-          } catch {
-            depthModelReady = false;
-          }
-        })();
-
-        /** Fast luminance proxy — fused captures, same path as DA-V2 input. */
-        function runLumFallback() {
-          if (!lumCtx || !video.videoWidth) return;
-          if (multiCapture) syncSlaveVideos(video, slaveVideos);
-          fuseCapturesToCtx(lumCtx, gx, gz, captureVideos);
-          const px  = lumCtx.getImageData(0, 0, gx, gz).data;
-          let lo = 1, hi = 0;
-          const lums = new Float32Array(count);
-          for (let i = 0; i < count; i++) {
-            const p = i * 4;
-            const l = (0.299 * px[p] + 0.587 * px[p + 1] + 0.114 * px[p + 2]) / 255;
-            lums[i] = l;
-            if (l < lo) lo = l;
-            if (l > hi) hi = l;
-          }
-          const span = Math.max(hi - lo, 0.01);
-          for (let i = 0; i < count; i++) {
-            depthArr[i] = Math.pow(Math.min(1, Math.max(0, (lums[i] - lo) / span)), 0.72);
-          }
-        }
-
-        /**
-         * ~4th / ~96th percentile stretch (matches hero voxel intent) without O(n log n) sort.
-         * Histogram over min→max → cumulative counts; O(n + BINS).
-         */
-        function depthPercentileMinMax(raw: Float32Array): { dMin: number; dMax: number } {
-          const n = raw.length;
-          if (n === 0) return { dMin: 0, dMax: 1 };
-          let lo = Infinity;
-          let hi = -Infinity;
-          for (let i = 0; i < n; i++) {
-            const v = raw[i]!;
-            if (v < lo) lo = v;
-            if (v > hi) hi = v;
-          }
-          const span = hi - lo;
-          if (span < 1e-9) return { dMin: lo, dMax: lo + 1e-6 };
-
-          const BINS = 256;
-          const hist = new Uint32Array(BINS);
-          const inv = BINS / span;
-          for (let i = 0; i < n; i++) {
-            const b = Math.min(BINS - 1, Math.max(0, Math.floor((raw[i]! - lo) * inv)));
-            hist[b]!++;
-          }
-
-          const loTarget = Math.max(1, Math.floor(n * 0.04));
-          const hiTarget = Math.max(loTarget, Math.floor(n * 0.96));
-          let acc = 0;
-          let lowBin = 0;
-          for (let b = 0; b < BINS; b++) {
-            acc += hist[b]!;
-            if (acc >= loTarget) {
-              lowBin = b;
-              break;
-            }
-          }
-          acc = 0;
-          let highBin = BINS - 1;
-          for (let b = 0; b < BINS; b++) {
-            acc += hist[b]!;
-            if (acc >= hiTarget) {
-              highBin = b;
-              break;
-            }
-          }
-
-          const dMin = lo + (lowBin / BINS) * span;
-          const dMax = lo + ((highBin + 1) / BINS) * span;
-          return { dMin, dMax: Math.max(dMax, dMin + 1e-6) };
-        }
-
-        /**
-         * Samples the depth tensor into our grid.
-         * depth-anything v2 outputs relative (disparity-style) depth:
-         * HIGHER value = NEARER to camera → no inversion needed.
-         * No mirror for pre-recorded video (unlike webcam which flips X).
-         */
-        function sampleTensorToGrid(raw: Float32Array, dW: number, dH: number) {
-          const n = raw.length;
-          if (n === 0) return;
-          const { dMin, dMax } = depthPercentileMinMax(raw);
-          const dRange = dMax - dMin;
-          for (let iz = 0; iz < gz; iz++) {
-            for (let ix = 0; ix < gx; ix++) {
-              const srcX = Math.min(Math.floor((ix / Math.max(gx - 1, 1)) * (dW - 1)), dW - 1);
-              const srcY = Math.min(Math.floor((iz / Math.max(gz - 1, 1)) * (dH - 1)), dH - 1);
-              const norm = Math.min(1, Math.max(0, (raw[srcY * dW + srcX] - dMin) / dRange));
-              depthArr[iz * gx + ix] = norm;
-            }
-          }
-        }
-
-        async function runDepthInference() {
-          if (depthBusy || !video.videoWidth) return;
-          depthBusy = true;
-          try {
-            if (!depthModelReady || !depthPipeline || !inferCtx) {
-              runLumFallback();
-              return;
-            }
-            if (multiCapture) syncSlaveVideos(video, slaveVideos);
-            fuseCapturesToCtx(inferCtx, INFER_W, INFER_H, captureVideos);
-            const result = await (depthPipeline as (input: HTMLCanvasElement) => Promise<{
-              predicted_depth?: { data: Float32Array | number[]; dims: number[] };
-              depth?: { data: Float32Array | number[]; dims: number[] };
-            }>)(inferCanvas);
-
-            const tensor  = result.predicted_depth ?? result.depth;
-            const rawData = tensor?.data;
-            if (!rawData || !tensor?.dims) { runLumFallback(); return; }
-            const dims = tensor.dims;
-            const dH   = dims[dims.length - 2];
-            const dW   = dims[dims.length - 1];
-            const buf  = rawData instanceof Float32Array ? rawData : Float32Array.from(rawData);
-            sampleTensorToGrid(buf, dW, dH);
-          } catch {
-            runLumFallback();
-          } finally {
-            depthBusy = false;
-          }
-        }
-
-        const inferInterval = setInterval(() => {
-          if (!aborted) void runDepthInference();
-        }, INFER_INTERVAL_MS);
-
-        // ── Resize handler ───────────────────────────────────────────────────
-        const handleResize = () => {
-          const w = container.clientWidth;
-          const h = container.clientHeight;
-          if (w < 2 || h < 2) return;
-          camera.aspect = w / h;
-          camera.updateProjectionMatrix();
-          renderer.setSize(w, h);
-        };
-        const ro = new ResizeObserver(handleResize);
-        ro.observe(container);
-        window.visualViewport?.addEventListener('resize', handleResize);
-
-        // ── Render loop ──────────────────────────────────────────────────────
-        const clock = new THREE.Clock();
-        let animId: number;
-
-        const animate = () => {
-          animId = requestAnimationFrame(animate);
-          const elapsed = clock.getElapsedTime();
-          uniforms.uTime.value = elapsed;
-
-          if (multiCapture) syncSlaveVideos(video, slaveVideos);
-
-          // Exponential lerp: smooths depth between sparse inference frames (smoothArr backs GPU attr)
-          for (let i = 0; i < count; i++) {
-            smoothArr[i] += (depthArr[i] - smoothArr[i]) * DEPTH_LERP;
-          }
-          instanceDepthAttr.needsUpdate = true;
-
-          controls.update();
-          renderer.render(scene, camera);
-        };
-        animate();
-
-        renderer.domElement.style.cursor = 'grab';
-        renderer.domElement.addEventListener('pointerdown', () => {
-          renderer.domElement.style.cursor = 'grabbing';
-        });
-        renderer.domElement.addEventListener('pointerup', () => {
-          renderer.domElement.style.cursor = 'grab';
-        });
-
-        // ── Cleanup ──────────────────────────────────────────────────────────
-        cleanupRef.current = () => {
-          cancelAnimationFrame(animId);
-          clearInterval(inferInterval);
+      const onVideoLoaded = () => {
+        if (aborted) return;
+        videoHasFrame = true;
+        if (videoFailTimer !== null) {
           window.clearTimeout(videoFailTimer);
-          video.removeEventListener('loadeddata', onVideoLoaded);
-          video.removeEventListener('error', onVideoError);
-          if (resumePlayHandler) {
-            container.removeEventListener('click', resumePlayHandler);
-            resumePlayHandler = null;
-          }
-          renderer.domElement.removeEventListener('pointerdown', pauseAutoRotate);
-          renderer.domElement.removeEventListener('wheel', pauseAutoRotate);
-          if (autoRotateTimer) clearTimeout(autoRotateTimer);
-          ro.disconnect();
-          window.visualViewport?.removeEventListener('resize', handleResize);
-          geo.dispose();
-          mat.dispose();
-          videoTexture.dispose();
-          for (const v of captureVideos) {
-            v.pause();
-            v.removeAttribute('src');
-            while (v.firstChild) v.removeChild(v.firstChild);
-            v.load();
-          }
-          controls.dispose();
-          renderer.dispose();
-          if (container.contains(renderer.domElement)) {
-            container.removeChild(renderer.domElement);
-          }
-          canvasElRef.current = null;
-          if (depthPipeline && typeof (depthPipeline as { dispose?: () => void }).dispose === 'function') {
-            void (depthPipeline as { dispose: () => Promise<void> }).dispose();
-          }
+          videoFailTimer = null;
+        }
+        setShowFallbackVideo(false);
+      };
+      const onVideoError = () => {
+        if (aborted) return;
+        if (videoFailTimer !== null) {
+          window.clearTimeout(videoFailTimer);
+          videoFailTimer = null;
+        }
+        setShowFallbackVideo(true);
+      };
+      // Listeners before sources + load() so cached/synchronous decode cannot fire first.
+      video.addEventListener('loadeddata', onVideoLoaded);
+      video.addEventListener('error', onVideoError);
+
+      // WebM first, MP4 fallback
+      const sourceWebm = document.createElement('source');
+      sourceWebm.src = webmSrc;
+      sourceWebm.type = 'video/webm';
+      video.appendChild(sourceWebm);
+
+      const sourceMp4 = document.createElement('source');
+      sourceMp4.src = mp4Src;
+      sourceMp4.type = 'video/mp4';
+      video.appendChild(sourceMp4);
+
+      video.load();
+      // If no frame arrives quickly, fail over to a plain video render.
+      videoFailTimer = window.setTimeout(() => {
+        if (!videoHasFrame && !aborted) setShowFallbackVideo(true);
+      }, 2500);
+
+      // Attempt autoplay (browsers may block until user gesture)
+      video.play().catch(() => {
+        // If autoplay blocked, play on first click
+        const playOnClick = () => {
+          video.play();
+          container.removeEventListener('click', playOnClick);
         };
+        container.addEventListener('click', playOnClick);
+      });
+
+      const videoTexture = new THREE.VideoTexture(video);
+      videoTexture.minFilter = THREE.LinearFilter;
+      videoTexture.magFilter = THREE.LinearFilter;
+      videoTexture.format = THREE.RGBAFormat;
+
+      // -----------------------------------------------------------------------
+      // Displaced Video Mesh
+      // -----------------------------------------------------------------------
+      const planeSeg = lite ? 72 : 140;
+      const planeGeo = new THREE.PlaneGeometry(
+        3.2,    // width  — 16:9 ratio
+        1.8,    // height
+        planeSeg,
+        planeSeg
+      );
+
+      const v2 = Math.min(1, Math.max(0, depthV2Strength)) * (lite ? 0.62 : 1);
+      const planeMat = new THREE.ShaderMaterial({
+        uniforms: {
+          uVideoTexture: { value: videoTexture },
+          uDisplacement:  { value: depthIntensity },
+          uDepthV2Strength: { value: v2 },
+          uTime:          { value: 0 },
+          uScanLine:      { value: 0.5 },
+        },
+        vertexShader:   VERTEX_SHADER,
+        fragmentShader: FRAGMENT_SHADER,
+        side: THREE.DoubleSide,
+      });
+
+      const planeMesh = new THREE.Mesh(planeGeo, planeMat);
+      scene.add(planeMesh);
+
+      // -----------------------------------------------------------------------
+      // Ambient Particle Field
+      // -----------------------------------------------------------------------
+      const particleCount = lite ? 420 : 900;
+      const pPositions = new Float32Array(particleCount * 3);
+      const pSizes = new Float32Array(particleCount);
+
+      for (let i = 0; i < particleCount; i++) {
+        // Fibonacci sphere distribution for even coverage
+        const theta = Math.acos(1 - 2 * (i + 0.5) / particleCount);
+        const phi = Math.PI * (1 + Math.sqrt(5)) * i;
+        const r = 2.5 + Math.random() * 1.8;
+        pPositions[i * 3 + 0] = r * Math.sin(theta) * Math.cos(phi);
+        pPositions[i * 3 + 1] = r * Math.sin(theta) * Math.sin(phi);
+        pPositions[i * 3 + 2] = r * Math.cos(theta);
+        pSizes[i] = Math.random() * 2.5 + 0.5;
+      }
+
+      const pGeo = new THREE.BufferGeometry();
+      pGeo.setAttribute('position', new THREE.BufferAttribute(pPositions, 3));
+      pGeo.setAttribute('size', new THREE.BufferAttribute(pSizes, 1));
+
+      const pMat = new THREE.PointsMaterial({
+        color: 0xaaccff,
+        size: 0.012,
+        transparent: true,
+        opacity: 0.35,
+        sizeAttenuation: true,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      });
+
+      const particles = new THREE.Points(pGeo, pMat);
+      scene.add(particles);
+
+      // -----------------------------------------------------------------------
+      // Camera Entry Animation
+      // -----------------------------------------------------------------------
+      const targetPos = new THREE.Vector3(0, 0, 2.6);
+      let entryProgress = 0;          // 0 → 1 over ~2 seconds
+      const entryDuration = 2.0;      // seconds
+      let entryDone = false;
+
+      // -----------------------------------------------------------------------
+      // Resize Handler
+      // -----------------------------------------------------------------------
+      const handleResize = () => {
+        const w = container.clientWidth;
+        const h = container.clientHeight;
+        camera.aspect = w / h;
+        camera.updateProjectionMatrix();
+        renderer.setSize(w, h);
+      };
+      const resizeObserver = new ResizeObserver(handleResize);
+      resizeObserver.observe(container);
+
+      // -----------------------------------------------------------------------
+      // Render Loop
+      // -----------------------------------------------------------------------
+      let animId: number;
+      const clock = new THREE.Clock();
+
+      const animate = () => {
+        animId = requestAnimationFrame(animate);
+
+        const delta = clock.getDelta();
+        const elapsed = clock.getElapsedTime();
+
+        // Update shader uniforms
+        (planeMat.uniforms.uTime as any).value = elapsed;
+        // Scan-line travels down the mesh
+        (planeMat.uniforms.uScanLine as any).value = (elapsed * 0.32) % 1.0;
+
+        // Gentle particle rotation
+        particles.rotation.y = elapsed * 0.04;
+        particles.rotation.x = Math.sin(elapsed * 0.02) * 0.06;
+
+        // Camera entry animation
+        if (!entryDone) {
+          entryProgress += delta / entryDuration;
+          if (entryProgress >= 1) {
+            entryProgress = 1;
+            entryDone = true;
+          }
+          // Ease-out cubic
+          const t = 1 - Math.pow(1 - entryProgress, 3);
+          camera.position.lerp(targetPos, t * 0.1);
+        }
+
+        controls.update();
+        renderer.render(scene, camera);
+      };
+
+      animate();
+
+      // -----------------------------------------------------------------------
+      // Custom Cursor
+      // -----------------------------------------------------------------------
+      renderer.domElement.style.cursor = 'grab';
+      renderer.domElement.addEventListener('pointerdown', () => {
+        renderer.domElement.style.cursor = 'grabbing';
+      });
+      renderer.domElement.addEventListener('pointerup', () => {
+        renderer.domElement.style.cursor = 'grab';
+      });
+
+      // -----------------------------------------------------------------------
+      // Cleanup — CRITICAL for Next.js page navigation
+      // -----------------------------------------------------------------------
+      cleanupRef.current = () => {
+        cancelAnimationFrame(animId);
+        resizeObserver.disconnect();
+        renderer.domElement.removeEventListener('pointerdown', pauseAutoRotate);
+        renderer.domElement.removeEventListener('wheel', pauseAutoRotate);
+        if (autoRotateTimeout) clearTimeout(autoRotateTimeout);
+        if (videoFailTimer !== null) window.clearTimeout(videoFailTimer);
+        video.removeEventListener('loadeddata', onVideoLoaded);
+        video.removeEventListener('error', onVideoError);
+
+        // Dispose geometry, materials, textures
+        planeGeo.dispose();
+        planeMat.dispose();
+        videoTexture.dispose();
+        pGeo.dispose();
+        pMat.dispose();
+
+        // Stop video + remove DOM element
+        video.pause();
+        video.src = '';
+        video.load();
+
+        controls.dispose();
+        renderer.dispose();
+
+        // Remove the canvas from the DOM
+        if (container.contains(renderer.domElement)) {
+          container.removeChild(renderer.domElement);
+        }
+        canvasElRef.current = null;
+      };
       } catch {
-        initFailedRef.current = true;
-        if (!aborted) setShowFallback(true);
-        cleanupRef.current?.();
-        cleanupRef.current = null;
+        if (!aborted) setShowFallbackVideo(true);
       }
     })();
 
+    // Return synchronous cleanup that calls the async-populated ref
     return () => {
       aborted = true;
       cleanupRef.current?.();
       cleanupRef.current = null;
     };
-  }, [lite, captureSignature, posterSrc]);
+  }, []); // intentionally empty — Three.js scene initializes once
 
   useEffect(() => {
     const cleanup = initScene();
@@ -871,6 +584,7 @@ export default function CryptVolumetric3D({
     };
   }, []);
 
+  // Sync touch-action when fullscreen changes (initial pan-y is set in initScene after OrbitControls).
   useEffect(() => {
     const canvas = canvasElRef.current;
     if (!canvas) return;
@@ -889,66 +603,85 @@ export default function CryptVolumetric3D({
     return () => window.removeEventListener('keydown', onKey);
   }, [pseudoFullscreen]);
 
-  useEffect(() => () => { document.body.style.overflow = ''; }, []);
+  useEffect(() => {
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, []);
 
   useEffect(() => {
-    initFailedRef.current = false;
-    return () => { initFailedRef.current = false; };
-  }, []);
+    if (!showFallbackVideo) return;
+    const v = fallbackVideoRef.current;
+    const root = rootRef.current;
+    if (!v || !root) return;
+    void v.play().catch(() => {
+      /* autoplay may still be deferred until gesture on some mobile browsers */
+    });
+    const kickPlay = () => {
+      void v.play();
+    };
+    root.addEventListener('pointerdown', kickPlay, { once: true });
+    return () => root.removeEventListener('pointerdown', kickPlay);
+  }, [showFallbackVideo]);
 
   return (
     <div
       ref={rootRef}
-      onDoubleClick={() => void toggleFullscreen()}
-      className={`relative w-full overflow-hidden group bg-[#030303] ${
-        pseudoFullscreen
-          ? 'fixed inset-0 z-[99999] m-0 h-[100dvh] w-screen max-w-none rounded-none'
-          : 'rounded-xl'
-      }`}
-      style={{
-        height:    pseudoFullscreen ? '100dvh' : height,
-        maxHeight: pseudoFullscreen ? '100dvh' : undefined,
+      onDoubleClick={() => {
+        void toggleFullscreen();
       }}
+      className={`relative w-full overflow-hidden rounded-xl bg-black group ${
+        pseudoFullscreen ? 'fixed inset-0 z-[99999] m-0 h-[100dvh] w-screen max-w-none rounded-none' : ''
+      }`}
+      style={{ height: pseudoFullscreen ? '100dvh' : height, maxHeight: pseudoFullscreen ? '100dvh' : undefined }}
     >
+
       {/* Three.js canvas mounts here */}
       <div
         ref={mountRef}
         className="absolute inset-0 w-full h-full"
-        aria-label="Interactive volumetric depth sculpture — drag to orbit, scroll to zoom"
+        aria-label="Interactive volumetric capture — drag to orbit, scroll to zoom"
       />
 
-      {/* Plain video fallback when WebGL/video init fails (e.g. mobile low-end) */}
-      {showFallback && (
+      {showFallbackVideo && (
         <video
+          ref={fallbackVideoRef}
           autoPlay
           muted
           loop
           playsInline
-          preload="metadata"
-          className="absolute inset-0 z-[3] h-full w-full object-cover"
-          aria-label="Volumetric video playback fallback"
+          preload="auto"
+          poster={posterSrc}
+          aria-label="Crypt volumetric capture — video playback"
+          title="Crypt volumetric capture — video playback"
+          className="absolute inset-0 z-[2] h-full w-full object-cover"
         >
-          {fallbackWebm ? <source src={fallbackWebm} type="video/webm" /> : null}
-          {fallbackMp4 ? <source src={fallbackMp4} type="video/mp4" /> : null}
+          <source src={webmSrc} type="video/webm" />
+          <source src={mp4Src} type="video/mp4" />
         </video>
       )}
 
-      {/* CSS vignette — above fallback video */}
+      {/* CSS vignette */}
       <div
         className={`absolute inset-0 z-[4] pointer-events-none ${
           pseudoFullscreen ? 'rounded-none' : 'rounded-xl'
         }`}
         style={{
           background:
-            'radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,0.60) 100%)',
+            'radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,0.65) 100%)',
         }}
       />
 
-      {/* Orbit / zoom hint — fades on hover */}
+      {/* UI hint */}
       <div
-        className="absolute bottom-4 left-1/2 z-[5] -translate-x-1/2 pointer-events-none flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 backdrop-blur-sm border border-white/10 text-white/50 text-xs tracking-wider opacity-100 group-hover:opacity-0 transition-opacity duration-700"
+        className="absolute bottom-4 left-1/2 -translate-x-1/2 pointer-events-none
+                   flex items-center gap-2 px-3 py-1.5 rounded-full
+                   bg-white/5 backdrop-blur-sm border border-white/10
+                   text-white/50 text-xs tracking-wider
+                   opacity-100 group-hover:opacity-0 transition-opacity duration-700"
         aria-hidden="true"
       >
+        {/* Orbit icon */}
         <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="opacity-70">
           <path
             d="M7 1.5C3.96 1.5 1.5 3.96 1.5 7s2.46 5.5 5.5 5.5 5.5-2.46 5.5-5.5"
@@ -965,8 +698,11 @@ export default function CryptVolumetric3D({
       {/* Fullscreen toggle */}
       <button
         type="button"
-        onClick={(e) => { e.stopPropagation(); void toggleFullscreen(); }}
-        className="absolute top-3 right-3 z-[5] flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/20 bg-black/55 backdrop-blur-md text-white/80 hover:text-white hover:border-white/40 transition-colors shadow-lg shadow-black/40"
+        onClick={(e) => {
+          e.stopPropagation();
+          void toggleFullscreen();
+        }}
+        className="absolute top-3 right-3 z-50 flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/20 bg-black/55 backdrop-blur-md text-white/80 hover:text-white hover:border-white/40 transition-colors shadow-lg shadow-black/40"
         aria-label={immersive ? 'Exit fullscreen volumetric viewer' : 'Enter fullscreen volumetric viewer'}
       >
         {immersive ? (

@@ -445,16 +445,6 @@ export default function TheCryptPage() {
     return () => sec.removeEventListener('mousemove', onMove);
   }, [enableParallax, mouseX, mouseY]);
 
-  /** Six synchronized captures (RGB + Kinect-style thermal); URLs deduped in the viewer when the same composite file is used. */
-  const cryptSixCaptureFusion = useMemo(
-    () =>
-      Array.from({ length: 6 }, (_, i) => ({
-        webmSrc: getVideoUrl(`/work/crypt-6cap-${i + 1}.webm`),
-        mp4Src: getVideoUrl(`/work/crypt-6cap-${i + 1}.mp4`),
-      })),
-    []
-  );
-
   // Accurate technical specs - 4 depth sensors only (numeric for AnimatedCounter)
   const technicalSpecs = useMemo(() => [
     { label: 'Depth Sensors', value: 4, displayValue: '4', unit: 'units', prefix: '', suffix: '' },
@@ -875,7 +865,13 @@ export default function TheCryptPage() {
               {/* Content area — min height on small screens; cinematic 21:9 from md up */}
               <div className="relative flex h-[min(72vh,100vw)] w-full items-center justify-center overflow-hidden bg-gradient-to-b from-[#050505] via-[#080808] to-[#050505] md:aspect-[21/9] md:h-auto md:min-h-[min(24rem,52vh)] lg:min-h-[min(28rem,56vh)]">
                 {/* Interactive 3D volumetric capture - drag to orbit; fullscreen control top-right */}
-                <CryptVolumetric3D fusionSources={cryptSixCaptureFusion} height="100%" />
+                <CryptVolumetric3D
+                  webmSrc={getVideoUrl('/work/crypt-demo.webm')}
+                  mp4Src={getVideoUrl('/work/crypt-demo.mp4')}
+                  depthIntensity={0.54}
+                  depthV2Strength={1}
+                  height="100%"
+                />
                 
                 {/* Subtle overlay to ensure UI readability */}
                 <div className="absolute inset-0 bg-[#030303]/30 z-[1] pointer-events-none" />
