@@ -70,7 +70,11 @@ const nextConfig: NextConfig = {
   productionBrowserSourceMaps: false,
   // Performance: experimental features
   experimental: {
-    optimizePackageImports: ['framer-motion', 'lucide-react', '@react-three/fiber', '@react-three/drei'],
+    // lucide-react omitted: Turbopack + optimizePackageImports can leave per-icon
+    // module factories unavailable at runtime ("module factory is not available"
+    // for icons like at-sign). Barrel imports from 'lucide-react' still tree-shake
+    // well under the default bundler behavior.
+    optimizePackageImports: ['framer-motion', '@react-three/fiber', '@react-three/drei'],
     webVitalsAttribution: ['CLS', 'LCP', 'FCP', 'FID', 'TTFB', 'INP'],
   },
   async headers() {
